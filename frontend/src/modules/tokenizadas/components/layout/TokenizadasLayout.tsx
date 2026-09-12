@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { TokenizadasSidebar } from './TokenizadasSidebar';
 import { TokenizadasTopbar } from './TokenizadasTopbar';
 import { TickerBar } from './TickerBar';
+import { HarvestFab } from './HarvestFab';
 import '../../styles/harvest-tokens.css';
 
 /**
@@ -49,6 +50,7 @@ export function TokenizadasLayout() {
           </main>
         </div>
       </div>
+      <HarvestFab />
     </div>
   );
 }

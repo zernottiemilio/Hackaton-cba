@@ -93,14 +93,24 @@ export const useAuthStore = create<AuthState>()(
           sesionPrevia: null,
         });
       },
-      logout: () =>
+      logout: () => {
         set({
           accessToken: null,
           refreshToken: null,
           usuario: null,
           isAuthenticated: false,
           sesionPrevia: null,
-        }),
+        });
+        // Al cerrar sesión también limpiamos la wallet mock del módulo Harvest.
+        // Sin esto, el walletStore queda persistido en localStorage con el
+        // último rol conectado, y la UI se ve "logueada" aunque no lo esté.
+        try {
+          const raw = localStorage.getItem('agrofacil-wallet');
+          if (raw) localStorage.removeItem('agrofacil-wallet');
+        } catch {
+          /* localStorage bloqueado en algunos navegadores en modo privado */
+        }
+      },
     }),
     {
       name: 'agrofacil-auth',
