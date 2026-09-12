@@ -13,6 +13,8 @@ export const formaPagoSchema = z.enum(['contado', 'canje', 'financiado']);
 
 export const crearInsumoAplicadoSchema = z.object({
   loteCampaniaId: z.string().uuid('loteCampaniaId inválido'),
+  /** FK opcional al catálogo de insumos. Si presente, descuenta stock. */
+  insumoId: z.string().uuid().optional().nullable(),
   tipo: tipoInsumoSchema,
   producto: z.string().trim().min(1, 'producto requerido'),
   cantidad: z.coerce.number().positive('cantidad debe ser > 0'),
@@ -23,6 +25,7 @@ export const crearInsumoAplicadoSchema = z.object({
 export class CrearInsumoAplicadoDto extends createZodDto(crearInsumoAplicadoSchema) {}
 
 export const actualizarInsumoAplicadoSchema = z.object({
+  insumoId: z.string().uuid().optional().nullable(),
   tipo: tipoInsumoSchema.optional(),
   producto: z.string().trim().min(1).optional(),
   cantidad: z.coerce.number().positive().optional(),

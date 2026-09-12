@@ -1,23 +1,29 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { RolMensaje } from '@prisma/client';
+import { Prisma, RolMensaje } from '@prisma/client';
+import { promises as fs } from 'fs';
+import { extname } from 'path';
+
 import { PrismaService } from '../../prisma/prisma.service';
-import { ClaudeClient, type ClaudeMessage } from './claude.client';
+import { ClaudeClient, type ClaudeMessage, type ImagenAdjunta } from './claude.client';
 import { ContextService } from './context.service';
+import { ToolExecutorService } from './tool-executor.service';
+
+type AdjuntoMensaje =
+  | { tipo: 'image'; url: string; mediaType: ImagenAdjunta['mediaType']; nombre: string }
+  | { tipo: 'audio'; url: string; mediaType: string; nombre: string };
 
 /**
- * Orquestador del asistente IA.
+ * Orquestador del asistente IA agronómico.
  *
  * Flujo de un mensaje:
- *  1. Persistir el mensaje del usuario en la conversación.
- *  2. Armar el contexto agro de la cuenta (lectura de TODOS los módulos).
- *  3. Tomar las últimas N interacciones de la conversación para mantener
- *     coherencia sin volar el window de tokens.
- *  4. Construir system prompt = persona + reglas + contexto.
- *  5. Llamar a Claude.
- *  6. Persistir la respuesta como mensaje 'assistant'.
- *  7. Si la conversación todavía no tiene título, generarlo del primer
- *     mensaje (primeras ~60 chars del usuario).
- *  8. Devolver el mensaje del asistente.
+ *  1. Persistir el mensaje del usuario.
+ *  2. Armar contexto agro de la cuenta (lectura de TODOS los módulos).
+ *  3. Tomar últimos N mensajes para mantener coherencia.
+ *  4. System prompt = identidad agronómica + capacidades + contexto.
+ *  5. Llamar a Claude con tools habilitadas (el modelo puede ejecutar
+ *     acciones como registrar lluvia, labor, insumo, actualizar rinde, etc.).
+ *  6. Persistir respuesta + metadata (tool calls usadas).
+ *  7. Autogenerar título si no había.
  */
 @Injectable()
 export class AsistenteService {
@@ -28,6 +34,7 @@ export class AsistenteService {
     private readonly prisma: PrismaService,
     private readonly context: ContextService,
     private readonly claude: ClaudeClient,
+    private readonly toolExecutor: ToolExecutorService,
   ) {}
 
   async listarConversaciones(cuentaId: string, usuarioId: string) {
@@ -66,23 +73,69 @@ export class AsistenteService {
     await this.prisma.conversacion.update({ where: { id }, data: { activo: false } });
   }
 
-  async enviarMensaje(cuentaId: string, usuarioId: string, conversacionId: string, contenido: string) {
-    // Validar pertenencia
+  async enviarMensaje(
+    cuentaId: string,
+    usuarioId: string,
+    conversacionId: string,
+    contenido: string,
+    archivosImagen: Express.Multer.File[] = [],
+    archivoAudio?: Express.Multer.File,
+  ) {
     const conv = await this.obtenerConversacion(cuentaId, usuarioId, conversacionId);
 
-    // 1) Persistir mensaje del usuario
+    // 1) Procesar adjuntos: leer cada imagen una vez en buffer para reusar
+    // (URL guardada en metadata + base64 para Claude).
+    const adjuntos: AdjuntoMensaje[] = [];
+    const imagenesParaClaude: ImagenAdjunta[] = [];
+
+    for (const file of archivosImagen) {
+      try {
+        const buffer = await fs.readFile(file.path);
+        const dataBase64 = buffer.toString('base64');
+        const mediaType = this.mediaTypeDesdeExtension(file.filename);
+        adjuntos.push({
+          tipo: 'image',
+          url: `/uploads/asistente/${file.filename}`,
+          mediaType,
+          nombre: file.originalname,
+        });
+        imagenesParaClaude.push({ mediaType, dataBase64 });
+      } catch (err) {
+        this.logger.error(`No pude leer la imagen ${file.path}: ${(err as Error).message}`);
+      }
+    }
+
+    // El audio se guarda como adjunto reproducible. Claude no entiende
+    // audio nativo, la transcripción ya viene en `contenido` desde el
+    // cliente (Web Speech API), así que sólo lo persistimos.
+    if (archivoAudio) {
+      adjuntos.push({
+        tipo: 'audio',
+        url: `/uploads/asistente/${archivoAudio.filename}`,
+        mediaType: archivoAudio.mimetype || 'audio/webm',
+        nombre: archivoAudio.originalname,
+      });
+    }
+
+    // 2) Mensaje del usuario en DB (con adjuntos en metadata)
     const userMsg = await this.prisma.mensaje.create({
-      data: { conversacionId, rol: RolMensaje.user, contenido },
+      data: {
+        conversacionId,
+        rol: RolMensaje.user,
+        contenido,
+        metadata: adjuntos.length > 0 ? ({ adjuntos } as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+      },
     });
 
-    // 2) Contexto agro
+    // 3) Contexto agro
     const contexto = await this.context.armarContexto(cuentaId);
 
-    // 3) Historial (mensajes previos + el actual)
+    // 4) Historial — para mensajes previos no recuperamos imágenes
+    // (sólo el último ya las tiene desde el path actual)
     const mensajesPrevios = await this.prisma.mensaje.findMany({
-      where: { conversacionId },
+      where: { conversacionId, id: { not: userMsg.id } },
       orderBy: { createdAt: 'asc' },
-      take: AsistenteService.HISTORIA_MAX,
+      take: AsistenteService.HISTORIA_MAX - 1,
     });
 
     const claudeMessages: ClaudeMessage[] = mensajesPrevios
@@ -92,20 +145,35 @@ export class AsistenteService {
         content: m.contenido,
       }));
 
-    // 4) System prompt = persona + datos
+    // 5) Agregar el mensaje recién creado CON sus imágenes
+    const placeholder =
+      imagenesParaClaude.length > 0 ? 'Mirá esto.' :
+      archivoAudio ? '(El productor mandó una nota de voz pero no se pudo transcribir.)' : '';
+    claudeMessages.push({
+      role: 'user',
+      content: contenido || placeholder,
+      imagenes: imagenesParaClaude.length > 0 ? imagenesParaClaude : undefined,
+    });
+
+    // 6) System prompt
     const systemPrompt = this.armarSystemPrompt(contexto);
 
-    // 5) Llamar a Claude (o stub si no hay API key)
+    // 7) Claude con tool use loop
     let respuestaTexto: string;
     let metadata: Record<string, unknown> = {};
     try {
-      const r = await this.claude.chat(systemPrompt, claudeMessages);
-      respuestaTexto = r.texto;
+      const r = await this.claude.run(
+        systemPrompt,
+        claudeMessages,
+        async (toolName, input) => this.toolExecutor.execute(toolName, input, { cuentaId }),
+      );
+      respuestaTexto = r.texto || '(El asistente ejecutó acciones pero no devolvió texto. Recargá la página para ver los cambios.)';
       metadata = {
         modelo: r.modelo,
         tokensInput: r.tokensInput,
         tokensOutput: r.tokensOutput,
         latenciaMs: r.latenciaMs,
+        toolCalls: r.toolCalls,
       };
     } catch (err) {
       this.logger.error(`Error llamando Claude: ${(err as Error).message}`);
@@ -115,7 +183,7 @@ export class AsistenteService {
       metadata = { error: (err as Error).message };
     }
 
-    // 6) Persistir respuesta del asistente
+    // 8) Mensaje del asistente
     const assistantMsg = await this.prisma.mensaje.create({
       data: {
         conversacionId,
@@ -125,15 +193,15 @@ export class AsistenteService {
       },
     });
 
-    // 7) Autogenerar título si todavía no tiene
+    // 9) Título
     if (!conv.titulo) {
-      const titulo = contenido.trim().slice(0, 60) + (contenido.length > 60 ? '…' : '');
+      const baseTitulo = contenido.trim() || (adjuntos.length > 0 ? `Imagen — ${adjuntos[0].nombre}` : 'Conversación');
+      const titulo = baseTitulo.slice(0, 60) + (baseTitulo.length > 60 ? '…' : '');
       await this.prisma.conversacion.update({
         where: { id: conversacionId },
         data: { titulo, updatedAt: new Date() },
       });
     } else {
-      // touch updatedAt para que la conversación suba en el orden
       await this.prisma.conversacion.update({
         where: { id: conversacionId },
         data: { updatedAt: new Date() },
@@ -144,41 +212,151 @@ export class AsistenteService {
   }
 
   // ============================================================
-  // PROMPT — esto es lo que después podés tunear con el prompt
-  // que me pases. Por ahora hay una base sensata.
+  // SYSTEM PROMPT — agente agronómico de AgroFácil
+  // Basado en AgroFacil_Prompt_Agente_Agronomico.docx v1.0
   // ============================================================
+
+  private mediaTypeDesdeExtension(filename: string): ImagenAdjunta['mediaType'] {
+    const ext = extname(filename).toLowerCase();
+    switch (ext) {
+      case '.png':  return 'image/png';
+      case '.webp': return 'image/webp';
+      case '.gif':  return 'image/gif';
+      default:      return 'image/jpeg';
+    }
+  }
 
   private armarSystemPrompt(contexto: object): string {
     const contextoJson = JSON.stringify(contexto, null, 2);
+    const fechaHoy = new Date().toISOString().slice(0, 10);
 
-    return `Sos AgroFácil Assistant, un asistente para productores agropecuarios argentinos.
+    return `# IDENTIDAD
+Sos el agrónomo de AgroFácil: un ingeniero agrónomo virtual especializado en
+cultivos extensivos de Argentina, sobre todo trigo, soja y maíz. Asistís a
+productores de la zona núcleo en el diagnóstico de problemas de cultivo, en
+la orientación sobre su manejo, y también ejecutás acciones administrativas
+en la app cuando el productor te lo pide (registrar lluvias, labores, insumos,
+actualizar rindes, etc.). Tu conocimiento es profundo, pero tu rol es
+ORIENTAR, no reemplazar al profesional matriculado.
 
-PERSONA
-- Hablás en español argentino, tuteás (no usás "usted").
-- Sos directo y útil, sin vueltas. No saludás de más.
-- Conocés el agro: cultivos extensivos (soja, trigo, maíz, girasol, sorgo), unidades del campo (qq, ha, qq/ha, USD/tn, mm), labores típicas (siembra, pulverización, fertilización, cosecha), formas de pago (contado, canje, financiado).
+# QUÉ HACÉS
+- Diagnosticás enfermedades, plagas, malezas y deficiencias nutricionales a
+  partir de la descripción del productor y/o de fotos.
+- Distinguís causas bióticas (hongos, bacterias, virus, insectos) de
+  abióticas (clima, nutrición, fitotoxicidad, suelo).
+- Orientás sobre manejo: cultural, biológico y, cuando corresponde, químico.
+- Promovés manejo integrado (MIP) y rotación de modos de acción para prevenir
+  resistencia.
+- EJECUTÁS acciones administrativas en la app a pedido del productor usando
+  las tools disponibles (ver sección CAPACIDADES DE GESTIÓN).
+- Analizás los datos cargados en la cuenta (costos, márgenes, lluvias,
+  rindes, clima) y das insights útiles para la toma de decisiones.
 
-UNIDADES Y CONVERSIONES (importante)
-- 1 quintal (qq) = 100 kg. 1 tonelada (tn) = 10 qq.
-- precio_usd_qq = precio_usd_tn / 10.
-- Superficie en hectáreas (ha).
-- Rinde en quintales por hectárea (qq/ha).
-- Margen y costos en USD (también por hectárea).
+# REGLAS INNEGOCIABLES
+1. NO emitís recetas. En Argentina la aplicación de fitosanitarios requiere
+   receta agronómica firmada por un ingeniero agrónomo matriculado. Cerrá
+   toda recomendación química derivando al productor a su agrónomo
+   matriculado para la receta y la decisión final.
+2. EL MARBETE MANDA. La dosis, el período de carencia, el de reingreso y las
+   condiciones legales de uso están en el marbete del producto y en el
+   registro vigente de SENASA. Indicá siempre que esa es la fuente oficial a
+   verificar.
+3. NO tenés datos en vivo. No accedés a internet ni al registro de SENASA.
+   Por lo tanto: nunca afirmes que un producto está registrado hoy, no
+   inventes números de registro ni marcas comerciales como si fueran un dato
+   cierto, y no des dosis exactas presentadas como oficiales. Trabajá por
+   PRINCIPIO ACTIVO y da rangos orientativos, aclarando que deben confirmarse
+   en el marbete vigente. Recordá que las registraciones cambian (hay activos
+   que se restringen o prohíben) y que tu conocimiento tiene una fecha de corte.
+4. ANTE LA DUDA, DERIVÁ. Si el diagnóstico no es claro con la información
+   disponible, decilo, ofrecé los diagnósticos diferenciales y recomendá
+   confirmación a campo por el agrónomo o por análisis de laboratorio.
+5. NO INVENTES. Si no sabés o no estás seguro, decilo. Una incertidumbre
+   honesta vale más que un dato falso, sobre todo tratándose de químicos.
+6. SEGURIDAD Y AMBIENTE. Cuando sugieras control químico, recordá el uso de
+   EPP, el respeto de las distancias de aplicación a zonas pobladas y cursos
+   de agua (regulación provincial), las condiciones climáticas (viento,
+   deriva, temperatura) y los períodos de carencia y reingreso. Los valores
+   específicos, al marbete y a la normativa local.
+7. MANTENÉ EL FOCO. Respondés temas agronómicos del cultivo y de gestión de
+   la app. Si te preguntan otra cosa, redirigí con amabilidad.
+8. CONFIRMÁ ANTES DE EJECUTAR ACCIONES IRREVERSIBLES O AMBIGUAS. Si la pedida
+   no es clara ("registrá una lluvia"), preguntá lo mínimo para ejecutar bien.
+   Si es clara y tenés los datos ("registrá 12mm de hoy"), ejecutá directo y
+   confirmá brevemente al productor.
 
-REGLAS
-- Respondé SOLO sobre lo que vas a hacer con los datos que te paso. No inventes datos.
-- Si una respuesta requiere un dato que no tenés, decile al usuario qué le falta cargar.
-- Si te piden cálculos, usá los resultados que YA están calculados en el contexto (resultadosCalculados). No reinventes fórmulas.
-- Para totales agregados, sumá los totales en USD y RECALCULÁ los /ha sobre la superficie agregada. NUNCA promedies promedios.
-- Sé conciso. Para listas usá viñetas. Para datos numéricos siempre indicá la unidad.
-- Si te preguntan algo que está fuera del agro o del estado de la cuenta, redirigí amablemente.
+# CAPACIDADES DE GESTIÓN (TOOLS)
+Tenés acceso a las siguientes acciones para ejecutar a pedido del productor:
 
-CONTEXTO ACTUAL DE LA CUENTA
-A continuación va el snapshot del estado real de la cuenta del usuario. Usalo como única fuente de verdad para responder.
+- registrar_lluvia: para anotar mm de un día en un establecimiento.
+- registrar_labor: para anotar una labor (siembra, pulverización, etc.) en
+  un lote-campaña.
+- registrar_insumo: para anotar un insumo aplicado (producto, cantidad,
+  unidad, costo) en un lote-campaña.
+- actualizar_lote_campania: para corregir rinde estimado, rinde real,
+  precio del grano (USD/tn), fecha de siembra o cosecha.
+- crear_lote: para agregar un nuevo lote a un establecimiento.
+- asignar_cultivo_a_campania: para asignar un lote a una campaña con un
+  cultivo (crea un lote_campania).
+
+Para usarlas, sacá los IDs (establecimientoId, loteId, loteCampaniaId,
+cultivoId, campaniaId) del CONTEXTO inyectado más abajo. Si el productor
+te dice un nombre ("el lote 4", "soja"), buscá el ID en el contexto.
+
+REGLA DE PRECIO DEL GRANO: si te dictan un precio mayor a 1000 USD/tn,
+asumí que se confundieron de unidad (pesos o por quintal) y pedí
+confirmación antes de actualizar. Los granos típicos están entre 100 y 500
+USD/tn.
+
+# CÓMO DIAGNOSTICÁS
+Antes de concluir, asegurate de tener el contexto mínimo. Si falta,
+preguntá de forma breve y concreta:
+- Cultivo y estadio fenológico.
+- Zona o provincia.
+- Síntomas: qué se ve, en qué parte de la planta, color y forma.
+- Distribución en el lote (focos, bordes, generalizado) y velocidad de
+  avance.
+- Condiciones recientes: lluvias, temperatura, cultivo antecesor, últimas
+  labores.
+
+Si recibís una foto, describí primero lo que observás; si no alcanza para
+concluir, pedí otro ángulo o más detalle. Razoná del síntoma a la causa,
+priorizando lo más probable para ese cultivo, zona y momento.
+
+# FORMATO DE RESPUESTA
+Adaptate a la pregunta. Si es simple, respondé corto. Cuando hagas un
+diagnóstico, usá esta estructura:
+1. Diagnóstico probable — qué es y tu nivel de confianza (alto / medio / bajo).
+2. Diferenciales — otras causas a descartar.
+3. Manejo recomendado — opciones culturales, biológicas y, si corresponde,
+   químicas.
+4. Control químico (orientativo) — principio(s) activo(s) y grupo de
+   resistencia. Aclarando que la elección final, la dosis y la receta las
+   define el agrónomo matriculado según el marbete vigente.
+5. Precauciones — seguridad, ambiente y regulación a verificar localmente.
+6. Próximo paso — qué confirmar y por qué conviene la consulta profesional.
+
+Cuando ejecutes una acción administrativa (tool), confirmá en una línea:
+"Listo: registré 12 mm para hoy en Campo Norte." Sin formalismos.
+
+# CONTEXTO DE LA APP
+La fecha de hoy es ${fechaHoy}. A continuación va el snapshot completo del
+estado real de la cuenta del productor (establecimientos, lotes, campañas
+activas, lotes en campaña con sus rindes/precios/resultados calculados,
+últimas labores, últimos insumos aplicados, lluvias de los últimos 90 días
+con su origen — manual o de Open-Meteo —, y clima actual + pronóstico 5
+días si hay coordenadas cargadas).
+
+Usalo como única fuente de verdad para responder y para sacar los IDs que
+necesitan las tools.
 
 \`\`\`json
 ${contextoJson}
 \`\`\`
-`;
+
+# TONO
+Hablás claro, directo y en argentino (voseo). Sos del campo: práctico y sin
+vueltas, sin tecnicismos innecesarios pero preciso cuando hace falta.
+Honesto con lo que no se sabe.`;
   }
 }

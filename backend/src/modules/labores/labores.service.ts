@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+
 import { PrismaService } from '../../prisma/prisma.service';
 import { calcularSkip, paginar } from '../../common/pagination';
 import type { CrearLaborDto, ActualizarLaborDto, ListarLaboresQuery } from './labores.dto';
@@ -49,6 +51,9 @@ export class LaboresService {
         costoTotalUsd: dto.costoTotalUsd,
         formaPago: dto.formaPago,
         nota: dto.nota,
+        densidadSemHa: dto.densidadSemHa ?? null,
+        variedadId: dto.variedadId ?? null,
+        datos: dto.datos ? (dto.datos as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
       },
     });
   }
@@ -64,6 +69,13 @@ export class LaboresService {
         ...(dto.costoTotalUsd !== undefined && { costoTotalUsd: dto.costoTotalUsd }),
         ...(dto.formaPago !== undefined && { formaPago: dto.formaPago }),
         ...(dto.nota !== undefined && { nota: dto.nota }),
+        ...(dto.densidadSemHa !== undefined && { densidadSemHa: dto.densidadSemHa }),
+        ...(dto.variedadId !== undefined && { variedadId: dto.variedadId }),
+        ...(dto.datos !== undefined && {
+          datos: dto.datos === null
+            ? Prisma.JsonNull
+            : (dto.datos as unknown as Prisma.InputJsonValue),
+        }),
       },
     });
   }

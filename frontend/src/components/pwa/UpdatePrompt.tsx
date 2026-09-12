@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
 import { registerSW } from 'virtual:pwa-register';
 import { Button } from '@/components/ui/button';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 
 /**
  * Detecta cuando hay una versión nueva de la PWA disponible (gracias al SW
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button';
 export function UpdatePrompt() {
   const [needRefresh, setNeedRefresh] = useState(false);
   const [actualizar, setActualizar] = useState<(() => Promise<void>) | null>(null);
+  const { online, cantidadPendientes } = useOfflineSync();
 
   useEffect(() => {
     const update = registerSW({
@@ -30,9 +32,14 @@ export function UpdatePrompt() {
     setActualizar(() => () => update(true));
   }, []);
 
+  // No mostramos el prompt si está offline o tiene operaciones pendientes:
+  // recargar en ese momento puede dejar al usuario con un loading interminable
+  // y/o perder progreso (cache vieja vs nueva).
+  const puedeActualizar = needRefresh && online && cantidadPendientes === 0;
+
   return (
     <AnimatePresence>
-      {needRefresh && (
+      {puedeActualizar && (
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}

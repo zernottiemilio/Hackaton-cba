@@ -14,6 +14,113 @@ datasource db {
 // Auth & tenancy
 // ============================================================
 
+enum RolGlobal {
+  superadmin
+  ingeniero
+  propietario
+}
+
+enum RolEnCuenta {
+  ingeniero      // control total: carga, edita, configura
+  propietario    // lectura + comentarios + ediciones menores en sus datos
+  operador       // carga datos pero no edita catálogos
+}
+
+// ============================================================
+// Tokenización — enums
+// ============================================================
+
+/// Contextos que un usuario puede tomar en el módulo tokenizadas.
+/// PRODUCTOR e INVERSOR se pueden combinar en el mismo usuario; el shell
+/// muestra el switch de contexto cuando eso pasa. ACOPIO es excluyente:
+/// pertenece a una organización externa y no combina con los demás.
+enum RolTokenizacion {
+  productor
+  inversor
+  acopio
+  admin_plataforma
+}
+
+enum EstadoCampanaToken {
+  borrador
+  en_revision
+  rechazada
+  abierta
+  fondeada
+  en_curso
+  en_cosecha
+  liquidada
+  cancelada
+}
+
+enum ModoTokenizacionTipo {
+  porcentual   // 30% de lo que se produzca — riesgo del inversor
+  fijo         // 300 tn pase lo que pase — riesgo del productor
+}
+
+enum FuentePrecio {
+  pizarra_rosario
+  matba_futuro
+  manual
+}
+
+enum EstadoTenencia {
+  activa
+  liquidada
+  en_disputa
+}
+
+/// Escalera de integración con el acopio (§9.6 del hackaton.md).
+enum NivelIntegracion {
+  manual          // admin carga lo que llega por mail/WhatsApp
+  portal          // el acopio carga en el sistema
+  api             // nuestro sistema habla con el software del acopio
+  arca_delegado   // leemos los webservices de ARCA directamente
+}
+
+/// Estado SISA (Sistema de Información Simplificado Agrícola de ARCA).
+/// Solo se opera con acopios en estado 1 o 2.
+enum SisaEstado {
+  uno
+  dos
+  tres
+  cuatro
+}
+
+enum EstadoAfectacion {
+  vigente
+  cumplida
+  incumplida
+  en_disputa
+}
+
+/// Semáforo por afectación (§9.7): verde = OK, amarillo = CTG sin conciliar
+/// o merma alta, rojo = grano desviado a otro destino.
+enum SemaforoAfectacion {
+  verde
+  amarillo
+  rojo
+}
+
+enum EstadoConciliacion {
+  pendiente
+  conciliado
+  desvio      // grano fue a un destino distinto al comprometido
+  huerfano    // CTG sin afectación asociada
+}
+
+enum MotivoLiberacion {
+  excedente               // sobró más de lo comprometido
+  campana_liquidada
+  autorizacion_admin      // liberación anticipada autorizada
+}
+
+enum OrigenCargaMovimiento {
+  acopio
+  admin
+  api
+}
+
 model Cuenta {
   id           String   @id @default(uuid())
   nombre       String
@@ -25,28 +132,180 @@ model Cuenta {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   usuarios         Usuario[]
+  membresias       UsuarioCuenta[]
   establecimientos Establecimiento[]
   campanias        Campania[]
+  suscripcion      SuscripcionCuenta?
+  facturas         Factura[]
 
   @@map("cuentas")
 }
 
+// ============================================================
+// Facturación (cobro a las cuentas que usan la plataforma)
+// ============================================================
+
+enum PlanFacturacion {
+  basico
+  pro
+  enterprise
+  custom
+}
+
+enum EstadoFactura {
+  pendiente
+  pagada
+  vencida
+  anulada
+}
+
+/// Plan + precio recurrente de cada cuenta. 1:1 con Cuenta — si no existe,
+/// la cuenta no tiene facturación configurada todavía.
+model SuscripcionCuenta {
+  id                String           @id @default(uuid())
+  cuentaId          String           @unique @map("cuenta_id")
+  plan              PlanFacturacion  @default(basico)
+  precioMensualUsd  Decimal          @map("precio_mensual_usd") @db.Decimal(12, 2)
+  /// Día del mes en que vence la factura (1-28).
+  diaVencimiento    Int              @default(10) @map("dia_vencimiento")
+  activa            Boolean          @default(true)
+  notaInterna       String?          @map("nota_interna") @db.Text
+  iniciadaEn        DateTime         @default(now()) @map("iniciada_en")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  cuenta            Cuenta           @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+
+  @@map("suscripciones_cuenta")
+}
+
+/// Factura emitida a una cuenta por un período (mes/año). Una sola por
+/// período por cuenta para no duplicar. Incluye sus conceptos como JSON
+/// (líneas) — para el MVP suele ser una sola línea "Suscripción mensual".
+model Factura {
+  id            String        @id @default(uuid())
+  cuentaId      String        @map("cuenta_id")
+  /// Número visible "F-0001" (incremental global de la plataforma).
+  numero        Int           @unique @default(autoincrement())
+  periodoMes    Int           @map("periodo_mes")
+  periodoAnio   Int           @map("periodo_anio")
+  /// Líneas de la factura: [{ descripcion, cantidad, precioUnitarioUsd, subtotalUsd }, ...]
+  conceptos     Json
+  subtotalUsd   Decimal       @map("subtotal_usd") @db.Decimal(14, 2)
+  impuestosUsd  Decimal       @default(0) @map("impuestos_usd") @db.Decimal(14, 2)
+  totalUsd      Decimal       @map("total_usd") @db.Decimal(14, 2)
+  estado        EstadoFactura @default(pendiente)
+  emitidaEn     DateTime      @default(now()) @map("emitida_en")
+  vencimiento   DateTime      @map("vencimiento") @db.Date
+  pagadaEn      DateTime?     @map("pagada_en")
+  metodoPago    String?       @map("metodo_pago")
+  notaInterna   String?       @map("nota_interna") @db.Text
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  cuenta        Cuenta        @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+
+  @@unique([cuentaId, periodoMes, periodoAnio])
+  @@index([estado])
+  @@index([cuentaId])
+  @@map("facturas")
+}
+
 model Usuario {
   id           String    @id @default(uuid())
+  /// LEGACY: la cuenta "casa" del usuario. Para ingenieros se mantiene como
+  /// su cuenta default, pero el acceso real viene de las membresías.
+  /// A futuro vamos a eliminar esta columna cuando todo el código use UsuarioCuenta.
   cuentaId     String    @map("cuenta_id")
   email        String    @unique
   passwordHash String    @map("password_hash")
   nombre       String
+  rolGlobal    RolGlobal @default(ingeniero) @map("rol_global")
+  /// Address de la wallet Solana del usuario (base58). En esta fase es mock
+  /// generada por MockLedgerService al "conectar wallet"; cuando entre el
+  /// programa on-chain es la wallet real que Phantom aprueba.
+  walletAddress String?  @unique @map("wallet_address")
+  /// Secret key del keypair custodial cifrada con AES-256-GCM (formato base64
+  /// `iv:tag:ciphertext`). Solo se llena cuando LEDGER_IMPL=solana. En modo
+  /// mock queda null. Nunca debe salir del backend.
+  walletSecretCifrado String? @map("wallet_secret_cifrado") @db.Text
+  /// Timestamp del transfer inicial de SOL desde el fee-payer. Sirve para no
+  /// re-fondear la misma wallet en cada conectarWallet.
+  walletFondeadaEn DateTime? @map("wallet_fondeada_en")
+  /// Rol único del usuario en la plataforma. Se elige al momento del registro
+  /// y determina qué shell/rutas ve al hacer login (productor, inversor, admin).
+  /// LEGACY: convive con `contextosTokenizacion` (array) hasta que terminemos
+  /// de migrar el frontend. A partir de este campo se decide el redirect.
+  rolPlataforma RolTokenizacion? @map("rol_plataforma")
+  /// LEGACY: array de contextos. Sigue vivo por compat mientras migramos.
+  contextosTokenizacion RolTokenizacion[] @default([]) @map("contextos_tokenizacion")
+  /// FK opcional al Acopio al que pertenece este usuario, si es rol `acopio`.
+  /// Un usuario acopio tiene visibilidad sobre las plantas y afectaciones
+  /// de esta organización, y sólo sobre esas.
+  acopioId     String?   @map("acopio_id")
   activo       Boolean   @default(true)
   ultimoLogin  DateTime? @map("ultimo_login")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   cuenta       Cuenta    @relation(fields: [cuentaId], references: [id])
+  acopio       Acopio?   @relation("MiembrosDelAcopio", fields: [acopioId], references: [id])
+  membresias   UsuarioCuenta[]
   conversaciones Conversacion[]
+  monitoreos   Monitoreo[]
+  reportes     Reporte[]
+  comentariosReporte ComentarioReporte[]
+  alertas      Alerta[]
+  invitaciones TokenInvitacion[]
+  tokenizacionesProductor TokenizacionCampana[] @relation("ProductorDeTokenizacion")
+  tenenciasInversor       TenenciaToken[]       @relation("InversorDeTenencia")
 
   @@index([cuentaId])
+  @@index([walletAddress])
+  @@index([acopioId])
   @@map("usuarios")
+}
+
+/// Token de invitación. Lo genera el superadmin (o un ingeniero invitando)
+/// al crear un usuario sin password. El usuario llega vía email con el link
+/// /activar/:token, define su password y el token se marca como usado.
+model TokenInvitacion {
+  id        String    @id @default(uuid())
+  usuarioId String    @map("usuario_id")
+  token     String    @unique
+  expiraEn  DateTime  @map("expira_en")
+  usadoEn   DateTime? @map("usado_en")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("tokens_invitacion")
+}
+
+/// Many-to-many entre Usuario y Cuenta. Permite que un ingeniero atienda
+/// varias cuentas (varios productores) y que cada cuenta tenga sus propietarios.
+/// El rol se define POR CUENTA, no globalmente — un usuario puede ser
+/// ingeniero en una cuenta y propietario en otra (poco probable, pero posible).
+model UsuarioCuenta {
+  id        String      @id @default(uuid())
+  usuarioId String      @map("usuario_id")
+  cuentaId  String      @map("cuenta_id")
+  rol       RolEnCuenta
+  activo    Boolean     @default(true)
+  /// Lista explícita de módulos que el usuario puede ver en esta cuenta.
+  /// Vacío = usa los defaults del rol (ver constants/modulos.ts).
+  /// No-vacío = allowlist exacta (sobreescribe defaults).
+  modulosPermitidos String[] @default([]) @map("modulos_permitidos")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  cuenta    Cuenta  @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, cuentaId])
+  @@index([usuarioId])
+  @@index([cuentaId])
+  @@map("usuarios_cuentas")
 }
 
 // ============================================================
@@ -111,6 +370,20 @@ enum TipoCampania {
   gruesa
 }
 
+/// Clase agrológica argentina (capacidad de uso del suelo).
+/// I-IV: aptas para agricultura. V-VIII: restricciones progresivas.
+enum CapacidadUso {
+  I
+  II
+  III
+  IV
+  V
+  VI
+  VII
+  VIII
+  desconocida
+}
+
 model Establecimiento {
   id                  String   @id @default(uuid())
   cuentaId            String   @map("cuenta_id")
@@ -119,16 +392,38 @@ model Establecimiento {
   latitud             Decimal? @db.Decimal(10, 7)
   longitud            Decimal? @db.Decimal(10, 7)
   tenencia            Tenencia @default(propio)
+  arrendamientoValor  Decimal? @map("arrendamiento_valor") @db.Decimal(14, 4)
+  arrendamientoUnidad UnidadArrendamiento? @map("arrendamiento_unidad")
   superficieTotalHa   Decimal? @map("superficie_total_ha") @db.Decimal(12, 4)
+  /// Capacidad de uso del suelo (clase agrológica). Sirve para orientar
+  /// qué tipo de manejo aplicar y para futuros rankings de productividad
+  /// relativa.
+  capacidadUso        CapacidadUso? @map("capacidad_uso")
+  // ─── Campos del módulo tokenizadas (§4 hackaton.md) ────────────
+  /// Partido / departamento (ej: "Pergamino").
+  partido             String?
+  /// Provincia (ej: "Buenos Aires").
+  provincia           String?
+  /// Polígono del lote dibujado en el mapa (GeoJSON Polygon).
+  /// Se calcula la superficie con @turf/area cuando se dibuja.
+  geometria           Json?
+  /// URLs de fotos del lote (relativas a /uploads/...).
+  fotos               String[] @default([])
+  /// Acopio habitual del productor para este establecimiento.
+  /// No es la afectación (que va por campaña), es solo el default sugerido.
+  acopioHabitualId    String?  @map("acopio_habitual_id")
   activo              Boolean  @default(true)
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   cuenta              Cuenta   @relation(fields: [cuentaId], references: [id])
+  acopioHabitual      Acopio?  @relation("AcopioHabitualDeCampo", fields: [acopioHabitualId], references: [id])
   lotes               Lote[]
   registrosLluvia     RegistroLluvia[]
+  campaniasTokenizadas Campania[] @relation("CampaniasDelEstablecimiento")
 
   @@index([cuentaId])
+  @@index([acopioHabitualId])
   @@map("establecimientos")
 }
 
@@ -156,18 +451,57 @@ model Lote {
 model Campania {
   id           String         @id @default(uuid())
   cuentaId     String         @map("cuenta_id")
+  /// Año calendario al que corresponde la campaña (ej: 2026).
+  /// Una campaña fina de invierno 2026 se siembra en mayo-julio 2026 y
+  /// cosecha a fines de 2026; una gruesa de 2026 se siembra en oct/nov
+  /// 2026 y cosecha en abril/mayo 2027. La fecha de cosecha define el año.
+  anio         Int?
+  /// Temporada dentro del año: fina (invierno) o gruesa (verano).
+  /// Todos los lotes de la campaña comparten esta temporada.
+  temporada    TipoCampania?
   nombre       String
-  tipo         TipoCampania
+  /// LEGACY: alias de `temporada` para compat con código viejo.
+  tipo         TipoCampania?
   fechaInicio  DateTime       @map("fecha_inicio") @db.Date
   fechaFin     DateTime?      @map("fecha_fin") @db.Date
+  // ─── Campos del módulo tokenizadas (§4 hackaton.md) ────────────
+  // En el módulo tokenizadas una campaña representa una OFERTA específica
+  // sobre un establecimiento: cultivo único, superficie y rinde estimados,
+  // fechas concretas. Los campos son opcionales para no romper el MVP que
+  // usa Campania como contenedor multi-lote/multi-cultivo.
+  /// Establecimiento sobre el que aplica esta campaña tokenizada (1 campo).
+  establecimientoId       String?  @map("establecimiento_id")
+  /// Cultivo único de la campaña tokenizada.
+  cultivoId               String?  @map("cultivo_id")
+  /// Ciclo agrícola (ej: "2026/27").
+  cicloAgricola           String?  @map("ciclo_agricola")
+  /// Hectáreas afectadas a la oferta (puede ser menos que la superficie total del campo).
+  hectareasAfectadas      Decimal? @map("hectareas_afectadas") @db.Decimal(12, 4)
+  fechaSiembraEstimada    DateTime? @map("fecha_siembra_estimada") @db.Date
+  fechaCosechaEstimada    DateTime? @map("fecha_cosecha_estimada") @db.Date
+  /// Rinde estimado en toneladas/hectárea (nota: el módulo tokenizadas
+  /// usa tn/ha; el MVP viejo usa qq/ha en LoteCampania. Son campos distintos).
+  rindeEstimadoTnHa       Decimal? @map("rinde_estimado_tn_ha") @db.Decimal(10, 4)
+  /// Rinde real al cosechar, se completa cuando cierra la campaña.
+  rindeRealTnHa           Decimal? @map("rinde_real_tn_ha") @db.Decimal(10, 4)
+  /// Estado en el ciclo de vida del módulo tokenizadas.
+  /// Si es null, no participa del módulo (es una campaña del MVP puro).
+  estadoToken             EstadoCampanaToken? @map("estado_token")
   activo       Boolean        @default(true)
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
-  cuenta       Cuenta         @relation(fields: [cuentaId], references: [id])
-  lotesCampania LoteCampania[]
+  cuenta          Cuenta                @relation(fields: [cuentaId], references: [id])
+  establecimiento Establecimiento?      @relation("CampaniasDelEstablecimiento", fields: [establecimientoId], references: [id])
+  cultivo         Cultivo?              @relation("CampaniasDelCultivo", fields: [cultivoId], references: [id])
+  lotesCampania   LoteCampania[]
+  tokenizacion    TokenizacionCampana?
+  afectaciones    AfectacionGrano[]
 
   @@index([cuentaId])
+  @@index([cuentaId, anio, temporada])
+  @@index([establecimientoId])
+  @@index([estadoToken])
   @@map("campanias")
 }
 
@@ -178,9 +512,28 @@ model Cultivo {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  variedades    Variedad[]
   lotesCampania LoteCampania[]
+  campanias     Campania[] @relation("CampaniasDelCultivo")
 
   @@map("cultivos")
+}
+
+model Variedad {
+  id         String   @id @default(uuid())
+  cultivoId  String   @map("cultivo_id")
+  nombre     String
+  activo     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  cultivo       Cultivo        @relation(fields: [cultivoId], references: [id])
+  lotesCampania LoteCampania[]
+  labores       Labor[]
+
+  @@unique([cultivoId, nombre])
+  @@index([cultivoId])
+  @@map("variedades")
 }
 
 model LoteCampania {
@@ -189,6 +542,10 @@ model LoteCampania {
   loteId                  String   @map("lote_id")
   campaniaId              String   @map("campania_id")
   cultivoId               String   @map("cultivo_id")
+  variedadId              String?  @map("variedad_id")
+  /// Tipo de ciclo: fina o gruesa. Era de Campania pero migró acá
+  /// porque una misma campaña puede tener cultivos de ambos ciclos.
+  tipo                    TipoCampania?
   superficieSembradaHa    Decimal  @map("superficie_sembrada_ha") @db.Decimal(12, 4)
   fechaSiembra            DateTime? @map("fecha_siembra") @db.Date
   rindeEstimadoQqHa       Decimal? @map("rinde_estimado_qq_ha") @db.Decimal(10, 4)
@@ -202,8 +559,10 @@ model LoteCampania {
   lote              Lote             @relation(fields: [loteId], references: [id])
   campania          Campania         @relation(fields: [campaniaId], references: [id])
   cultivo           Cultivo          @relation(fields: [cultivoId], references: [id])
+  variedad          Variedad?        @relation(fields: [variedadId], references: [id])
   labores           Labor[]
   insumosAplicados  InsumoAplicado[]
+  monitoreos        Monitoreo[]
 
   @@index([cuentaId])
   @@index([loteId])
@@ -244,6 +603,36 @@ enum TipoInsumo {
   otro
 }
 
+/// Catálogo de insumos de la cuenta con stock. Cada insumo aplicado en
+/// un lote-campaña puede (opcionalmente) referenciar uno de éstos, lo
+/// que descuenta su stock automáticamente. Si stockActual cae al o por
+/// debajo de stockMinimo, se dispara una alerta de stock bajo.
+model Insumo {
+  id                 String     @id @default(uuid())
+  cuentaId           String     @map("cuenta_id")
+  nombre             String
+  tipo               TipoInsumo
+  /// Unidad de medida del stock: 'lt' | 'kg' | 'bolsa' | 'unidad' | 'gr/ha' — string libre.
+  unidad             String
+  stockActual        Decimal    @default(0) @map("stock_actual") @db.Decimal(14, 4)
+  /// Umbral mínimo. Si stockActual <= stockMinimo, se considera stock bajo.
+  stockMinimo        Decimal    @default(0) @map("stock_minimo") @db.Decimal(14, 4)
+  /// Costo de referencia por unidad. Permite proponer un costo cuando
+  /// se aplica el insumo, pero no es obligatorio usarlo.
+  costoUnitarioUsd   Decimal?   @map("costo_unitario_usd") @db.Decimal(14, 4)
+  proveedor          String?
+  nota               String?    @db.Text
+  activo             Boolean    @default(true)
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  aplicaciones       InsumoAplicado[]
+
+  @@index([cuentaId])
+  @@index([cuentaId, nombre])
+  @@map("insumos")
+}
+
 model Labor {
   id              String     @id @default(uuid())
   cuentaId        String     @map("cuenta_id")
@@ -254,14 +643,29 @@ model Labor {
   costoTotalUsd   Decimal?   @map("costo_total_usd") @db.Decimal(14, 4)
   formaPago       FormaPago? @map("forma_pago")
   nota            String?
+  /// Datos específicos según el tipo de labor:
+  ///  - siembra: densidad (sem/ha), espaciamiento, profundidad
+  ///  - pulverización/fertilización: producto, dosis, viento, temperatura
+  ///  - cosecha: humedad, merma
+  /// Schema flexible para no inflar la tabla con columnas que sólo
+  /// aplican a un subconjunto.
+  datos           Json?
+  /// Para siembra: densidad sembrada en sem/ha. Lo dejamos como columna
+  /// porque es lo que más se va a buscar / filtrar.
+  densidadSemHa   Decimal?   @map("densidad_sem_ha") @db.Decimal(12, 4)
+  /// Para siembra: la variedad usada en esta labor (puede diferir del
+  /// LoteCampania.variedadId si se resembraron sectores).
+  variedadId      String?    @map("variedad_id")
   activo          Boolean    @default(true)
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
   loteCampania    LoteCampania @relation(fields: [loteCampaniaId], references: [id])
+  variedad        Variedad?    @relation(fields: [variedadId], references: [id])
 
   @@index([cuentaId])
   @@index([loteCampaniaId])
+  @@index([variedadId])
   @@map("labores")
 }
 
@@ -297,6 +701,9 @@ model InsumoAplicado {
   id              String     @id @default(uuid())
   cuentaId        String     @map("cuenta_id")
   loteCampaniaId  String     @map("lote_campania_id")
+  /// FK opcional al catálogo de insumos. Si tiene valor, al crear/editar
+  /// el aplicado se descuenta su stock; al eliminar se restaura.
+  insumoId        String?    @map("insumo_id")
   tipo            TipoInsumo
   producto        String
   cantidad        Decimal    @db.Decimal(12, 4)
@@ -308,8 +715,493 @@ model InsumoAplicado {
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
   loteCampania    LoteCampania @relation(fields: [loteCampaniaId], references: [id])
+  insumo          Insumo?      @relation(fields: [insumoId], references: [id])
 
   @@index([cuentaId])
   @@index([loteCampaniaId])
+  @@index([insumoId])
   @@map("insumos_aplicados")
+}
+
+// ============================================================
+// Monitoreo de campo
+// ============================================================
+// Una visita al lote-campania que documenta lo observado: foto del cultivo,
+// plaga detectada, recomendación de prescripción, etc. Cae sobre un
+// lote_campania (cultivo en lote, en una campaña) y opcionalmente lleva
+// geolocalización del punto exacto donde se sacó la foto.
+
+enum TipoMonitoreo {
+  seguimiento     // chequeo de rutina, estado del cultivo
+  prescripcion    // se detecta algo que requiere una labor/insumo
+  control_plaga   // hay plaga/maleza/enfermedad identificada
+  general         // nota libre
+}
+
+enum Urgencia {
+  baja
+  media
+  alta
+}
+
+model Monitoreo {
+  id              String        @id @default(uuid())
+  cuentaId        String        @map("cuenta_id")
+  loteCampaniaId  String        @map("lote_campania_id")
+  autorId         String        @map("autor_id")
+  tipo            TipoMonitoreo @default(seguimiento)
+  fecha           DateTime      @db.Date
+  observaciones   String        @db.Text
+  /// Lo que hay que hacer al respecto. Vacío si tipo != prescripcion.
+  prescripcion    String?       @db.Text
+  urgencia        Urgencia      @default(baja)
+  latitud         Decimal?      @db.Decimal(10, 7)
+  longitud        Decimal?      @db.Decimal(10, 7)
+  activo          Boolean       @default(true)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  loteCampania    LoteCampania    @relation(fields: [loteCampaniaId], references: [id])
+  autor           Usuario         @relation(fields: [autorId], references: [id])
+  fotos           FotoMonitoreo[]
+
+  @@index([cuentaId])
+  @@index([loteCampaniaId])
+  @@index([autorId])
+  @@map("monitoreos")
+}
+
+model FotoMonitoreo {
+  id           String   @id @default(uuid())
+  monitoreoId  String   @map("monitoreo_id")
+  /// Ruta servida vía /uploads/... — guardamos la relativa para poder
+  /// cambiar el host sin migrar datos.
+  url          String
+  orden        Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  monitoreo    Monitoreo @relation(fields: [monitoreoId], references: [id], onDelete: Cascade)
+
+  @@index([monitoreoId])
+  @@map("fotos_monitoreo")
+}
+
+// ============================================================
+// Reportes compartibles
+// ============================================================
+// Un reporte es un snapshot de los datos de un lote_campania (o más
+// adelante una campaña entera) que se renderiza como vista pública
+// imprimible. El link público lleva un token único y no requiere auth.
+
+enum TipoReporte {
+  lote_campania
+  campania
+  establecimiento
+  monitoreo
+  cultivo_campania
+  anual
+}
+
+model Reporte {
+  id            String      @id @default(uuid())
+  cuentaId      String      @map("cuenta_id")
+  autorId       String      @map("autor_id")
+  tipo          TipoReporte
+  titulo        String
+  /// IDs de las entidades referenciadas (loteCampaniaId, campaniaId, etc.).
+  parametros    Json
+  /// Copia de los datos al momento de generar. Si los datos cambian
+  /// después, el reporte público sigue mostrando lo de cuando se creó.
+  datosSnapshot Json        @map("datos_snapshot")
+  tokenPublico  String      @unique @map("token_publico") @default(uuid())
+  expiraEn      DateTime?   @map("expira_en")
+  activo        Boolean     @default(true)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  autor         Usuario             @relation(fields: [autorId], references: [id])
+  comentarios   ComentarioReporte[]
+
+  @@index([cuentaId])
+  @@index([tokenPublico])
+  @@map("reportes")
+}
+
+/// Los comentarios sí están protegidos: sólo usuarios autenticados de la
+/// cuenta los ven. Es el canal por donde el propietario le devuelve al
+/// ingeniero sus dudas sobre el reporte.
+model ComentarioReporte {
+  id         String   @id @default(uuid())
+  reporteId  String   @map("reporte_id")
+  autorId    String   @map("autor_id")
+  texto      String   @db.Text
+  activo     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  reporte    Reporte  @relation(fields: [reporteId], references: [id], onDelete: Cascade)
+  autor      Usuario  @relation(fields: [autorId], references: [id])
+
+  @@index([reporteId])
+  @@map("comentarios_reporte")
+}
+
+// ============================================================
+// Alertas
+// ============================================================
+// Infraestructura para notificar eventos importantes a un usuario o a
+// toda la cuenta. Las reglas que disparan alertas (umbrales de clima,
+// vencimiento de tareas, etc.) se sumarán después — por ahora la API
+// existe y el ingeniero las puede crear a mano si quiere.
+
+enum SeveridadAlerta {
+  info
+  warning
+  critica
+}
+
+enum TipoAlerta {
+  clima        // helada, ola de calor, viento
+  agua         // déficit/exceso
+  plaga        // detección manual o por monitoreo
+  vencimiento  // labor sugerida, control programado
+  stock        // stock bajo en el catálogo de insumos
+  general
+}
+
+model Alerta {
+  id          String          @id @default(uuid())
+  cuentaId    String          @map("cuenta_id")
+  /// Si está null, la alerta es para toda la cuenta. Si tiene valor,
+  /// es dirigida a un usuario específico.
+  usuarioId   String?         @map("usuario_id")
+  tipo        TipoAlerta      @default(general)
+  severidad   SeveridadAlerta @default(info)
+  titulo      String
+  detalle     String?         @db.Text
+  /// JSON con contexto: { loteCampaniaId, monitoreoId, fecha, ... }.
+  /// Se usa para hacer drilldown al detalle correspondiente.
+  contexto    Json?
+  leida       Boolean         @default(false)
+  activo      Boolean         @default(true)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  usuario     Usuario?        @relation(fields: [usuarioId], references: [id])
+
+  @@index([cuentaId, leida])
+  @@index([usuarioId])
+  @@map("alertas")
+}
+
+// ============================================================
+// Tokenización — módulo Campañas Tokenizadas
+// ============================================================
+// Extensión sobre AgroFácil: un productor tokeniza una porción de su
+// campaña y un inversor compra tokens que representan producción a futuro.
+// La capa blockchain (mint SPL, vault PDA, transferencias USDC) vive
+// detrás de LedgerService — en esta fase con implementación mock.
+
+/// Organización acopiadora aliada. Custodia el grano físico del productor
+/// hasta la liquidación. No somos acopio: siempre trabajamos con acopios
+/// externos con planta habilitada. Un acopio tiene 1..N plantas.
+model Acopio {
+  id                    String   @id @default(uuid())
+  razonSocial           String   @map("razon_social")
+  cuit                  String   @unique
+  sisaEstado            SisaEstado @default(uno) @map("sisa_estado")
+  sisaUltimaVerificacion DateTime? @map("sisa_ultima_verificacion")
+  convenioMarcoFirmado  Boolean  @default(false) @map("convenio_marco_firmado")
+  convenioUrl           String?  @map("convenio_url")
+  /// Nivel de integración con nuestro sistema (§9.6). Manual = admin carga,
+  /// portal = acopio carga, api = integración directa, arca_delegado = leemos
+  /// ARCA con clave delegada del productor.
+  nivelIntegracion      NivelIntegracion @default(manual) @map("nivel_integracion")
+  /// Contacto principal
+  telefono              String?
+  email                 String?
+  activo                Boolean  @default(true)
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  plantas               Planta[]
+  usuarios              Usuario[]              @relation("MiembrosDelAcopio")
+  campos                Establecimiento[]      @relation("AcopioHabitualDeCampo")
+  afectaciones          AfectacionGrano[]
+
+  @@index([cuit])
+  @@map("acopios")
+}
+
+/// Planta de acopio. Cada planta tiene su número SISA propio, ubicación
+/// geográfica y capacidad. Las afectaciones se hacen a nivel de planta,
+/// no de acopio, porque el CTG del camión declara planta destino.
+model Planta {
+  id                String   @id @default(uuid())
+  acopioId          String   @map("acopio_id")
+  numeroPlantaSisa  String   @unique @map("numero_planta_sisa")
+  nombre            String
+  localidad         String?
+  provincia         String?
+  latitud           Decimal? @db.Decimal(10, 7)
+  longitud          Decimal? @db.Decimal(10, 7)
+  capacidadTn       Decimal? @map("capacidad_tn") @db.Decimal(14, 4)
+  activa            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  acopio            Acopio   @relation(fields: [acopioId], references: [id])
+  afectaciones      AfectacionGrano[]
+
+  @@index([acopioId])
+  @@map("plantas")
+}
+
+/// Configuración de tokenización asociada 1:1 a una Campania.
+/// El productor la crea en el wizard, ADMIN la aprueba, y a partir de ahí
+/// aparece en el marketplace. Los tokens (1 token = 1 tonelada en modo FIJO,
+/// o 1 unidad = 1/N de la producción en PORCENTUAL) los emite y custodia
+/// el LedgerService.
+model TokenizacionCampana {
+  id                      String   @id @default(uuid())
+  campaniaId              String   @unique @map("campania_id")
+  /// Usuario productor dueño de esta tokenización.
+  productorId             String   @map("productor_id")
+
+  // ─── Modo ─────────────────────────────────────────────────────
+  modo                    ModoTokenizacionTipo
+  /// Si modo = porcentual: porcentaje de la producción tokenizado (0-100).
+  porcentaje              Decimal? @db.Decimal(5, 2)
+  /// Si modo = fijo: cantidad de toneladas comprometidas pase lo que pase.
+  toneladasFijas          Decimal? @map("toneladas_fijas") @db.Decimal(12, 4)
+
+  // ─── Emisión ──────────────────────────────────────────────────
+  toneladasOfrecidas      Decimal  @map("toneladas_ofrecidas") @db.Decimal(12, 4)
+  /// En modo fijo: tokensEmitidos = toneladasOfrecidas. En porcentual:
+  /// tokensEmitidos = N unidades de fracción (definido por el productor).
+  tokensEmitidos          Decimal  @map("tokens_emitidos") @db.Decimal(12, 4)
+  tokensVendidos          Decimal  @default(0) @map("tokens_vendidos") @db.Decimal(12, 4)
+
+  // ─── Cotización ───────────────────────────────────────────────
+  fuentePrecio            FuentePrecio @default(manual) @map("fuente_precio")
+  precioReferenciaUsdTn   Decimal  @map("precio_referencia_usd_tn") @db.Decimal(14, 4)
+  /// Porcentaje que el productor cede sobre el precio de referencia (0-20).
+  descuentoPct            Decimal  @default(0) @map("descuento_pct") @db.Decimal(5, 2)
+  /// Derivado: referencia × (1 - descuento). Guardado para no recalcular en cada query.
+  precioTokenUsd          Decimal  @map("precio_token_usd") @db.Decimal(14, 4)
+  /// Si true, el precio sigue la pizarra durante la ventana de fondeo.
+  /// Los tokens ya vendidos NUNCA cambian de precio: se congela por tenencia.
+  precioDinamico          Boolean  @default(false) @map("precio_dinamico")
+  /// Piso opcional cuando precioDinamico = true.
+  precioPisoUsd           Decimal? @map("precio_piso_usd") @db.Decimal(14, 4)
+
+  // ─── Ventana de fondeo ────────────────────────────────────────
+  fondeoDesde             DateTime @map("fondeo_desde") @db.Date
+  fondeoHasta             DateTime @map("fondeo_hasta") @db.Date
+  montoObjetivoUsd        Decimal  @map("monto_objetivo_usd") @db.Decimal(14, 2)
+  montoRecaudadoUsd       Decimal  @default(0) @map("monto_recaudado_usd") @db.Decimal(14, 2)
+
+  // ─── Garantías (informativo en esta fase) ─────────────────────
+  tieneSeguroGranizo      Boolean  @default(false) @map("tiene_seguro_granizo")
+  tieneSeguroParametrico  Boolean  @default(false) @map("tiene_seguro_parametrico")
+  tieneAvalSgr            Boolean  @default(false) @map("tiene_aval_sgr")
+  sobrecolateralPct       Decimal  @default(0) @map("sobrecolateral_pct") @db.Decimal(5, 2)
+
+  // ─── On-chain (mock por ahora) ────────────────────────────────
+  /// Address del mint SPL — el "token" que representa esta campaña.
+  mintAddress             String?  @map("mint_address")
+  /// Address del vault PDA que custodia los USDC de los inversores.
+  vaultAddress            String?  @map("vault_address")
+  /// Firma de la transacción de publicación.
+  txSignaturePublicacion  String?  @map("tx_signature_publicacion")
+
+  // ─── Ciclo de aprobación ──────────────────────────────────────
+  aprobadaEn              DateTime? @map("aprobada_en")
+  aprobadaPor             String?   @map("aprobada_por")
+  rechazadaEn             DateTime? @map("rechazada_en")
+  motivoRechazo           String?   @map("motivo_rechazo") @db.Text
+
+  // ─── Liquidación ──────────────────────────────────────────────
+  precioLiquidacionUsdTn  Decimal? @map("precio_liquidacion_usd_tn") @db.Decimal(14, 4)
+  fechaLiquidacion        DateTime? @map("fecha_liquidacion")
+
+  activo                  Boolean  @default(true)
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  campania                Campania @relation(fields: [campaniaId], references: [id])
+  productor               Usuario  @relation("ProductorDeTokenizacion", fields: [productorId], references: [id])
+  tenencias               TenenciaToken[]
+
+  @@index([productorId])
+  @@map("tokenizaciones_campana")
+}
+
+/// Tenencia de tokens de un inversor sobre una tokenización.
+/// El precio de compra se congela al momento de comprar — si el precio
+/// dinámico sube o baja después, esta tenencia mantiene su precio original.
+model TenenciaToken {
+  id                String   @id @default(uuid())
+  tokenizacionId    String   @map("tokenizacion_id")
+  inversorId        String   @map("inversor_id")
+  /// Copia de la wallet del inversor al momento de comprar. Sirve para
+  /// auditoría: si el usuario cambia de wallet después, esta tenencia
+  /// sigue vinculada a la wallet original.
+  walletAddress     String   @map("wallet_address")
+  tokens            Decimal  @db.Decimal(12, 4)
+  /// Precio USD por token al momento de comprar (congelado).
+  precioCompraUsd   Decimal  @map("precio_compra_usd") @db.Decimal(14, 4)
+  /// Total pagado en USDC: tokens × precioCompraUsd.
+  montoTotalUsd     Decimal  @map("monto_total_usd") @db.Decimal(14, 2)
+  estado            EstadoTenencia @default(activa)
+  /// Firma de la transacción de compra (mock por ahora).
+  txSignatureCompra String?  @map("tx_signature_compra")
+  /// Firma de la transacción de cobro (mock por ahora). Se completa al liquidar.
+  txSignatureCobro  String?  @map("tx_signature_cobro")
+  /// USDC efectivamente recibidos al liquidar (tokens × precioLiquidacion).
+  usdcRecibido      Decimal? @map("usdc_recibido") @db.Decimal(14, 2)
+  fechaCobro        DateTime? @map("fecha_cobro")
+  activo            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  tokenizacion      TokenizacionCampana @relation(fields: [tokenizacionId], references: [id])
+  inversor          Usuario  @relation("InversorDeTenencia", fields: [inversorId], references: [id])
+
+  @@index([tokenizacionId])
+  @@index([inversorId])
+  @@index([walletAddress])
+  @@map("tenencias_token")
+}
+
+/// Reserva temporal de tokens (§8.3): entre paso 1 y 2 del sheet de compra,
+/// se reservan por 10 minutos para evitar sobreventa. Si el inversor no
+/// confirma, la reserva expira y los tokens vuelven al pool.
+model ReservaToken {
+  id                String   @id @default(uuid())
+  tokenizacionId    String   @map("tokenizacion_id")
+  inversorId        String   @map("inversor_id")
+  walletAddress     String   @map("wallet_address")
+  tokens            Decimal  @db.Decimal(12, 4)
+  precioUsdSnapshot Decimal  @map("precio_usd_snapshot") @db.Decimal(14, 4)
+  expiraEn          DateTime @map("expira_en")
+  confirmada        Boolean  @default(false)
+  cancelada         Boolean  @default(false)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([tokenizacionId, expiraEn])
+  @@index([inversorId])
+  @@map("reservas_token")
+}
+
+// ============================================================
+// Custodia y acopio (§9 hackaton.md)
+// ============================================================
+
+/// Vínculo campaña ↔ acopio ↔ planta. Es la "prenda digital":
+/// dice qué parte del grano de un productor está afectada al fideicomiso.
+/// Una campaña puede tener 1..N afectaciones (multi-acopio si el campo es grande).
+model AfectacionGrano {
+  id                     String   @id @default(uuid())
+  campaniaId             String   @map("campania_id")
+  acopioId               String   @map("acopio_id")
+  plantaId               String   @map("planta_id")
+  /// Toneladas que el productor comprometió entregar en esta planta.
+  toneladasComprometidas Decimal  @map("toneladas_comprometidas") @db.Decimal(14, 4)
+  /// Toneladas que efectivamente entraron a la planta.
+  toneladasRecibidas     Decimal  @default(0) @map("toneladas_recibidas") @db.Decimal(14, 4)
+  /// Toneladas que volvieron al productor (excedente, liberación autorizada).
+  toneladasLiberadas     Decimal  @default(0) @map("toneladas_liberadas") @db.Decimal(14, 4)
+  estado                 EstadoAfectacion @default(vigente)
+  cesionNotificada       Boolean  @default(false) @map("cesion_notificada")
+  fechaNotificacion      DateTime? @map("fecha_notificacion")
+  /// Se recalcula en cada movimiento por el motor de conciliación.
+  semaforo               SemaforoAfectacion @default(verde)
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  campania               Campania @relation(fields: [campaniaId], references: [id])
+  acopio                 Acopio   @relation(fields: [acopioId], references: [id])
+  planta                 Planta   @relation(fields: [plantaId], references: [id])
+  movimientos            MovimientoGrano[]
+  certificaciones        CertificacionDeposito[]
+  liberaciones           Liberacion[]
+
+  @@index([campaniaId])
+  @@index([acopioId])
+  @@index([plantaId])
+  @@index([semaforo])
+  @@map("afectaciones_grano")
+}
+
+/// Movimiento de grano registrado por CTG (Código de Trazabilidad de Granos)
+/// y CPE (Carta de Porte Electrónica). Es lo que llega desde ARCA o desde
+/// la carga del acopio en la pantalla de Recepción.
+model MovimientoGrano {
+  id                  String   @id @default(uuid())
+  /// Puede ser null si el CTG no matcheó ninguna afectación (huérfano).
+  afectacionId        String?  @map("afectacion_id")
+  ctg                 String   @unique
+  cpeNumero           String   @map("cpe_numero")
+  fechaEmision        DateTime @map("fecha_emision") @db.Date
+  origenCuit          String   @map("origen_cuit")
+  destinoCuit         String   @map("destino_cuit")
+  /// Número de planta SISA del destino declarado en el CTG. Se compara con
+  /// la planta de la afectación: si difiere, es DESVIO.
+  destinoPlantaSisa   String?  @map("destino_planta_sisa")
+  toneladasDeclaradas Decimal  @map("toneladas_declaradas") @db.Decimal(14, 4)
+  toneladasPesadas    Decimal? @map("toneladas_pesadas") @db.Decimal(14, 4)
+  humedadPct          Decimal? @map("humedad_pct") @db.Decimal(5, 2)
+  mermaTn             Decimal? @map("merma_tn") @db.Decimal(10, 4)
+  estadoConciliacion  EstadoConciliacion @default(pendiente) @map("estado_conciliacion")
+  origenCarga         OrigenCargaMovimiento @default(acopio) @map("origen_carga")
+  observaciones       String?  @db.Text
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  afectacion          AfectacionGrano? @relation(fields: [afectacionId], references: [id])
+  certificaciones     CertificacionDeposito[]
+
+  @@index([afectacionId])
+  @@index([ctg])
+  @@index([estadoConciliacion])
+  @@map("movimientos_grano")
+}
+
+/// Comprobante electrónico de depósito emitido por el acopio.
+/// Se sube en la pantalla de Recepción tras confirmar el movimiento.
+model CertificacionDeposito {
+  id                 String   @id @default(uuid())
+  afectacionId       String   @map("afectacion_id")
+  movimientoId       String   @map("movimiento_id")
+  numeroComprobante  String   @unique @map("numero_comprobante")
+  toneladas          Decimal  @db.Decimal(14, 4)
+  fecha              DateTime @db.Date
+  archivoUrl         String   @map("archivo_url")
+  cargadaPor         OrigenCargaMovimiento @map("cargada_por")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  afectacion         AfectacionGrano @relation(fields: [afectacionId], references: [id])
+  movimiento         MovimientoGrano @relation(fields: [movimientoId], references: [id])
+
+  @@index([afectacionId])
+  @@map("certificaciones_deposito")
+}
+
+/// Liberación de grano al productor (excedente, campaña liquidada, o
+/// autorización explícita del admin). No se puede exceder toneladasRecibidas.
+model Liberacion {
+  id             String   @id @default(uuid())
+  afectacionId   String   @map("afectacion_id")
+  toneladas      Decimal  @db.Decimal(14, 4)
+  motivo         MotivoLiberacion
+  /// Usuario admin que autorizó (obligatorio si motivo = autorizacion_admin).
+  autorizadaPor  String?  @map("autorizada_por")
+  fecha          DateTime @default(now())
+  nota           String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  afectacion     AfectacionGrano @relation(fields: [afectacionId], references: [id])
+
+  @@index([afectacionId])
+  @@map("liberaciones")
 }
