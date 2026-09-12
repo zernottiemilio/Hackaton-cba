@@ -359,9 +359,9 @@ function ProductorCard({ p }: { p: ProductorResumen }) {
         <Rating value={p.rating} />
       </div>
       <div className="grid grid-cols-3 gap-2 pt-3" style={{ borderTop: '1px solid var(--hv-border-subtle)' }}>
-        <MiniStat label="Activas" value={p.metricas.campaniasActivas.toString()} />
-        <MiniStat label="Liquidadas" value={p.metricas.campaniasLiquidadas.toString()} />
-        <MiniStat label="Vol." value={usdCompacto(p.metricas.usdRecaudadoTotal)} />
+        <MiniStat label="Activas" value={String(p.metricas?.campaniasActivas ?? 0)} />
+        <MiniStat label="Liquidadas" value={String(p.metricas?.campaniasLiquidadas ?? 0)} />
+        <MiniStat label="Vol." value={usdCompacto(p.metricas?.usdRecaudadoTotal ?? 0)} />
       </div>
       {p.cultivos.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1">
@@ -402,11 +402,19 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Rating con estrellas, tipo App Store. */
-export function Rating({ value, size = 12 }: { value: number; size?: number }) {
-  const full = Math.floor(value);
-  const half = value - full >= 0.5;
-  const empty = 5 - full - (half ? 1 : 0);
+/**
+ * Rating con estrellas, tipo App Store.
+ * Defensivo: si el backend no manda el score (productor recién seedeado
+ * sin campañas, o payload incompleto), rompía toda la pantalla con
+ * `undefined.toFixed`. Ahora clampea + fallback a 0 y renderiza igual.
+ */
+export function Rating({ value, size = 12 }: { value: number | null | undefined; size?: number }) {
+  const v = typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(0, Math.min(5, value))
+    : 0;
+  const full = Math.floor(v);
+  const half = v - full >= 0.5;
+  const empty = Math.max(0, 5 - full - (half ? 1 : 0));
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex" style={{ gap: 1 }}>
@@ -422,7 +430,7 @@ export function Rating({ value, size = 12 }: { value: number; size?: number }) {
         className="hv-mono"
         style={{ fontSize: size, fontWeight: 600, color: 'var(--hv-text)', marginLeft: 2 }}
       >
-        {value.toFixed(1)}
+        {v.toFixed(1)}
       </span>
     </div>
   );
