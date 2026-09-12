@@ -64,6 +64,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         email: proxy.usuario.email,
         nombre: proxy.usuario.nombre,
         rolGlobal: proxy.usuario.rolGlobal,
+        rolPlataforma: null, // impersonación no hereda rol Harvest
+        walletAddress: null,
         cuentaId: cuentaTarget.id,
         rolEnCuentaActiva: proxy.rol,
         modulosPermitidos: proxy.modulosPermitidos,
@@ -87,6 +89,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: usuario.email,
       nombre: usuario.nombre,
       rolGlobal: usuario.rolGlobal,
+      rolPlataforma: usuario.rolPlataforma,
+      walletAddress: usuario.walletAddress,
       cuentaId: membresiaActiva.cuentaId,
       rolEnCuentaActiva: membresiaActiva.rol,
       modulosPermitidos: membresiaActiva.modulosPermitidos,

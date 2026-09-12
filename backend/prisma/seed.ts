@@ -292,6 +292,7 @@ async function seedTokenizadas(): Promise<void> {
     where: { email: 'juan@productor.demo' },
     update: {
       walletAddress: WALLETS.productor1,
+      rolPlataforma: 'productor',
       contextosTokenizacion: ['productor'],
     },
     create: {
@@ -300,6 +301,7 @@ async function seedTokenizadas(): Promise<void> {
       passwordHash,
       nombre: 'Juan Pérez',
       walletAddress: WALLETS.productor1,
+      rolPlataforma: 'productor',
       contextosTokenizacion: ['productor'],
     },
   });
@@ -308,6 +310,7 @@ async function seedTokenizadas(): Promise<void> {
     where: { email: 'maria@productor.demo' },
     update: {
       walletAddress: WALLETS.productorInversor1,
+      rolPlataforma: 'productor',
       contextosTokenizacion: ['productor', 'inversor'],
     },
     create: {
@@ -316,6 +319,7 @@ async function seedTokenizadas(): Promise<void> {
       passwordHash,
       nombre: 'María González',
       walletAddress: WALLETS.productorInversor1,
+      rolPlataforma: 'productor',
       contextosTokenizacion: ['productor', 'inversor'],
     },
   });
@@ -324,6 +328,7 @@ async function seedTokenizadas(): Promise<void> {
     where: { email: 'carlos@inversor.demo' },
     update: {
       walletAddress: WALLETS.inversor1,
+      rolPlataforma: 'inversor',
       contextosTokenizacion: ['inversor'],
     },
     create: {
@@ -332,6 +337,7 @@ async function seedTokenizadas(): Promise<void> {
       passwordHash,
       nombre: 'Carlos Fernández',
       walletAddress: WALLETS.inversor1,
+      rolPlataforma: 'inversor',
       contextosTokenizacion: ['inversor'],
     },
   });
@@ -340,6 +346,7 @@ async function seedTokenizadas(): Promise<void> {
     where: { email: 'sofia@inversor.demo' },
     update: {
       walletAddress: WALLETS.inversor2,
+      rolPlataforma: 'inversor',
       contextosTokenizacion: ['inversor'],
     },
     create: {
@@ -348,6 +355,7 @@ async function seedTokenizadas(): Promise<void> {
       passwordHash,
       nombre: 'Sofía Ríos',
       walletAddress: WALLETS.inversor2,
+      rolPlataforma: 'inversor',
       contextosTokenizacion: ['inversor'],
     },
   });
@@ -357,6 +365,7 @@ async function seedTokenizadas(): Promise<void> {
     where: { email: 'acopio@sanmartin.demo' },
     update: {
       walletAddress: WALLETS.acopio1,
+      rolPlataforma: 'acopio',
       contextosTokenizacion: ['acopio'],
       acopioId: acopioSanMartin.id,
     },
@@ -366,6 +375,7 @@ async function seedTokenizadas(): Promise<void> {
       passwordHash,
       nombre: 'Operador San Martín',
       walletAddress: WALLETS.acopio1,
+      rolPlataforma: 'acopio',
       contextosTokenizacion: ['acopio'],
       acopioId: acopioSanMartin.id,
     },
@@ -376,6 +386,7 @@ async function seedTokenizadas(): Promise<void> {
     where: { email: 'admin@tokenizadas.demo' },
     update: {
       walletAddress: WALLETS.admin1,
+      rolPlataforma: 'admin_plataforma',
       contextosTokenizacion: ['admin_plataforma'],
     },
     create: {
@@ -384,6 +395,7 @@ async function seedTokenizadas(): Promise<void> {
       passwordHash,
       nombre: 'Admin Plataforma',
       walletAddress: WALLETS.admin1,
+      rolPlataforma: 'admin_plataforma',
       contextosTokenizacion: ['admin_plataforma'],
     },
   });

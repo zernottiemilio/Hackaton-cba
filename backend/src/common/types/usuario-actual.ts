@@ -1,4 +1,4 @@
-import type { RolEnCuenta, RolGlobal } from '@prisma/client';
+import type { RolEnCuenta, RolGlobal, RolTokenizacion } from '@prisma/client';
 
 export interface MembresiaResumen {
   cuentaId: string;
@@ -11,6 +11,12 @@ export interface UsuarioActual {
   email: string;
   nombre: string;
   rolGlobal: RolGlobal;
+  /** Rol único del usuario en la plataforma Harvest.fi. Decide qué shell/rutas
+   *  ve al hacer login (productor, inversor, admin_plataforma, acopio).
+   *  Es null para usuarios legacy del MVP sin haber elegido rol Harvest todavía. */
+  rolPlataforma: RolTokenizacion | null;
+  /** Wallet Solana asociada al usuario (mock por ahora). */
+  walletAddress: string | null;
   /** Cuenta actualmente activa en el JWT. Para propietarios siempre es la misma. */
   cuentaId: string;
   /** Rol del usuario en la cuenta activa. */
