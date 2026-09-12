@@ -225,6 +225,13 @@ model Usuario {
   /// generada por MockLedgerService al "conectar wallet"; cuando entre el
   /// programa on-chain es la wallet real que Phantom aprueba.
   walletAddress String?  @unique @map("wallet_address")
+  /// Secret key del keypair custodial cifrada con AES-256-GCM (formato base64
+  /// `iv:tag:ciphertext`). Solo se llena cuando LEDGER_IMPL=solana. En modo
+  /// mock queda null. Nunca debe salir del backend.
+  walletSecretCifrado String? @map("wallet_secret_cifrado") @db.Text
+  /// Timestamp del transfer inicial de SOL desde el fee-payer. Sirve para no
+  /// re-fondear la misma wallet en cada conectarWallet.
+  walletFondeadaEn DateTime? @map("wallet_fondeada_en")
   /// Rol único del usuario en la plataforma. Se elige al momento del registro
   /// y determina qué shell/rutas ve al hacer login (productor, inversor, admin).
   /// LEGACY: convive con `contextosTokenizacion` (array) hasta que terminemos
