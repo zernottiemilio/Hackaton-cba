@@ -6,7 +6,7 @@ El módulo tokenizadas tiene dos implementaciones del `LedgerService`:
   artificiales para simular latencia on-chain. Direcciones y firmas fake
   con formato base58 de Solana.
 - **`SolanaLedgerService`** — real. Firma contra el programa Anchor
-  desplegado en devnet (`DKnf1N2UvAwEfa6eu32F5hSE1UVCc3iK2mbjP84FRMy5`).
+  desplegado en devnet (`H7Y5ZX4VUF9icFXjuqKmhfCsXBa8wd41Hghvy1e7yvYD`).
   Custodia claves de usuario cifradas con AES-256-GCM.
 
 ## Cómo se elige

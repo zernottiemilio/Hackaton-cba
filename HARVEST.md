@@ -71,7 +71,7 @@ Nuevos, acordados entre back y front (tareas VAL-12 y VAL-18):
 ```
 LEDGER_IMPL=solana
 SOLANA_RPC_URL=https://api.devnet.solana.com
-SOLANA_PROGRAM_ID=
+SOLANA_PROGRAM_ID=H7Y5ZX4VUF9icFXjuqKmhfCsXBa8wd41Hghvy1e7yvYD
 SOLANA_USDC_MINT=
 SOLANA_FEE_PAYER_SECRET=      # array JSON o base58. NUNCA commitear.
 WALLET_ENCRYPTION_KEY=        # 32 bytes hex
@@ -80,6 +80,10 @@ SOLANA_USER_TEST_USDC=10000000000
 ```
 
 Los valores los genera el frente Chain (VAL-8) y se pasan por canal privado. Mientras devnet no esté, trabajar con `LEDGER_IMPL=mock`.
+
+**Program devnet (VAL-10)**. Deployado en `H7Y5ZX4VUF9icFXjuqKmhfCsXBa8wd41Hghvy1e7yvYD`. Upgrade authority = wallet local `~/.config/solana/id.json` (`2nzbnwU1uSB3tX4dJ2v818zXuMf33LwSeNJ2bAmXwt47`). `declare_id!` en `lib.rs`, `[programs.*]` en `Anchor.toml` e IDL/types del backend actualizados al nuevo id.
+
+> **PENDIENTE de upgrade.** El `.so` on-chain se subió con el `declare_id!` viejo (`DKnf1N2UvAwEfa6eu32F5hSE1UVCc3iK2mbjP84FRMy5`) porque el redeploy quedó bloqueado por rate-limit del faucet devnet. Cualquier instrucción va a fallar el check runtime de Anchor hasta que se corra `solana program deploy --program-id H7Y5ZX4VUF9icFXjuqKmhfCsXBa8wd41Hghvy1e7yvYD --url devnet target/deploy/agro_token.so` con ≥1.75 SOL en la wallet. VAL-13 depende de esto.
 
 ## Trampas conocidas
 
