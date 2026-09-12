@@ -7,22 +7,16 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // autoUpdate: actualiza el SW en cada carga sin pedirle nada al usuario.
-      // Se cambió de 'prompt' → 'autoUpdate' porque el toast requería acción del
-      // usuario y bloqueaba ver deploys nuevos hasta que aceptara. Para una demo
-      // de hackaton necesitamos que cada push llegue instantáneo.
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // Inyecta el SW + asks for update via prompt en lugar de auto-update silencioso.
+      // Toast "Hay una nueva versión" lo levantamos desde main.tsx con registerSW.
+      registerType: 'prompt',
+      injectRegister: false,
 
       // El SW cachea HTML/JS/CSS/imágenes durante el build (precaching) y además
       // configuramos runtime caching para fuentes externas y API GET.
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
         navigateFallback: '/index.html',
-        // El bundle superó los 2 MB default con el módulo tokenizadas (leaflet +
-        // recharts + framer + turf). Subimos el límite hasta que el code-splitting
-        // por route corte el bundle inicial. 4 MB deja margen sin ser absurdo.
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
             // Google Fonts CSS
@@ -80,7 +74,7 @@ export default defineConfig({
         theme_color: '#047C00',
         background_color: '#F4F7F4',
         display: 'standalone',
-        orientation: 'any',
+        orientation: 'portrait',
         scope: '/',
         start_url: '/',
         lang: 'es-AR',

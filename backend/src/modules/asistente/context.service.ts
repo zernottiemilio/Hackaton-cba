@@ -285,7 +285,7 @@ export interface ContextoAgro {
   campaniasActivas: {
     id: string;
     nombre: string;
-    tipo: string | null;
+    tipo: string;
     fechaInicio: string;
     fechaFin: string | null;
   }[];

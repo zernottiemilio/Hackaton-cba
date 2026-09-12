@@ -33,17 +33,11 @@ export class CampaniasService {
   }
 
   async crear(cuentaId: string, dto: CrearCampaniaDto) {
-    // temporada y tipo son aliases — si uno viene y el otro no, los igualamos.
-    const temporada = dto.temporada ?? dto.tipo ?? null;
-    // Si no llega anio, lo derivamos de fechaInicio.
-    const anio = dto.anio ?? new Date(dto.fechaInicio).getUTCFullYear();
     return this.prisma.campania.create({
       data: {
         cuentaId,
-        anio,
-        temporada,
         nombre: dto.nombre,
-        tipo: temporada,
+        tipo: dto.tipo,
         fechaInicio: new Date(dto.fechaInicio),
         fechaFin: dto.fechaFin ? new Date(dto.fechaFin) : null,
       },
@@ -52,14 +46,11 @@ export class CampaniasService {
 
   async actualizar(cuentaId: string, id: string, dto: ActualizarCampaniaDto) {
     await this.obtenerPorId(cuentaId, id);
-    // Si nos pasan tipo (legacy) sin temporada, los sincronizamos.
-    const temporada = dto.temporada !== undefined ? dto.temporada : dto.tipo;
     return this.prisma.campania.update({
       where: { id },
       data: {
-        ...(dto.anio !== undefined && { anio: dto.anio }),
-        ...(temporada !== undefined && { temporada, tipo: temporada }),
         ...(dto.nombre && { nombre: dto.nombre }),
+        ...(dto.tipo && { tipo: dto.tipo }),
         ...(dto.fechaInicio && { fechaInicio: new Date(dto.fechaInicio) }),
         ...(dto.fechaFin !== undefined && {
           fechaFin: dto.fechaFin ? new Date(dto.fechaFin) : null,
