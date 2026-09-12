@@ -47,7 +47,7 @@ export function ComisionesPage() {
       <div className="max-w-3xl mx-auto text-center py-24">
         <h1 style={{ color: 'var(--hv-text)', fontSize: 22, fontWeight: 600 }}>Acceso restringido</h1>
         <p style={{ color: 'var(--hv-text-muted)', fontSize: 13, marginTop: 6 }}>
-          Necesitás el rol Admin para ver la auditoría de comisiones.
+          Necesitás el rol Admin para ver la auditoría de fees.
         </p>
       </div>
     );
@@ -59,7 +59,7 @@ export function ComisionesPage() {
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 space-y-6">
       <header className="space-y-1">
-        <h1 style={{ color: 'var(--hv-text)', fontSize: 24, fontWeight: 700 }}>Comisiones de plataforma</h1>
+        <h1 style={{ color: 'var(--hv-text)', fontSize: 24, fontWeight: 700 }}>Fees de plataforma</h1>
         <p style={{ color: 'var(--hv-text-muted)', fontSize: 13 }}>
           Auditoría de la retención del{' '}
           <strong>{porcentaje(resumen?.tasaVigentePct ?? 1.5, 2)}</strong>{' '}
@@ -82,12 +82,12 @@ export function ComisionesPage() {
           detalle="Suma de todas las operaciones"
         />
         <KpiCard
-          titulo="Comisiones · compra inversor"
+          titulo="Fees · compra inversor"
           valor={resumen ? usd(resumen.compraInversor.montoComisionUsd, 2) : '—'}
           detalle={resumen ? `${resumen.compraInversor.operaciones} compras` : ''}
         />
         <KpiCard
-          titulo="Comisiones · cobro productor"
+          titulo="Fees · cobro productor"
           valor={resumen ? usd(resumen.cobroProductor.montoComisionUsd, 2) : '—'}
           detalle={resumen ? `${resumen.cobroProductor.operaciones} liberaciones` : ''}
         />
@@ -161,10 +161,10 @@ export function ComisionesPage() {
                 <th className="p-3 font-medium">Usuario</th>
                 <th className="p-3 font-medium text-right">Bruto</th>
                 <th className="p-3 font-medium text-right">%</th>
-                <th className="p-3 font-medium text-right">Comisión</th>
+                <th className="p-3 font-medium text-right">Fee</th>
                 <th className="p-3 font-medium text-right">Neto</th>
                 <th className="p-3 font-medium">Tx operación</th>
-                <th className="p-3 font-medium">Tx comisión</th>
+                <th className="p-3 font-medium">Tx fee</th>
               </tr>
             </thead>
             <tbody>
@@ -178,7 +178,7 @@ export function ComisionesPage() {
               {!isLoading && items.length === 0 && (
                 <tr>
                   <td colSpan={10} className="p-8 text-center" style={{ color: 'var(--hv-text-muted)' }}>
-                    No hay comisiones para estos filtros.
+                    No hay fees para estos filtros.
                   </td>
                 </tr>
               )}

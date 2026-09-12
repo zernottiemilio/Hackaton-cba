@@ -542,7 +542,7 @@ export function NuevaCampanaPage() {
               <MetricaVista label="HRV a emitir" valor={toneladas(toneladasOfrecidas, 0)} />
               <MetricaVista label="Precio HRV" valor={usd(precioToken, 2)} />
               <MetricaVista label="Recaudación bruta" valor={usdCompacto(totalUsd)} />
-              <MetricaVista label={`Comisión plataforma (${porcentaje(comisionCfg.porcentaje, 1)})`} valor={`− ${usdCompacto(comisionCfg.desglosar(totalUsd).comision)}`} />
+              <MetricaVista label={`Fee (${porcentaje(comisionCfg.porcentaje, 1)})`} valor={`− ${usdCompacto(comisionCfg.desglosar(totalUsd).comision)}`} />
               <MetricaVista label="Recibís neto" valor={usdCompacto(comisionCfg.desglosar(totalUsd).neto)} accent />
               <MetricaVista label="Cierre fondeo" valor={form.fondeoHasta ? new Date(form.fondeoHasta).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : '—'} />
               <MetricaVista label="Liquidación" valor={form.fechaLiquidacionEstimada ? new Date(form.fechaLiquidacionEstimada).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : 'cierre + 90 días'} />

@@ -76,13 +76,13 @@ export function BotonCobrarSiembra({ t, compacto = false }: Props) {
     const neto = res.comision?.montoNetoUsd ?? res.montoUsd;
     const com = res.comision?.montoComisionUsd ?? 0;
     toast.success(`Cobraste ${usd(neto, 2)} USDC netos`, {
-      description: `${usd(res.montoUsd, 2)} del vault, menos ${usd(com, 2)} de comisión de plataforma (${porcentaje(res.comision?.porcentaje ?? comisionCfg.porcentaje, 1)}).`,
+      description: `${usd(res.montoUsd, 2)} del vault, menos ${usd(com, 2)} de fee (${porcentaje(res.comision?.porcentaje ?? comisionCfg.porcentaje, 1)}).`,
       action: link ? { label: 'Ver tx', onClick: () => window.open(link, '_blank', 'noreferrer') } : undefined,
     });
     return {
       txSignature: res.txSignature,
       extras: res.comision
-        ? [{ label: `Comisión ${porcentaje(res.comision.porcentaje, 1)} a tesorería`, txSignature: res.comision.txComision ?? null }]
+        ? [{ label: `Fee ${porcentaje(res.comision.porcentaje, 1)} a tesorería`, txSignature: res.comision.txComision ?? null }]
         : [],
     };
   };
@@ -124,7 +124,7 @@ export function BotonCobrarSiembra({ t, compacto = false }: Props) {
             { label: 'Toneladas vendidas', value: `${vendidos.toFixed(0)} / ${Number(t.tokensEmitidos).toFixed(0)}` },
             { label: 'Precio por tonelada', value: usd(t.precioTokenUsd, 2) },
             { label: 'Sale del vault', value: `${usd(desglose.bruto, 2)} USDC` },
-            { label: `Comisión de plataforma (${porcentaje(comisionCfg.porcentaje, 1)})`, value: `− ${usd(desglose.comision, 2)}` },
+            { label: `Fee (${porcentaje(comisionCfg.porcentaje, 1)})`, value: `− ${usd(desglose.comision, 2)}` },
             { label: 'Recibís neto', value: `${usd(desglose.neto, 2)} USDC` },
           ],
         }}
