@@ -185,7 +185,7 @@ export function CalculadoraCotizacion(p: Props) {
         <div className="hv-glass" style={{ borderRadius: 12, padding: 14 }}>
           <div className="hv-label-sm" style={{ fontSize: 10, marginBottom: 6 }}>Fondeo desde</div>
           <input
-            type="date"
+            type="datetime-local"
             value={p.fondeoDesde}
             onChange={(e) => p.onFondeoDesdeCambia(e.target.value)}
             style={{
@@ -202,7 +202,7 @@ export function CalculadoraCotizacion(p: Props) {
         <div className="hv-glass" style={{ borderRadius: 12, padding: 14 }}>
           <div className="hv-label-sm" style={{ fontSize: 10, marginBottom: 6 }}>Fondeo hasta</div>
           <input
-            type="date"
+            type="datetime-local"
             value={p.fondeoHasta}
             onChange={(e) => p.onFondeoHastaCambia(e.target.value)}
             style={{
