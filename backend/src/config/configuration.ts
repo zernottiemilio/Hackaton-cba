@@ -11,8 +11,9 @@ export interface AppConfig {
     accessExpiresIn: string;
     refreshExpiresIn: string;
   };
-  anthropic: {
+  groq: {
     apiKey: string;
+    modelo: string;
   };
   email: {
     resendApiKey: string;
@@ -36,8 +37,9 @@ export default (): AppConfig => ({
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '30m',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
   },
-  anthropic: {
-    apiKey: process.env.ANTHROPIC_API_KEY ?? '',
+  groq: {
+    apiKey: process.env.GROQ_API_KEY ?? '',
+    modelo: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
   },
   email: {
     resendApiKey: process.env.RESEND_API_KEY ?? '',

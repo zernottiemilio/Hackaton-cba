@@ -31,7 +31,6 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.105.0",
     "@coral-xyz/anchor": "^0.31.1",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^4.0.4",
@@ -48,6 +47,7 @@
     "bcrypt": "^6.0.0",
     "bs58": "^6.0.0",
     "decimal.js": "^10.6.0",
+    "groq-sdk": "^1.6.0",
     "nestjs-pino": "^4.6.1",
     "nestjs-zod": "^5.4.0",
     "passport": "^0.7.0",

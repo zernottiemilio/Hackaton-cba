@@ -1,21 +1,38 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Anthropic from '@anthropic-ai/sdk';
+import Groq from 'groq-sdk';
+
 import { TOOLS, type ToolDefinition } from './tools';
 
-/** Una imagen adjunta a un mensaje user. */
+/**
+ * Cliente LLM del asistente.
+ *
+ * En origen se llamaba `ClaudeClient` porque el asistente corría contra
+ * Anthropic. Migramos a Groq (Llama 3.3 70b) para bajar costo a cero — el
+ * SDK de Groq es compatible con el formato OpenAI Chat Completions, así que
+ * el mapeo de tools es el estándar `type: 'function'`.
+ *
+ * El nombre de la clase y los tipos exportados se mantienen para no forzar
+ * el rename en toda la cadena de imports (`AsistenteService`, `ToolExecutorService`).
+ *
+ * Diferencias vs la versión Anthropic:
+ *  - Sin visión: `messages[].imagenes` se ignora en el request (Groq no
+ *    soporta multimodal en Llama). Se loguea un warning y el modelo recibe
+ *    solo el texto + un aviso ("hay una imagen adjunta").
+ *  - Tool use format: `tools: [{ type: 'function', function: { ... } }]` y
+ *    `tool_calls[]` en el message del assistant.
+ *  - Stop reasons: 'tool_calls' vs Anthropic 'tool_use'.
+ */
+
+/** Una imagen adjunta a un mensaje user (ignorada por Groq — se conserva la interfaz para no romper callers). */
 export interface ImagenAdjunta {
-  /** image/jpeg, image/png, image/webp, image/gif */
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
-  /** Datos en base64 sin el prefijo "data:". */
   dataBase64: string;
 }
 
-/** Mensaje en el formato que espera Claude. Soporta texto + imágenes. */
 export interface ClaudeMessage {
   role: 'user' | 'assistant';
   content: string;
-  /** Opcional, solo para role=user. Si tiene items, el contenido se envía como bloques multimodales. */
   imagenes?: ImagenAdjunta[];
 }
 
@@ -28,38 +45,40 @@ export interface ClaudeRunResult {
   toolCalls: Array<{ name: string; input: unknown; resultado: unknown }>;
 }
 
-/** Función que ejecuta una tool. Inyectada desde AsistenteService. */
 export type ToolExecutor = (
   name: string,
   input: Record<string, unknown>,
 ) => Promise<{ ok: true; resultado: unknown } | { ok: false; error: string }>;
 
-/**
- * Cliente para Claude con soporte de tool use.
- *
- * Loop:
- *  1. Envía mensaje + tools al modelo.
- *  2. Si stop_reason === 'tool_use', extrae cada tool_use block, ejecuta
- *     vía el executor, arma los tool_result y vuelve a llamar.
- *  3. Cuando stop_reason === 'end_turn', devuelve el texto final.
- *
- * Hasta 5 iteraciones por seguridad.
- */
+/** Convierte nuestro `ToolDefinition` al formato OpenAI/Groq. */
+function toGroqTool(t: ToolDefinition): Groq.Chat.Completions.ChatCompletionTool {
+  return {
+    type: 'function',
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.input_schema as Record<string, unknown>,
+    },
+  };
+}
+
 @Injectable()
 export class ClaudeClient {
   private readonly logger = new Logger(ClaudeClient.name);
-  private client?: Anthropic;
+  private client?: Groq;
   private modelo: string;
   private static readonly MAX_ITERACIONES = 5;
 
   constructor(private readonly config: ConfigService) {
-    const apiKey = this.config.get<string>('anthropic.apiKey');
-    this.modelo = process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5';
+    const apiKey = this.config.get<string>('GROQ_API_KEY') ?? process.env.GROQ_API_KEY;
+    this.modelo = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
     if (apiKey && apiKey.length > 10) {
-      this.client = new Anthropic({ apiKey });
-      this.logger.log(`ClaudeClient inicializado con modelo ${this.modelo}`);
+      this.client = new Groq({ apiKey });
+      this.logger.log(`LLM inicializado (Groq · ${this.modelo})`);
     } else {
-      this.logger.warn('ANTHROPIC_API_KEY no configurada — ClaudeClient devolverá respuestas stub');
+      this.logger.warn(
+        'GROQ_API_KEY no configurada — el asistente devolverá respuestas stub. Setealá en Railway y redeploy.',
+      );
     }
   }
 
@@ -79,8 +98,8 @@ export class ClaudeClient {
     if (!this.client) {
       return {
         texto:
-          'El asistente IA todavía no está configurado en este entorno (falta `ANTHROPIC_API_KEY`). ' +
-          'Avisame al admin para activarlo. Mientras tanto podés ver el resto del sistema sin problemas.',
+          'El asistente IA todavía no está configurado en este entorno (falta `GROQ_API_KEY`). ' +
+          'Avisale al admin para activarlo. Mientras tanto podés ver el resto del sistema sin problemas.',
         modelo: 'stub',
         tokensInput: 0,
         tokensOutput: 0,
@@ -89,24 +108,24 @@ export class ClaudeClient {
       };
     }
 
-    const conversacion: Anthropic.MessageParam[] = messages.map((m) => {
-      // Si es un user con imágenes, mandamos content como array de bloques.
-      if (m.role === 'user' && m.imagenes && m.imagenes.length > 0) {
-        const bloques: Anthropic.ContentBlockParam[] = m.imagenes.map((img) => ({
-          type: 'image',
-          source: {
-            type: 'base64',
-            media_type: img.mediaType,
-            data: img.dataBase64,
-          },
-        }));
-        if (m.content.trim()) {
-          bloques.push({ type: 'text', text: m.content });
+    // Adaptamos nuestros mensajes al formato OpenAI. Las imágenes las
+    // descartamos con warning — Groq (Llama 3.3) es sólo texto.
+    const conversacion: Groq.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: systemPrompt },
+      ...messages.map((m) => {
+        if (m.imagenes && m.imagenes.length > 0) {
+          this.logger.warn(
+            `Se ignoraron ${m.imagenes.length} imagen(es) en un mensaje: Groq no soporta visión.`,
+          );
+          const nota = ` [Nota interna: el usuario adjuntó ${m.imagenes.length} imagen(es) que este modelo no puede procesar. Pedile que describa lo que ve o que use el flujo de carga por foto separado.]`;
+          return { role: m.role, content: (m.content || '') + nota };
         }
-        return { role: 'user', content: bloques };
-      }
-      return { role: m.role, content: m.content };
-    });
+        return { role: m.role, content: m.content };
+      }),
+    ];
+
+    const groqTools =
+      toolsHabilitadas.length > 0 ? toolsHabilitadas.map(toGroqTool) : undefined;
 
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
@@ -115,45 +134,51 @@ export class ClaudeClient {
     let textoFinal = '';
 
     for (let iter = 0; iter < ClaudeClient.MAX_ITERACIONES; iter++) {
-      const res = await this.client.messages.create({
+      const res = await this.client.chat.completions.create({
         model: this.modelo,
         max_tokens: 2048,
-        system: systemPrompt,
         messages: conversacion,
-        ...(toolsHabilitadas.length > 0
-          ? { tools: toolsHabilitadas as unknown as Anthropic.Tool[] }
-          : {}),
+        ...(groqTools ? { tools: groqTools, tool_choice: 'auto' as const } : {}),
       });
 
-      totalInputTokens += res.usage.input_tokens;
-      totalOutputTokens += res.usage.output_tokens;
+      totalInputTokens += res.usage?.prompt_tokens ?? 0;
+      totalOutputTokens += res.usage?.completion_tokens ?? 0;
       modeloRespuesta = res.model;
 
-      const textoBloques = res.content
-        .filter((c): c is Anthropic.TextBlock => c.type === 'text')
-        .map((c) => c.text);
-      textoFinal = textoBloques.join('\n');
+      const choice = res.choices[0];
+      const message = choice.message;
+      textoFinal = message.content ?? '';
 
-      if (res.stop_reason !== 'tool_use') break;
+      const pedidosTool = message.tool_calls ?? [];
+      if (choice.finish_reason !== 'tool_calls' || pedidosTool.length === 0) break;
 
-      const toolUseBlocks = res.content.filter(
-        (c): c is Anthropic.ToolUseBlock => c.type === 'tool_use',
-      );
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      // Empujamos el message del assistant tal cual (con los tool_calls) al
+      // historial. Es requerido para que Groq acepte los tool responses.
+      conversacion.push({
+        role: 'assistant',
+        content: message.content ?? '',
+        tool_calls: pedidosTool,
+      });
 
-      for (const tb of toolUseBlocks) {
-        const resultado = await executor(tb.name, (tb.input ?? {}) as Record<string, unknown>);
-        toolCalls.push({ name: tb.name, input: tb.input, resultado });
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: tb.id,
+      for (const tc of pedidosTool) {
+        if (tc.type !== 'function') continue;
+        let input: Record<string, unknown> = {};
+        try {
+          input = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+        } catch (err) {
+          this.logger.warn(
+            `Argumentos JSON inválidos para tool ${tc.function.name}: ${(err as Error).message}`,
+          );
+          input = {};
+        }
+        const resultado = await executor(tc.function.name, input);
+        toolCalls.push({ name: tc.function.name, input, resultado });
+        conversacion.push({
+          role: 'tool',
+          tool_call_id: tc.id,
           content: JSON.stringify(resultado),
-          is_error: !resultado.ok,
         });
       }
-
-      conversacion.push({ role: 'assistant', content: res.content });
-      conversacion.push({ role: 'user', content: toolResults });
     }
 
     return {
