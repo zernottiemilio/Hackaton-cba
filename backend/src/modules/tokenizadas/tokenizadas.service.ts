@@ -320,7 +320,7 @@ export class TokenizadasService {
       });
       if (tenencia) {
         const desglose = calcularComision(res.montoTotalUsdc);
-        await this.prisma.comisionPlataforma.create({
+        const asiento = await this.prisma.comisionPlataforma.create({
           data: {
             tokenizacionId: tenencia.tokenizacionId,
             tenenciaId: tenencia.id,
@@ -334,7 +334,13 @@ export class TokenizadasService {
             txReferencia: res.txSignature,
           },
         });
-        return { ...res, comision: desglose };
+        const cobro = await this.cobrarComision(asiento.id, {
+          tokenizacionId: tenencia.tokenizacionId,
+          pagadorUsuarioId: tenencia.inversorId,
+          montoUsd: desglose.montoComisionUsd,
+          concepto: 'compra_inversor',
+        });
+        return { ...res, comision: { ...desglose, ...cobro } };
       }
     } catch (err) {
       // Ledger ya committeó — no reventamos la compra si la auditoría falla,
@@ -411,7 +417,7 @@ export class TokenizadasService {
     const res = await this.ledger.liberarFondos(tokenizacionId);
     const desglose = calcularComision(res.montoUsd);
 
-    await this.prisma.$transaction([
+    const [, , asiento] = await this.prisma.$transaction([
       this.prisma.tokenizacionCampana.update({
         where: { id: tokenizacionId },
         data: { txSignatureLiberacion: res.txSignature, fondosLiberadosEn: new Date() },
@@ -435,10 +441,51 @@ export class TokenizadasService {
       }),
     ]);
 
+    // El vault ya se vació a la wallet del productor; de ahí sale la comisión.
+    const cobro = await this.cobrarComision(asiento.id, {
+      tokenizacionId,
+      pagadorUsuarioId: t.productorId,
+      montoUsd: desglose.montoComisionUsd,
+      concepto: 'cobro_productor',
+    });
+
     this.logger.log(
-      `Fondos liberados: tokenizacion=${tokenizacionId} bruto=${res.montoUsd} comision=${desglose.montoComisionUsd} neto=${desglose.montoNetoUsd} tx=${res.txSignature}`,
+      `Fondos liberados: tokenizacion=${tokenizacionId} bruto=${res.montoUsd} comision=${desglose.montoComisionUsd} neto=${desglose.montoNetoUsd} tx=${res.txSignature} txComision=${cobro.txComision ?? 'pendiente'}`,
     );
-    return { ...res, comision: desglose };
+    return { ...res, comision: { ...desglose, ...cobro } };
+  }
+
+  /**
+   * Mueve la comisión a la tesorería y la deja registrada en el asiento. Si la
+   * transferencia falla, la operación principal ya está confirmada: no se
+   * revienta, queda `txComision = null` para reprocesar y se loguea.
+   */
+  private async cobrarComision(
+    asientoId: string,
+    input: { tokenizacionId: string; pagadorUsuarioId: string; montoUsd: number; concepto: 'compra_inversor' | 'cobro_productor' },
+  ): Promise<{ txComision: string | null; tesoreria: string }> {
+    const tesoreria = this.ledger.tesoreriaAddress();
+    try {
+      const r = await this.ledger.transferirComision(input);
+      await this.prisma.comisionPlataforma.update({
+        where: { id: asientoId },
+        data: { txComision: r.txSignature, tesoreriaAddress: r.tesoreria },
+      });
+      return { txComision: r.txSignature, tesoreria: r.tesoreria };
+    } catch (err) {
+      this.logger.error(
+        `Comisión ${input.concepto} registrada pero NO transferida (asiento=${asientoId}, monto=${input.montoUsd}): ${err instanceof Error ? err.message : err}`,
+      );
+      await this.prisma.comisionPlataforma
+        .update({ where: { id: asientoId }, data: { tesoreriaAddress: tesoreria } })
+        .catch(() => undefined);
+      return { txComision: null, tesoreria };
+    }
+  }
+
+  /** Porcentaje vigente y tesorería, para que el front muestre la comisión antes de operar. */
+  comisionesConfig() {
+    return { porcentaje: COMISION_PLATAFORMA_PCT, tesoreria: this.ledger.tesoreriaAddress() };
   }
 
   // ─── Admin: liquidar (settle) ──────────────────────────────────

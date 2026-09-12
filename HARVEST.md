@@ -67,6 +67,21 @@ Nuevos, acordados entre back y front (tareas VAL-12 y VAL-18):
 
 `reclamar` hace solo `redeem` y exige estado on-chain `Settled` (VAL-12). El auto-disparo de `release_funds` y `settle` que vivía en `ensureCampaignSettled()` se eliminó: son pasos propios que firman el productor y el acopio de forma visible. En la demo, el "acopio" es el fee-payer y, como es la mint authority del USDC de prueba, se acuña el depósito antes de `settle`.
 
+## Comisiones de la plataforma
+
+Tasa única `COMISION_PLATAFORMA_PCT = 1.5` en `backend/src/modules/tokenizadas/comisiones.ts`. Se cobra en dos momentos:
+
+| Momento | Quién paga | Cómo |
+|---|---|---|
+| Compra del inversor (`confirmarCompra`) | inversor, además del precio | transferencia SPL de USDC de su wallet custodial a la tesorería |
+| Cobro de la siembra (`liberarFondos`) | productor, sobre lo que salió del vault | transferencia SPL de su wallet custodial a la tesorería |
+
+Cada cobro deja un asiento en `comisiones_plataforma` con bruto, %, comisión, neto, `txReferencia` (la operación) y `txComision` (la transferencia a tesorería). Si la transferencia falla, la operación principal no se revierte: queda `txComision = null` para reprocesar. **La comisión no pasa por el programa Anchor**: es una transferencia SPL común, verificable en el explorer. Meterla en `release_funds` es roadmap.
+
+Endpoints: `GET tokenizadas/comisiones/config` (público: `{ porcentaje, tesoreria }`) y `GET tokenizadas/admin/comisiones` (auditoría con KPIs). Pantalla `/comisiones` (admin). El front muestra el desglose antes de operar en el wizard, en "Cobrar siembra" y en el sheet de compra.
+
+Env: `SOLANA_TESORERIA_ADDRESS` (pubkey, sin secret). Si falta, la tesorería es el fee-payer y el backend avisa con warning; para la demo conviene una wallet aparte para que la comisión se vea como movimiento.
+
 ## Envs del backend
 
 ```
@@ -77,7 +92,8 @@ SOLANA_USDC_MINT=
 SOLANA_FEE_PAYER_SECRET=      # array JSON o base58. NUNCA commitear.
 WALLET_ENCRYPTION_KEY=        # 32 bytes hex
 SOLANA_USER_FUND_LAMPORTS=20000000
-SOLANA_USER_TEST_USDC=10000000000
+SOLANA_USER_TEST_USDC=100000000000   # 100.000 USDC de prueba por usuario (la demo compra 75.000)
+SOLANA_TESORERIA_ADDRESS=            # pubkey de la wallet que recibe comisiones (sin secret)
 ```
 
 Los valores los genera el frente Chain (VAL-8) y se pasan por canal privado. Mientras devnet no esté, trabajar con `LEDGER_IMPL=mock`.

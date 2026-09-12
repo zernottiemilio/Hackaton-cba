@@ -173,13 +173,32 @@ export interface ConfirmacionCompra {
   tokens: number;
   precioCompraUsd: number;
   montoTotalUsdc: number;
+  comision?: DesgloseComision;
+}
+
+/** Comisión de plataforma aplicada a una operación. */
+export interface DesgloseComision {
+  montoBrutoUsd: number;
+  porcentaje: number;
+  montoComisionUsd: number;
+  montoNetoUsd: number;
+  /** Signature de la transferencia SPL a la tesorería. Null si falló o en mock viejo. */
+  txComision?: string | null;
+  tesoreria?: string;
+}
+
+/** `GET /tokenizadas/comisiones/config` */
+export interface ComisionConfig {
+  porcentaje: number;
+  tesoreria: string;
 }
 
 /** Respuesta de `POST /tokenizadas/:id/liberar-fondos` (release_funds). */
 export interface LiberarFondosResult {
   txSignature: string;
-  /** USDC que salió del vault hacia la wallet del productor. */
+  /** USDC que salió del vault hacia la wallet del productor (bruto). */
   montoUsd: number;
+  comision?: DesgloseComision;
 }
 
 /** Body de `POST /tokenizadas/:id/liquidar` (settle). */

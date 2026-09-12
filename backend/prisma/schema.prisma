@@ -1269,6 +1269,11 @@ model ComisionPlataforma {
   montoNetoUsd     Decimal                @map("monto_neto_usd") @db.Decimal(14, 4)
   /// Firma Solana de la transacción de referencia (compra o release_funds).
   txReferencia     String?                @map("tx_referencia")
+  /// Firma de la transferencia SPL de la comisión a la tesorería. Null si la
+  /// transferencia falló (el asiento queda para reprocesar) o en modo mock.
+  txComision       String?                @map("tx_comision")
+  /// Address de la tesorería que recibió la comisión.
+  tesoreriaAddress String?                @map("tesoreria_address")
   createdAt        DateTime               @default(now()) @map("created_at")
 
   tokenizacion TokenizacionCampana @relation(fields: [tokenizacionId], references: [id])

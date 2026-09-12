@@ -201,6 +201,13 @@ export class TokenizadasController {
     return this.service.revisar(id, user.id, dto);
   }
 
+  /** Porcentaje de comisión vigente y tesorería. Público: el front lo muestra antes de operar. */
+  @Public()
+  @Get('comisiones/config')
+  comisionesConfig() {
+    return this.service.comisionesConfig();
+  }
+
   /** Campañas fondeadas (pendientes de liquidar) y liquidadas (historial). */
   @RolPlataforma('admin_plataforma')
   @Get('admin/liquidacion')

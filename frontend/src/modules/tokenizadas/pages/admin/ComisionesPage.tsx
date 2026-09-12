@@ -163,20 +163,21 @@ export function ComisionesPage() {
                 <th className="p-3 font-medium text-right">%</th>
                 <th className="p-3 font-medium text-right">Comisión</th>
                 <th className="p-3 font-medium text-right">Neto</th>
-                <th className="p-3 font-medium">Tx</th>
+                <th className="p-3 font-medium">Tx operación</th>
+                <th className="p-3 font-medium">Tx comisión</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center" style={{ color: 'var(--hv-text-muted)' }}>
+                  <td colSpan={10} className="p-8 text-center" style={{ color: 'var(--hv-text-muted)' }}>
                     Cargando…
                   </td>
                 </tr>
               )}
               {!isLoading && items.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center" style={{ color: 'var(--hv-text-muted)' }}>
+                  <td colSpan={10} className="p-8 text-center" style={{ color: 'var(--hv-text-muted)' }}>
                     No hay comisiones para estos filtros.
                   </td>
                 </tr>
@@ -230,6 +231,26 @@ export function ComisionesPage() {
                         )
                       ) : (
                         <span style={{ color: 'var(--hv-text-muted)' }}>—</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {c.txComision ? (
+                        (() => {
+                          const lc = explorerTxUrl(c.txComision, red);
+                          return lc ? (
+                            <a href={lc} target="_blank" rel="noreferrer" style={{ color: 'var(--hv-primary)' }}>
+                              {abreviarTx(c.txComision)}
+                            </a>
+                          ) : (
+                            <span style={{ color: 'var(--hv-text-muted)', fontFamily: 'monospace', fontSize: 12 }}>
+                              {abreviarTx(c.txComision)}
+                            </span>
+                          );
+                        })()
+                      ) : (
+                        <span title="Asiento registrado, transferencia pendiente" style={{ color: 'var(--hv-amber-text)', fontSize: 12 }}>
+                          pendiente
+                        </span>
                       )}
                     </td>
                   </tr>

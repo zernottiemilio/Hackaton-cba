@@ -8,8 +8,9 @@ import { WizardSteps } from '../../components/shared/WizardSteps';
 import { SelectorModoTokenizacion } from '../../components/campana/SelectorModoTokenizacion';
 import { CalculadoraCotizacion } from '../../components/campana/CalculadoraCotizacion';
 import { PasoGarantias } from '../../components/campana/PasoGarantias';
-import { hectareas, toneladas, usd, usdCompacto } from '../../utils/format';
+import { hectareas, toneladas, usd, usdCompacto, porcentaje } from '../../utils/format';
 import { useWalletStore } from '../../stores/walletStore';
+import { useComisionConfig } from '../../hooks/useComisionConfig';
 import type { ModoTokenizacion, FuentePrecio } from '../../types/tokenizadas';
 import { normalizarCultivo } from '../../services/mockPreciosService';
 import { FirmaTxModal } from '../../components/wallet/FirmaTxModal';
@@ -104,6 +105,7 @@ export function NuevaCampanaPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const conectada = useWalletStore((s) => s.conectada);
+  const comisionCfg = useComisionConfig();
 
   const { data: campos = [] } = useQuery({
     queryKey: ['tk', 'campos'],
@@ -539,7 +541,9 @@ export function NuevaCampanaPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <MetricaVista label="HRV a emitir" valor={toneladas(toneladasOfrecidas, 0)} />
               <MetricaVista label="Precio HRV" valor={usd(precioToken, 2)} />
-              <MetricaVista label="Recaudación" valor={usdCompacto(totalUsd)} accent />
+              <MetricaVista label="Recaudación bruta" valor={usdCompacto(totalUsd)} />
+              <MetricaVista label={`Comisión plataforma (${porcentaje(comisionCfg.porcentaje, 1)})`} valor={`− ${usdCompacto(comisionCfg.desglosar(totalUsd).comision)}`} />
+              <MetricaVista label="Recibís neto" valor={usdCompacto(comisionCfg.desglosar(totalUsd).neto)} accent />
               <MetricaVista label="Cierre fondeo" valor={form.fondeoHasta ? new Date(form.fondeoHasta).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : '—'} />
               <MetricaVista label="Liquidación" valor={form.fechaLiquidacionEstimada ? new Date(form.fechaLiquidacionEstimada).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : 'cierre + 90 días'} />
               <MetricaVista label="Mínimo" valor={toneladas(minimasEfectivas, 0)} />

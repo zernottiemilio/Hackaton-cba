@@ -19,6 +19,8 @@ import {
   ReclamarResult,
   ReservaResult,
   ReservarTokensInput,
+  TransferirComisionInput,
+  TransferirComisionResult,
   WalletConectada,
 } from './ledger.interface';
 import { MockLedgerService } from './mock-ledger.service';
@@ -282,6 +284,29 @@ export class SolanaLedgerService extends LedgerService {
       precioCompraUsd,
       montoTotalUsdc: montoTotalUsdc.toNumber(),
     };
+  }
+
+  tesoreriaAddress(): string {
+    return this.custodian.tesoreria.toBase58();
+  }
+
+  /**
+   * Comisión de plataforma como transferencia SPL: sale de la wallet custodial
+   * del pagador y entra a la tesorería. No pasa por el programa Anchor, pero es
+   * una transacción real con su signature, verificable en el explorer.
+   */
+  async transferirComision(input: TransferirComisionInput): Promise<TransferirComisionResult> {
+    const micro = usdToMicroUsdc(new Decimal(input.montoUsd));
+    const tesoreria = this.custodian.tesoreria;
+    if (micro <= 0n) {
+      throw new BadRequestException('La comisión tiene que ser mayor a cero');
+    }
+    const pagadorKp = await this.custodian.getOrCreateKeypair(input.pagadorUsuarioId);
+    this.logger.log(
+      `comision ${input.concepto}: tokenizacion=${input.tokenizacionId} pagador=${pagadorKp.publicKey.toBase58()} monto=${input.montoUsd} → ${tesoreria.toBase58()}`,
+    );
+    const txSignature = await this.custodian.transferirUsdc(pagadorKp, tesoreria, micro);
+    return { txSignature, tesoreria: tesoreria.toBase58() };
   }
 
   /**

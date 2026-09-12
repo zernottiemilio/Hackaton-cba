@@ -17,7 +17,12 @@ import {
   LiquidarInput,
   LiquidarResult,
   EstadoOnChainResult,
+  TransferirComisionInput,
+  TransferirComisionResult,
 } from './ledger.interface';
+
+/** Tesorería ficticia del modo mock. Formato base58 para que la UI la trate igual. */
+const TESORERIA_MOCK = 'TESORERiAmockHarvestF1111111111111111111111';
 
 /**
  * Implementación mock del LedgerService. Persiste todo en Postgres, agrega
@@ -228,6 +233,19 @@ export class MockLedgerService extends LedgerService {
       tokensQuemados: tokens,
       usdcRecibido: usdcRecibido.toNumber(),
     };
+  }
+
+  tesoreriaAddress(): string {
+    return TESORERIA_MOCK;
+  }
+
+  async transferirComision(input: TransferirComisionInput): Promise<TransferirComisionResult> {
+    await this.delay(300, 700);
+    const txSignature = this.generarTxSignature();
+    this.logger.log(
+      `[mock] comision ${input.concepto}: tokenizacion=${input.tokenizacionId} pagador=${input.pagadorUsuarioId} monto=${input.montoUsd} tx=${txSignature}`,
+    );
+    return { txSignature, tesoreria: TESORERIA_MOCK };
   }
 
   async liberarFondos(tokenizacionId: string): Promise<LiberarFondosResult> {
