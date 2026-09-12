@@ -10,16 +10,26 @@ import { useWalletStore } from '../stores/walletStore';
 import { HarvestLogo } from '../components/brand/HarvestLogo';
 import { HomeInversorPage } from './inversor/HomeInversorPage';
 import { HomeProductorPage } from './productor/HomeProductorPage';
+import { LandingPublicaPage } from './LandingPublicaPage';
 import { useAuthStore } from '@/stores/authStore';
 import type { Cultivo } from '../services/mockPreciosService';
 
+/**
+ * Dispatcher de la raíz `/`.
+ *   - Sin sesión                  → LandingPublicaPage (marketing puro)
+ *   - Con sesión productor         → HomeProductorPage
+ *   - Con sesión inversor          → HomeInversorPage
+ *   - Con sesión admin/acopio      → vista tickers + TVL + oráculo (fallback)
+ */
 export function HomePage() {
   const usuarioAuth = useAuthStore((s) => s.usuario);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const conectada = useWalletStore((s) => s.conectada);
   const ticks = usePreciosLive();
 
-  // Vista según rol del usuario autenticado.
-  // El wallet mock ya no decide el shell — es solo para firmar tx on-chain.
+  if (!isAuthenticated) {
+    return <LandingPublicaPage />;
+  }
   if (usuarioAuth?.rolPlataforma === 'productor') {
     return <HomeProductorPage />;
   }
