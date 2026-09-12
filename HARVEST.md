@@ -98,9 +98,19 @@ SOLANA_TESORERIA_ADDRESS=            # pubkey de la wallet que recibe comisiones
 
 Los valores los genera el frente Chain (VAL-8) y se pasan por canal privado. Mientras devnet no esté, trabajar con `LEDGER_IMPL=mock`.
 
-**Program devnet (VAL-10)**. Deployado en `H7Y5ZX4VUF9icFXjuqKmhfCsXBa8wd41Hghvy1e7yvYD`. Upgrade authority = wallet local `~/.config/solana/id.json` (`2nzbnwU1uSB3tX4dJ2v818zXuMf33LwSeNJ2bAmXwt47`). `declare_id!` en `lib.rs`, `[programs.*]` en `Anchor.toml` e IDL/types del backend actualizados al nuevo id.
+**Program devnet (VAL-10)**. Deployado en `H7Y5ZX4VUF9icFXjuqKmhfCsXBa8wd41Hghvy1e7yvYD`. Upgrade authority = wallet local `~/.config/solana/id.json` (`2nzbnwU1uSB3tX4dJ2v818zXuMf33LwSeNJ2bAmXwt47`). `declare_id!` en `lib.rs`, `[programs.*]` en `Anchor.toml` e IDL/types del backend alineados. Upgrade con el binario nuevo hecho (slot 497162547) — cualquier upgrade futuro: `anchor build` + `solana program deploy --program-id H7Y5... --url devnet target/deploy/agro_token.so`.
 
-> **PENDIENTE de upgrade.** El `.so` on-chain se subió con el `declare_id!` viejo (`DKnf1N2UvAwEfa6eu32F5hSE1UVCc3iK2mbjP84FRMy5`) porque el redeploy quedó bloqueado por rate-limit del faucet devnet. Cualquier instrucción va a fallar el check runtime de Anchor hasta que se corra `solana program deploy --program-id H7Y5ZX4VUF9icFXjuqKmhfCsXBa8wd41Hghvy1e7yvYD --url devnet target/deploy/agro_token.so` con ≥1.75 SOL en la wallet. VAL-13 depende de esto.
+**VAL-13 (flujo end-to-end contra devnet real)**. Las 5 instrucciones on-chain pasaron desde la API en producción (12/09/2026, campaña `7e55a156-b68e-421b-8e48-33bdb883fea5`):
+
+| Instrucción | Tx signature |
+|---|---|
+| `create_campaign` | [3cqHSSCsBPQp7WmqopaPCHABVp1UA2aDAriZKJjmMqWS2gzPU8fuTfgtTjM2mJ7CjBXb1ybBCRp2m7eLibsiAHVr](https://explorer.solana.com/tx/3cqHSSCsBPQp7WmqopaPCHABVp1UA2aDAriZKJjmMqWS2gzPU8fuTfgtTjM2mJ7CjBXb1ybBCRp2m7eLibsiAHVr?cluster=devnet) |
+| `invest` (5 tn @ 250) | [2u5yDJa9TfYeWEHYKEEhPe3xNaGQho4FVuHYb8ixVEFTVfk6Zoi3yRCkeSbXaWdxaZZzNqHKxCexmxr8BgFe4oFM](https://explorer.solana.com/tx/2u5yDJa9TfYeWEHYKEEhPe3xNaGQho4FVuHYb8ixVEFTVfk6Zoi3yRCkeSbXaWdxaZZzNqHKxCexmxr8BgFe4oFM?cluster=devnet) |
+| `release_funds` | [41KjBNotwyvzKCPRzbPgpmzDFewWRrVokmdMcA5sse5gB2mHtCHq4qhb6hMDsvYDEWeLu7uKavi1z2U72GgQDCxR](https://explorer.solana.com/tx/41KjBNotwyvzKCPRzbPgpmzDFewWRrVokmdMcA5sse5gB2mHtCHq4qhb6hMDsvYDEWeLu7uKavi1z2U72GgQDCxR?cluster=devnet) |
+| `settle` (5 tn @ 310) | [BqBCKksxddq6qNckSz1PMr9ctxyhVZcNznHgc9YUaAqswdjmAu2NaakVQJF7D2tzsA1YrqQvsDJ6WanJjRRiK3a](https://explorer.solana.com/tx/BqBCKksxddq6qNckSz1PMr9ctxyhVZcNznHgc9YUaAqswdjmAu2NaakVQJF7D2tzsA1YrqQvsDJ6WanJjRRiK3a?cluster=devnet) |
+| `redeem` | [4XT26DnWgct7cxgbVnx84KvUpBBRnZFWm9HSxZzfXvjhfC4xhtjKA4LWp28Ua1PTtsAruxeykhdiLsvcScUMCJVs](https://explorer.solana.com/tx/4XT26DnWgct7cxgbVnx84KvUpBBRnZFWm9HSxZzfXvjhfC4xhtjKA4LWp28Ua1PTtsAruxeykhdiLsvcScUMCJVs?cluster=devnet) |
+
+Cifras: Carlos invirtió 1.250 USDC, liquidación a 310/tn depositó 1.550 al vault, redeem le devolvió 1.550 (retorno +25%). Comisión plataforma 1.5% (VAL-40) cobró 18,75 USDC en `invest` y otros 18,75 en `release_funds`.
 
 ## Trampas conocidas
 
@@ -108,7 +118,8 @@ Los valores los genera el frente Chain (VAL-8) y se pasan por canal privado. Mie
 - **Fechas on-chain: `now < sale_end < settlement_date`.** `fondeoHasta` es `sale_end` (se guarda con hora desde la migración `fondeo_con_hora`); `fechaLiquidacionEstimada` es `settlement_date` (si falta, `fondeoHasta + 90 días`). El programa rechaza `create_campaign` si el cierre ya pasó o la liquidación no es posterior, `invest` después de `sale_end`, y `settle` antes de `settlement_date`. `toneladasMinimas` es `min_tons`: sin ese piso vendido no hay `release_funds`. **Para la demo:** el wizard tiene el botón "Demo en vivo (5 + 1 min)": fondeo cierra en 5 minutos, liquidación al sexto. Aprobar, invertir y cobrar la siembra tienen que pasar dentro de esos 5 minutos.
 - **Renames de columnas rompen el seed.** `prisma/seed.ts` corre en cada arranque de Railway y ts-node lo compila al vuelo: un campo que ya no existe en el schema tira el backend abajo antes de levantar (pasó con `fechaLiquidacion` → `liquidadaEn`). Cualquier cambio en `TokenizacionCampana` tiene que tocar el seed. Verificar sin DB: `npx prisma generate && npx tsc --noEmit --esModuleInterop --skipLibCheck --target es2020 --module commonjs prisma/seed.ts`.
 - **Seed con `LEDGER_IMPL=solana`.** No crea campañas `abierta`/`fondeada`/`liquidada` (tendrían mint y vault inventados que rompen `invest`, `reclamar` y `on-chain`), desactiva las que quedaron de corridas en mock, y NUNCA borra tenencias (son compras reales). La campaña de la demo se crea en vivo. Usuarios demo: `juan@productor.demo`, `carlos@inversor.demo`, `admin@tokenizadas.demo`, password `agrofacil123`.
-- **Este código recién empieza a correr contra devnet.** VAL-13 es donde aparecen los bugs del flujo real.
+- **Reserva devuelve `reservaId`, no `id`.** El JSON de `POST /tokenizadas/reservas` es `{ reservaId, expiraEn, precioUsdSnapshot }`. `POST /tokenizadas/reservas/confirmar` espera `{ reservaId }`, no `{ id }`. Encontrado en VAL-13.
+- **`reclamar` ya no encadena release_funds ni settle.** Post-VAL-12 solo hace `redeem`. Si la campaña sigue `open` devuelve 400 "La campaña todavía no liquidó". El flujo real es: productor `POST /:id/liberar-fondos` (dispara `release_funds`) → admin `POST /:id/liquidar` (dispara `settle`) → inversor `POST /reclamar` (dispara `redeem`). Actualizar HARVEST cualquier PR que vuelva a mezclar.
 - **Railway.** `SUPERADMIN_PASSWORD` en env reescribe el password en cada deploy.
 - **Tests de backend.** `tsc -p tsconfig.json` falla en 3 archivos de test preexistentes (`calculos.service.spec.ts`, `test/app.e2e-spec.ts`). Verificar con `tsc -p tsconfig.build.json`, que es lo que buildea Railway.
 
