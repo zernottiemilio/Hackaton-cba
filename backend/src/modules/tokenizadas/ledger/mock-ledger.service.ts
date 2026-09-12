@@ -13,6 +13,9 @@ import {
   ReclamarInput,
   ReclamarResult,
   DisponibilidadResult,
+  LiberarFondosResult,
+  LiquidarInput,
+  LiquidarResult,
   EstadoOnChainResult,
 } from './ledger.interface';
 
@@ -195,13 +198,15 @@ export class MockLedgerService extends LedgerService {
     if (tenencia.estado !== 'activa') {
       throw new BadRequestException(`Tenencia en estado ${tenencia.estado}, no reclamable`);
     }
-    if (!tenencia.tokenizacion.precioLiquidacionUsdTn) {
+    const payout = tenencia.tokenizacion.payoutPorTokenUsd ?? tenencia.tokenizacion.precioLiquidacionUsdTn;
+    if (!payout) {
       throw new BadRequestException('La campaña todavía no liquidó');
     }
 
     const tokens = tenencia.tokens.toNumber();
-    // 1 token = 1 tonelada. USDC a recibir = tokens × precio de liquidación.
-    const usdcRecibido = new Decimal(tokens).mul(tenencia.tokenizacion.precioLiquidacionUsdTn);
+    // 1 token = 1 tonelada. USDC a recibir = tokens × payout por token (que ya
+    // incorpora la merma si se entregaron menos toneladas de las vendidas).
+    const usdcRecibido = new Decimal(tokens).mul(payout);
     const txSignature = this.generarTxSignature();
 
     await this.prisma.tenenciaToken.update({
@@ -222,6 +227,41 @@ export class MockLedgerService extends LedgerService {
       txSignature,
       tokensQuemados: tokens,
       usdcRecibido: usdcRecibido.toNumber(),
+    };
+  }
+
+  async liberarFondos(tokenizacionId: string): Promise<LiberarFondosResult> {
+    await this.delay(800, 1800);
+    const t = await this.prisma.tokenizacionCampana.findUnique({ where: { id: tokenizacionId } });
+    if (!t) throw new NotFoundException('Tokenización no encontrada');
+    // En mock el "vault" es lo recaudado en la base.
+    const montoUsd = t.montoRecaudadoUsd.toNumber();
+    const txSignature = this.generarTxSignature();
+    this.logger.log(`[mock] release_funds: tokenizacion=${tokenizacionId} monto=${montoUsd} tx=${txSignature}`);
+    return { txSignature, montoUsd };
+  }
+
+  async liquidar(input: LiquidarInput): Promise<LiquidarResult> {
+    await this.delay(800, 1800);
+    const t = await this.prisma.tokenizacionCampana.findUnique({ where: { id: input.tokenizacionId } });
+    if (!t) throw new NotFoundException('Tokenización no encontrada');
+    const vendidos = t.tokensVendidos.toDecimalPlaces(0, Decimal.ROUND_FLOOR);
+    if (vendidos.lte(0)) throw new BadRequestException('No hay tokens vendidos para liquidar');
+
+    // Misma aritmética que el programa: todo en micro-USDC, división entera.
+    const depositoMicro = new Decimal(input.toneladasEntregadas)
+      .mul(input.precioLiquidacionUsdTn)
+      .mul(1_000_000)
+      .toDecimalPlaces(0, Decimal.ROUND_FLOOR);
+    const payoutMicro = depositoMicro.div(vendidos).toDecimalPlaces(0, Decimal.ROUND_FLOOR);
+    const txSignature = this.generarTxSignature();
+    this.logger.log(
+      `[mock] settle: tokenizacion=${input.tokenizacionId} entregadas=${input.toneladasEntregadas} precio=${input.precioLiquidacionUsdTn} payoutMicro=${payoutMicro} tx=${txSignature}`,
+    );
+    return {
+      txSignature,
+      payoutPorTokenUsd: payoutMicro.div(1_000_000).toNumber(),
+      depositoUsd: depositoMicro.div(1_000_000).toNumber(),
     };
   }
 

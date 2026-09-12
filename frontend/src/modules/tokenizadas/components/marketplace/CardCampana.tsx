@@ -6,7 +6,7 @@ import { BarraFondeo } from '../campana/BarraFondeo';
 import { Sparkline } from '../charts/Sparkline';
 import { useHistoriaPrecios } from '../../hooks/usePreciosLive';
 import { diasRestantes, fechaCorta, hectareas, porcentaje, toneladas, usd, usdTn } from '../../utils/format';
-import type { Cultivo } from '../../services/mockPreciosService';
+import { normalizarCultivo } from '../../services/mockPreciosService';
 
 interface Props {
   t: Tokenizacion;
@@ -18,7 +18,7 @@ interface Props {
  * Body con precio HRV, sparkline, barra de fondeo y meta.
  */
 export function CardCampana({ t }: Props) {
-  const cultivoNombre = (t.campania.cultivo?.nombre?.toLowerCase() ?? 'soja') as Cultivo;
+  const cultivoNombre = normalizarCultivo(t.campania.cultivo?.nombre);
   const historia = useHistoriaPrecios(cultivoNombre, 40);
   const precioReferenciaSpark = historia.map((h) => h.usdTn);
 

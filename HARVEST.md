@@ -65,7 +65,7 @@ Nuevos, acordados entre back y front (tareas VAL-12 y VAL-18):
 | POST | `:id/liquidar` | admin_plataforma | `{ toneladasEntregadas, precioLiquidacionUsdTn }` → `{ txSignature, payoutPorTokenUsd, depositoUsd }`. Persiste `toneladasEntregadas`, `precioLiquidacionUsdTn`, `payoutPorTokenUsd`, `txSignatureLiquidacion`. Estado → `liquidada` |
 | GET | `:id/on-chain` | público | `{ onChain, status, tonsOffered, tonsSold, minTons, pricePerTonUsd, settlementDate, tonsDelivered, settlementPriceUsd, payoutPerTokenUsd, vaultBalanceUsd, addresses: { campaign, tokenMint, vault, producer, acopio }, explorer: { campaign, tokenMint, vault } }` |
 
-`reclamar` pasa a hacer solo `redeem`. Hoy dispara `release_funds` y `settle` escondidos en `ensureCampaignSettled()`; eso se saca.
+`reclamar` hace solo `redeem` y exige estado on-chain `Settled` (VAL-12). El auto-disparo de `release_funds` y `settle` que vivía en `ensureCampaignSettled()` se eliminó: son pasos propios que firman el productor y el acopio de forma visible. En la demo, el "acopio" es el fee-payer y, como es la mint authority del USDC de prueba, se acuña el depósito antes de `settle`.
 
 ## Envs del backend
 
@@ -89,10 +89,11 @@ Los valores los genera el frente Chain (VAL-8) y se pasan por canal privado. Mie
 ## Trampas conocidas
 
 - **Micro-USDC.** 250 USDC = `250_000_000`. Token de campaña con decimals 0: 1 token = 1 tonelada entera. Nunca `f64`; división entera, el polvo queda en el vault.
-- **`settlementDate`.** Hoy `publicarCampana()` la fija en `fondeoHasta + 90 días` y `minTons = 1`. Sin VAL-11 no se puede liquidar en vivo.
-- **Wallet mock en el front.** `stores/walletStore.ts` tiene `WALLETS_DEMO` hardcodeadas y `FirmaTxModal.tsx` simula con `setTimeout`. `NuevaCampanaPage.tsx` y `RevisionColaPage.tsx` fabrican signatures con `SIG${Math.random()}`. Todo eso se reemplaza (VAL-15).
-- **Este código nunca corrió contra devnet.** El programa está escrito y testeado en localnet, el ledger está escrito, pero nadie los conectó de verdad. VAL-13 es donde aparecen los bugs.
-- **Railway.** El seed corre en cada start. `SUPERADMIN_PASSWORD` en env reescribe el password en cada deploy.
+- **Fechas on-chain: `now < sale_end < settlement_date`.** `fondeoHasta` es `sale_end` (se guarda con hora desde la migración `fondeo_con_hora`); `fechaLiquidacionEstimada` es `settlement_date` (si falta, `fondeoHasta + 90 días`). El programa rechaza `create_campaign` si el cierre ya pasó o la liquidación no es posterior, `invest` después de `sale_end`, y `settle` antes de `settlement_date`. `toneladasMinimas` es `min_tons`: sin ese piso vendido no hay `release_funds`. **Para la demo:** el wizard tiene el botón "Demo en vivo (5 + 1 min)": fondeo cierra en 5 minutos, liquidación al sexto. Aprobar, invertir y cobrar la siembra tienen que pasar dentro de esos 5 minutos.
+- **Renames de columnas rompen el seed.** `prisma/seed.ts` corre en cada arranque de Railway y ts-node lo compila al vuelo: un campo que ya no existe en el schema tira el backend abajo antes de levantar (pasó con `fechaLiquidacion` → `liquidadaEn`). Cualquier cambio en `TokenizacionCampana` tiene que tocar el seed. Verificar sin DB: `npx prisma generate && npx tsc --noEmit --esModuleInterop --skipLibCheck --target es2020 --module commonjs prisma/seed.ts`.
+- **Seed con `LEDGER_IMPL=solana`.** No crea campañas `abierta`/`fondeada`/`liquidada` (tendrían mint y vault inventados que rompen `invest`, `reclamar` y `on-chain`), desactiva las que quedaron de corridas en mock, y NUNCA borra tenencias (son compras reales). La campaña de la demo se crea en vivo. Usuarios demo: `juan@productor.demo`, `carlos@inversor.demo`, `admin@tokenizadas.demo`, password `agrofacil123`.
+- **Este código recién empieza a correr contra devnet.** VAL-13 es donde aparecen los bugs del flujo real.
+- **Railway.** `SUPERADMIN_PASSWORD` en env reescribe el password en cada deploy.
 - **Tests de backend.** `tsc -p tsconfig.json` falla en 3 archivos de test preexistentes (`calculos.service.spec.ts`, `test/app.e2e-spec.ts`). Verificar con `tsc -p tsconfig.build.json`, que es lo que buildea Railway.
 
 ## Reparto y tareas (Linear, equipo "Valentino Lopez")

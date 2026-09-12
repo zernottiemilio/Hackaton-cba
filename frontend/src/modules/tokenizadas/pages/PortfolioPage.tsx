@@ -6,6 +6,7 @@ import { usd, usdCompacto, porcentaje, toneladas, diasRestantes, abreviarTx } fr
 import { EstadoCampanaBadge } from '../components/campana/EstadoCampanaBadge';
 import { BadgeModo } from '../components/campana/BadgeModo';
 import { PanelOnChain } from '../components/campana/PanelOnChain';
+import { BotonCobrarInversor } from '../components/campana/BotonCobrarInversor';
 import { useWalletStore } from '../stores/walletStore';
 import { Link } from 'react-router-dom';
 
@@ -92,7 +93,8 @@ export function PortfolioPage() {
                   <th className="text-right px-3 py-3">Variación</th>
                   <th className="text-left px-3 py-3">Estado</th>
                   <th className="text-left px-3 py-3">Cosecha</th>
-                  <th className="text-left px-5 py-3">Tx compra</th>
+                  <th className="text-left px-3 py-3">Tx compra</th>
+                  <th className="text-right px-5 py-3">Cobrar</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -148,7 +150,7 @@ export function PortfolioPage() {
                             ? diasRestantes(t.tokenizacion.campania.fechaCosechaEstimada)
                             : '—'}
                         </td>
-                        <td className="px-5 py-3">
+                        <td className="px-3 py-3">
                           {t.txSignatureCompra ? (
                             <span className="font-mono text-[11px] text-white/40" title={t.txSignatureCompra}>
                               {abreviarTx(t.txSignatureCompra)}
@@ -157,10 +159,13 @@ export function PortfolioPage() {
                             <span className="text-white/30">—</span>
                           )}
                         </td>
+                        <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                          <BotonCobrarInversor t={t} compacto />
+                        </td>
                       </tr>
                       {abierta && (
                         <tr>
-                          <td colSpan={10} className="px-5 pb-5 pt-1 bg-black/30">
+                          <td colSpan={11} className="px-5 pb-5 pt-1 bg-black/30">
                             <PanelOnChain tokenizacionId={t.tokenizacionId} compacto />
                           </td>
                         </tr>

@@ -201,6 +201,37 @@ export class WalletCustodianService implements OnModuleInit {
     );
   }
 
+  /**
+   * Garantiza que `owner` tenga al menos `microUsdc` de USDC de prueba en su
+   * ATA, creándola y minteando la diferencia si hace falta. El fee-payer es la
+   * mint authority del USDC de devnet. Se usa para que el acopio (fee-payer)
+   * pueda pagar el settle en la demo.
+   */
+  async ensureUsdcBalance(owner: PublicKey, microUsdc: bigint): Promise<PublicKey> {
+    const conn = this.conn.connection;
+    const feePayer = this._feePayer;
+    const ata = getAssociatedTokenAddressSync(this._usdcMint, owner);
+    const info = await conn.getAccountInfo(ata);
+    const ixs = [];
+    let actual = 0n;
+    if (!info) {
+      ixs.push(createAssociatedTokenAccountInstruction(feePayer.publicKey, ata, owner, this._usdcMint));
+    } else {
+      const bal = await conn.getTokenAccountBalance(ata);
+      actual = BigInt(bal.value.amount);
+    }
+    if (actual < microUsdc) {
+      ixs.push(createMintToInstruction(this._usdcMint, ata, feePayer.publicKey, microUsdc - actual));
+    }
+    if (ixs.length > 0) {
+      await sendAndConfirmTransaction(conn, new Transaction().add(...ixs), [feePayer]);
+      this.logger.log(
+        `USDC de prueba asegurado para ${owner.toBase58()}: ${Number(microUsdc) / 1_000_000} USDC`,
+      );
+    }
+    return ata;
+  }
+
   async getBalances(pubkey: PublicKey): Promise<{ sol: number; usdc: number }> {
     const conn = this.conn.connection;
     const sol = (await conn.getBalance(pubkey)) / LAMPORTS_PER_SOL;

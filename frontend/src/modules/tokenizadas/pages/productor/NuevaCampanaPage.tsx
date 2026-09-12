@@ -11,7 +11,7 @@ import { PasoGarantias } from '../../components/campana/PasoGarantias';
 import { hectareas, toneladas, usd, usdCompacto } from '../../utils/format';
 import { useWalletStore } from '../../stores/walletStore';
 import type { ModoTokenizacion, FuentePrecio } from '../../types/tokenizadas';
-import type { Cultivo } from '../../services/mockPreciosService';
+import { normalizarCultivo } from '../../services/mockPreciosService';
 import { FirmaTxModal } from '../../components/wallet/FirmaTxModal';
 
 const PASOS = ['La campaña', 'Cuánto tokenizar', 'Cotización', 'Garantías'];
@@ -35,13 +35,29 @@ interface FormState {
   descuentoPct: number;
   precioDinamico: boolean;
   precioPisoUsd: number | null;
+  /** Formato datetime-local ("YYYY-MM-DDTHH:mm"). Se convierte a ISO al enviar. */
   fondeoDesde: string;
   fondeoHasta: string;
+  /** datetime-local. settlement_date on-chain. Vacío = backend usa fondeoHasta + 90 días. */
+  fechaLiquidacionEstimada: string;
+  /** min_tons on-chain. 0 = usar el sugerido (2/3 de lo ofrecido). */
+  toneladasMinimas: number;
 
   tieneSeguroGranizo: boolean;
   tieneSeguroParametrico: boolean;
   tieneAvalSgr: boolean;
   sobrecolateralPct: number;
+}
+
+/** Date → valor para <input type="datetime-local"> en hora local. */
+function aLocalInput(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** datetime-local → ISO 8601 (lo que valida el DTO del backend). */
+function aIso(local: string): string {
+  return new Date(local).toISOString();
 }
 
 const inicial: FormState = {
@@ -62,6 +78,8 @@ const inicial: FormState = {
   precioPisoUsd: null,
   fondeoDesde: '',
   fondeoHasta: '',
+  fechaLiquidacionEstimada: '',
+  toneladasMinimas: 0,
   tieneSeguroGranizo: false,
   tieneSeguroParametrico: false,
   tieneAvalSgr: false,
@@ -110,7 +128,7 @@ export function NuevaCampanaPage() {
   const toneladasOfrecidas =
     form.modo === 'porcentual' ? (produccionEstimadaTn * form.valorModo) / 100 : form.valorModo;
 
-  const cultivoNombre = (cultivoElegido?.nombre?.toLowerCase() ?? 'soja') as Cultivo;
+  const cultivoNombre = normalizarCultivo(cultivoElegido?.nombre);
 
   const upd = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -118,7 +136,35 @@ export function NuevaCampanaPage() {
     form.campoId && form.cultivoId && form.cicloAgricola && form.hectareas > 0 &&
     form.fechaSiembra && form.fechaCosecha && form.rindeEstimadoTnHa > 0;
   const puedeAvanzar1 = !!form.modo && form.valorModo > 0;
-  const puedeAvanzar2 = form.precioReferenciaUsdTn > 0 && form.fondeoDesde && form.fondeoHasta;
+  // Mínimo sugerido: 2/3 de lo ofrecido, entero, al menos 1.
+  const minimasSugeridas = Math.max(1, Math.floor((toneladasOfrecidas * 2) / 3));
+  const minimasEfectivas = form.toneladasMinimas > 0 ? form.toneladasMinimas : minimasSugeridas;
+
+  // Reglas del programa: now < sale_end < settlement_date. Las espejamos acá
+  // para que el error aparezca en el wizard y no como InvalidDates on-chain.
+  const fondeoDesdeMs = form.fondeoDesde ? new Date(form.fondeoDesde).getTime() : NaN;
+  const fondeoHastaMs = form.fondeoHasta ? new Date(form.fondeoHasta).getTime() : NaN;
+  const liquidacionMs = form.fechaLiquidacionEstimada ? new Date(form.fechaLiquidacionEstimada).getTime() : NaN;
+  const ventanaOk = !Number.isNaN(fondeoDesdeMs) && !Number.isNaN(fondeoHastaMs) && fondeoHastaMs > fondeoDesdeMs;
+  const cierreFuturo = !Number.isNaN(fondeoHastaMs) && fondeoHastaMs > Date.now();
+  const liquidacionOk = Number.isNaN(liquidacionMs) || liquidacionMs > fondeoHastaMs;
+  const minimasOk = minimasEfectivas >= 1 && minimasEfectivas <= Math.floor(toneladasOfrecidas);
+  const puedeAvanzar2 = form.precioReferenciaUsdTn > 0 && ventanaOk && cierreFuturo && liquidacionOk && minimasOk;
+
+  /**
+   * Demo en vivo: la venta cierra en 5 minutos y se puede liquidar al sexto.
+   * Es lo mínimo que permite el programa (sale_end < settlement_date) y deja
+   * tiempo para aprobar, invertir y cobrar la siembra antes del cierre.
+   */
+  const armarDemoEnVivo = () => {
+    const ahora = Date.now();
+    setForm((f) => ({
+      ...f,
+      fondeoDesde: aLocalInput(new Date(ahora)),
+      fondeoHasta: aLocalInput(new Date(ahora + 5 * 60_000)),
+      fechaLiquidacionEstimada: aLocalInput(new Date(ahora + 6 * 60_000)),
+    }));
+  };
 
   const crearMut = useMutation({
     mutationFn: async () => {
@@ -141,8 +187,10 @@ export function NuevaCampanaPage() {
         descuentoPct: form.descuentoPct,
         precioDinamico: form.precioDinamico,
         precioPisoUsd: form.precioPisoUsd ?? undefined,
-        fondeoDesde: form.fondeoDesde,
-        fondeoHasta: form.fondeoHasta,
+        fondeoDesde: aIso(form.fondeoDesde),
+        fondeoHasta: aIso(form.fondeoHasta),
+        fechaLiquidacionEstimada: form.fechaLiquidacionEstimada ? aIso(form.fechaLiquidacionEstimada) : undefined,
+        toneladasMinimas: minimasEfectivas,
         tieneSeguroGranizo: form.tieneSeguroGranizo,
         tieneSeguroParametrico: form.tieneSeguroParametrico,
         tieneAvalSgr: form.tieneAvalSgr,
@@ -370,6 +418,73 @@ export function NuevaCampanaPage() {
             onFondeoDesdeCambia={(v) => upd('fondeoDesde', v)}
             onFondeoHastaCambia={(v) => upd('fondeoHasta', v)}
           />
+
+          {/* Liquidación y mínimo: los dos parámetros que el programa fija al crear la campaña */}
+          <div className="hv-glass mt-4" style={{ borderRadius: 16, padding: 20 }}>
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+              <div>
+                <h3 style={{ color: 'var(--hv-text)', fontWeight: 600, fontSize: 15 }}>Liquidación y mínimo</h3>
+                <p style={{ color: 'var(--hv-text-muted)', fontSize: 12, marginTop: 4, maxWidth: 520 }}>
+                  Quedan escritos en el contrato al publicar. La liquidación tiene que ser después del cierre
+                  del fondeo, y el mínimo es lo que tiene que venderse para que puedas cobrar la siembra.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={armarDemoEnVivo}
+                className="hv-cta-ghost"
+                style={{ padding: '8px 14px', fontSize: 12, whiteSpace: 'nowrap' }}
+                title="Fondeo cierra en 5 minutos y se liquida al sexto"
+              >
+                ⚡ Demo en vivo (5 + 1 min)
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Fecha de liquidación (después del cierre del fondeo)">
+                <input
+                  type="datetime-local"
+                  value={form.fechaLiquidacionEstimada}
+                  min={form.fondeoHasta || undefined}
+                  onChange={(e) => upd('fechaLiquidacionEstimada', e.target.value)}
+                  style={{
+                    background: 'var(--hv-bg-input)',
+                    border: `1px solid ${liquidacionOk ? 'var(--hv-border)' : 'var(--hv-red-strong)'}`,
+                    color: 'var(--hv-text)',
+                    fontSize: 14,
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    width: '100%',
+                  }}
+                />
+                <div style={{ color: 'var(--hv-text-muted)', fontSize: 11, marginTop: 6 }}>
+                  {!liquidacionOk
+                    ? 'Tiene que ser posterior al cierre del fondeo.'
+                    : form.fechaLiquidacionEstimada
+                    ? 'El acopio recién puede liquidar a partir de esta fecha.'
+                    : 'Vacío: se usa el cierre del fondeo + 90 días.'}
+                </div>
+              </Field>
+              <Field label={`Mínimo de toneladas para cobrar (de ${Math.floor(toneladasOfrecidas)} ofrecidas)`}>
+                <NumberInput
+                  value={minimasEfectivas}
+                  onChange={(v) => upd('toneladasMinimas', v)}
+                  unit="tn"
+                  max={Math.floor(toneladasOfrecidas)}
+                />
+                <div style={{ color: minimasOk ? 'var(--hv-text-muted)' : 'var(--hv-red-text)', fontSize: 11, marginTop: 6 }}>
+                  {minimasOk
+                    ? `Sugerido: ${minimasSugeridas} tn (dos tercios). Si el fondeo cierra por debajo, no se liberan fondos.`
+                    : `Entre 1 y ${Math.floor(toneladasOfrecidas)} toneladas.`}
+                </div>
+              </Field>
+            </div>
+            {!cierreFuturo && form.fondeoHasta && (
+              <p style={{ color: 'var(--hv-red-text)', fontSize: 12, marginTop: 12 }}>
+                El cierre del fondeo ya pasó. El contrato exige que sea futuro al momento de publicar.
+              </p>
+            )}
+          </div>
         </section>
       )}
 
@@ -397,7 +512,9 @@ export function NuevaCampanaPage() {
               <MetricaVista label="HRV a emitir" valor={toneladas(toneladasOfrecidas, 0)} />
               <MetricaVista label="Precio HRV" valor={usd(precioToken, 2)} />
               <MetricaVista label="Recaudación" valor={usdCompacto(totalUsd)} accent />
-              <MetricaVista label="Cierre fondeo" valor={form.fondeoHasta ? new Date(form.fondeoHasta).toLocaleDateString('es-AR') : '—'} />
+              <MetricaVista label="Cierre fondeo" valor={form.fondeoHasta ? new Date(form.fondeoHasta).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : '—'} />
+              <MetricaVista label="Liquidación" valor={form.fechaLiquidacionEstimada ? new Date(form.fechaLiquidacionEstimada).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : 'cierre + 90 días'} />
+              <MetricaVista label="Mínimo" valor={toneladas(minimasEfectivas, 0)} />
             </div>
           </div>
         </section>
