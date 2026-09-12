@@ -57,7 +57,7 @@ En `Variables` del servicio `backend`, agregá (los `${{ ... }}` son **referenci
 | `CORS_ORIGIN` | `https://${{ frontend.RAILWAY_PUBLIC_DOMAIN }}` (la armás **después** de crear el frontend; ver paso 5) |
 | `NODE_ENV` | `production` |
 | `GROQ_API_KEY` | Key gratis de https://console.groq.com/keys para el asistente IA. Si está vacía el asistente responde con un stub y el resto de la app anda. |
-| `GROQ_MODEL` | (opcional) Default `llama-3.3-70b-versatile`. |
+| `GROQ_MODEL` | (opcional) Default `openai/gpt-oss-20b`. Alternativas con tool use: `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`. Los Llama 3.x NO están en el free tier. |
 | `SUPERADMIN_EMAIL` | email con el que vas a loguearte al panel `/admin` |
 | `SUPERADMIN_PASSWORD` | contraseña fuerte (guardala en un gestor) |
 | `SUPERADMIN_NOMBRE` | tu nombre para mostrar (ej: `Mateo Formoso`) |
@@ -220,7 +220,7 @@ JWT_REFRESH_EXPIRES_IN= 7d
 CORS_ORIGIN           = https://${{ frontend.RAILWAY_PUBLIC_DOMAIN }}
 NODE_ENV              = production
 GROQ_API_KEY          = <key de console.groq.com/keys>
-GROQ_MODEL            = llama-3.3-70b-versatile
+GROQ_MODEL            = openai/gpt-oss-20b
 ```
 
 ### Frontend
