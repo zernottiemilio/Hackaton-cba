@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { BotonPublicarDemo } from '../../components/campana/BotonPublicarDemo';
 import { useQuery } from '@tanstack/react-query';
 import { tokenizadasApi } from '../../services/tokenizadasService';
 import { useAuthStore } from '@/stores/authStore';
@@ -39,9 +40,12 @@ export function MisCampanasPage() {
             {emisiones.length} en total · se actualiza cada 10 segundos
           </p>
         </div>
-        <Link to="/campanas/nueva" className="hv-cta" style={{ textDecoration: 'none', padding: '11px 18px', fontSize: 13 }}>
-          + Tokenizar campaña
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <BotonPublicarDemo />
+          <Link to="/campanas/nueva" className="hv-cta" style={{ textDecoration: 'none', padding: '11px 18px', fontSize: 13 }}>
+            + Tokenizar campaña
+          </Link>
+        </div>
       </section>
 
       {isLoading ? (

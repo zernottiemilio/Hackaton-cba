@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/apiClient';
 import type {
   Tokenizacion,
+  PublicarDemoResult,
   ProductorPublico,
   Reserva,
   ConfirmacionCompra,
@@ -172,6 +173,12 @@ export const tokenizadasApi = {
    * tokensVendidos >= toneladasMinimas y la campaña está abierta.
    * Contrato acordado en HARVEST.md (VAL-12).
    */
+  /** Campaña demo en un click (crea + aprueba + create_campaign on-chain). */
+  async publicarDemo(): Promise<PublicarDemoResult> {
+    const { data } = await apiClient.post('/tokenizadas/demo/publicar');
+    return { ...data, precioTokenUsd: Number(data.precioTokenUsd) };
+  },
+
   async liberarFondos(id: string): Promise<LiberarFondosResult> {
     const { data } = await apiClient.post(`/tokenizadas/${id}/liberar-fondos`);
     return data;

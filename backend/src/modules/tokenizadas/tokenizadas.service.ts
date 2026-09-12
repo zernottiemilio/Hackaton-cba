@@ -135,6 +135,75 @@ export class TokenizadasService {
     return tokenizacion;
   }
 
+  // ─── Productor: campaña demo en un click ───────────────────────
+
+  /**
+   * Crea, envía a revisión y aprueba (create_campaign real on-chain) una
+   * campaña con valores de demo, en una sola llamada. Existe para el speech:
+   * el productor la publica con un click y el inversor, en otro navegador,
+   * ya la puede comprar. La aprobación la firma el mismo productor y queda
+   * registrada en `aprobadaPor`, así que se distingue de una revisión real.
+   *
+   * Ventana: venta 10 min, liquidación 12 min, mínimo 10 tn (para poder
+   * cobrar la siembra con una sola compra chica).
+   */
+  async publicarDemo(usuarioId: string, cuentaId: string) {
+    const campo = await this.prisma.establecimiento.findFirst({
+      where: { cuentaId },
+      orderBy: { nombre: 'asc' },
+    });
+    if (!campo) throw new BadRequestException('Necesitás al menos un lote cargado para la campaña demo');
+    const cultivo =
+      (await this.prisma.cultivo.findFirst({ where: { nombre: { equals: 'soja', mode: 'insensitive' } } })) ??
+      (await this.prisma.cultivo.findFirst({ where: { activo: true } }));
+    if (!cultivo) throw new BadRequestException('No hay cultivos cargados');
+
+    const ahora = Date.now();
+    const anio = new Date().getFullYear();
+    const dto: CrearTokenizacionDto = {
+      campaniaNueva: {
+        nombre: `${campo.nombre} · ${cultivo.nombre} ${anio}/${String((anio + 1) % 100).padStart(2, '0')} (demo)`,
+        establecimientoId: campo.id,
+        cultivoId: cultivo.id,
+        cicloAgricola: `${anio}/${String((anio + 1) % 100).padStart(2, '0')}`,
+        hectareasAfectadas: 120,
+        fechaSiembraEstimada: `${anio}-10-15`,
+        fechaCosechaEstimada: `${anio + 1}-04-20`,
+        rindeEstimadoTnHa: 3.5,
+      },
+      modo: 'fijo',
+      toneladasFijas: 100,
+      fuentePrecio: 'pizarra_rosario',
+      precioReferenciaUsdTn: 250,
+      descuentoPct: 5,
+      precioDinamico: false,
+      fondeoDesde: new Date(ahora).toISOString(),
+      fondeoHasta: new Date(ahora + 10 * 60_000).toISOString(),
+      fechaLiquidacionEstimada: new Date(ahora + 12 * 60_000).toISOString(),
+      toneladasMinimas: 10,
+      tieneSeguroGranizo: true,
+      tieneSeguroParametrico: false,
+      tieneAvalSgr: false,
+      sobrecolateralPct: 0,
+    };
+
+    const t = await this.crear(usuarioId, cuentaId, dto);
+    await this.enviarARevision(t.id, usuarioId);
+    const aprobacion = await this.revisar(t.id, usuarioId, { decision: 'aprobar' });
+    if (!aprobacion.publicacion) throw new BadRequestException('La campaña demo no se pudo publicar');
+
+    return {
+      id: t.id,
+      nombre: dto.campaniaNueva!.nombre,
+      toneladasOfrecidas: 100,
+      precioTokenUsd: t.precioTokenUsd.toNumber(),
+      toneladasMinimas: 10,
+      fondeoHasta: dto.fondeoHasta,
+      fechaLiquidacionEstimada: dto.fechaLiquidacionEstimada,
+      txSignature: aprobacion.publicacion.txSignature,
+    };
+  }
+
   // ─── Productor: enviar a revisión ──────────────────────────────
 
   async enviarARevision(tokenizacionId: string, usuarioId: string) {
