@@ -260,6 +260,19 @@ export class TokenizadasService {
       throw new BadRequestException('El productor no conectó su wallet');
     }
 
+    // Espejo de la regla del programa (now < sale_end < settlement_date).
+    // Si llegamos tarde, create_campaign falla con InvalidDates y el front
+    // ve un 500 sin explicación. Mejor decirlo antes y en castellano.
+    const ahora = Date.now();
+    if (t.fondeoHasta.getTime() <= ahora) {
+      throw new BadRequestException(
+        `La ventana de venta cerró el ${t.fondeoHasta.toISOString()}; ya no se puede publicar. Rechazala y creá una nueva con fechas futuras.`,
+      );
+    }
+    if (t.fechaLiquidacionEstimada && t.fechaLiquidacionEstimada.getTime() <= t.fondeoHasta.getTime()) {
+      throw new BadRequestException('La fecha de liquidación tiene que ser posterior al cierre de la venta');
+    }
+
     const publicacion = await this.ledger.publicarCampana({
       tokenizacionId: t.id,
       toneladasOfrecidas: t.toneladasOfrecidas.toNumber(),
