@@ -23,9 +23,11 @@ export function UpdatePrompt() {
         setNeedRefresh(true);
       },
       onRegistered(reg: ServiceWorkerRegistration | undefined) {
-        // Chequear actualizaciones cada hora mientras la app está abierta
+        // Chequear actualizaciones al cargar y cada minuto mientras la app está
+        // abierta. Con registerType 'autoUpdate' el SW nuevo toma control solo.
         if (reg) {
-          setInterval(() => reg.update().catch(() => undefined), 60 * 60 * 1000);
+          void reg.update().catch(() => undefined);
+          setInterval(() => reg.update().catch(() => undefined), 60 * 1000);
         }
       },
     });
