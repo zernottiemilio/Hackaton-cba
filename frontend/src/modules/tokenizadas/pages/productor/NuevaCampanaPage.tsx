@@ -177,17 +177,18 @@ export function NuevaCampanaPage() {
   const puedeAvanzar2 = form.precioReferenciaUsdTn > 0 && ventanaOk && cierreFuturo && liquidacionOk && minimasOk;
 
   /**
-   * Demo en vivo: la venta cierra en 5 minutos y se puede liquidar al sexto.
-   * Es lo mínimo que permite el programa (sale_end < settlement_date) y deja
-   * tiempo para aprobar, invertir y cobrar la siembra antes del cierre.
+   * Demo en vivo: la venta cierra en 2 minutos y se puede liquidar al tercero.
+   * El programa solo exige sale_end < settlement_date; el reloj arranca al
+   * publicar, no al comprar. Dos minutos alcanzan para aprobar, invertir y
+   * cobrar la siembra mientras se explica cada paso.
    */
   const armarDemoEnVivo = () => {
     const ahora = Date.now();
     setForm((f) => ({
       ...f,
       fondeoDesde: aLocalInput(new Date(ahora)),
-      fondeoHasta: aLocalInput(new Date(ahora + 5 * 60_000)),
-      fechaLiquidacionEstimada: aLocalInput(new Date(ahora + 6 * 60_000)),
+      fondeoHasta: aLocalInput(new Date(ahora + 2 * 60_000)),
+      fechaLiquidacionEstimada: aLocalInput(new Date(ahora + 3 * 60_000)),
     }));
   };
 
@@ -464,9 +465,9 @@ export function NuevaCampanaPage() {
                 onClick={armarDemoEnVivo}
                 className="hv-cta-ghost"
                 style={{ padding: '8px 14px', fontSize: 12, whiteSpace: 'nowrap' }}
-                title="Fondeo cierra en 5 minutos y se liquida al sexto"
+                title="Fondeo cierra en 2 minutos y se liquida al tercero"
               >
-                ⚡ Demo en vivo (5 + 1 min)
+                ⚡ Demo en vivo (2 + 1 min)
               </button>
             </div>
 
