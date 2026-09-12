@@ -90,9 +90,18 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
         signature: res.txSignature,
         tipo: 'comprar',
         descripcion: `${res.tokens} HRV de ${t.campania.establecimiento?.nombre}`,
-        usdcMovido: res.montoTotalUsdc,
+        usdcMovido: -res.montoTotalUsdc,
         timestamp: Date.now(),
       });
+      if (res.comision?.txComision) {
+        registrarTx({
+          signature: res.comision.txComision,
+          tipo: 'fee',
+          descripcion: `Fee ${porcentaje(res.comision.porcentaje, 1)} · compra en ${t.campania.establecimiento?.nombre ?? t.campania.nombre}`,
+          usdcMovido: -res.comision.montoComisionUsd,
+          timestamp: Date.now() + 1,
+        });
+      }
       qc.invalidateQueries({ queryKey: ['tk'] });
       setPaso('listo');
     } catch (e) {
