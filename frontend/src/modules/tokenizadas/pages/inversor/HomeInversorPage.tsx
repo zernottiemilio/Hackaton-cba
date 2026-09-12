@@ -6,6 +6,7 @@ import { productoresApi, type ProductorResumen } from '../../services/productore
 import { useWalletStore, useNombreWallet } from '../../stores/walletStore';
 import { usePreciosLive, useHistoriaPrecios } from '../../hooks/usePreciosLive';
 import { TickerGrande } from '../../components/precios/TickerGrande';
+import { ChipEnVivo } from '../../components/precios/ChipEnVivo';
 import { Sparkline } from '../../components/charts/Sparkline';
 import { BarraFondeo } from '../../components/campana/BarraFondeo';
 import { BadgeModo } from '../../components/campana/BadgeModo';
@@ -98,7 +99,20 @@ export function HomeInversorPage() {
             <>
               <div
                 className="hv-mono"
-                style={{ fontSize: 42, fontWeight: 600, color: 'var(--hv-text)', letterSpacing: '-0.03em', lineHeight: 1 }}
+                style={{
+                  // clamp: se achica automáticamente si el número no entra.
+                  // 24px mínimo (balance de 8 dígitos entra hasta ~340px),
+                  // 42px ideal en desktop, escala con el ancho del viewport.
+                  fontSize: 'clamp(24px, 5vw, 42px)',
+                  fontWeight: 600,
+                  color: 'var(--hv-text)',
+                  letterSpacing: '-0.03em',
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+                title={usd(conectada.balanceUsdc, 2)}
               >
                 {usd(conectada.balanceUsdc, 2)}
               </div>
@@ -134,10 +148,7 @@ export function HomeInversorPage() {
                 Precios reales · granos.ar (Consiagro / BCR)
               </p>
             </div>
-            <span className="hv-chip hv-chip-green" style={{ fontSize: 11 }}>
-              <span className="hv-dot" style={{ background: 'var(--hv-green)' }} />
-              en vivo
-            </span>
+            <ChipEnVivo />
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {ticks.map((t) => (
