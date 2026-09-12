@@ -1,15 +1,35 @@
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, Loader2, TrendingDown, TrendingUp } from 'lucide-react';
+import { toast } from 'sonner';
 import { tokenizadasService } from '@/services/tokenizadasService';
+import { useAuthStore } from '@/stores/authStore';
+import { extraerMensajeError } from '@/lib/apiClient';
 
 const FMT_USD = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const FMT_PCT = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1, signDisplay: 'exceptZero' });
 
 export function PortfolioInversorPage() {
+  const walletAddress = useAuthStore((s) => s.usuario?.walletAddress);
+  const queryClient = useQueryClient();
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['portfolio'],
     queryFn: () => tokenizadasService.portfolio(),
+  });
+
+  const reclamarMutation = useMutation({
+    mutationFn: (tenenciaId: string) =>
+      tokenizadasService.reclamar({ tenenciaId, inversorWallet: walletAddress! }),
+    onSuccess: (res: { usdcRecibido?: number } & Record<string, unknown>) => {
+      toast.success(
+        res.usdcRecibido
+          ? `Cobraste ${new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(res.usdcRecibido as number)}`
+          : 'Reclamación confirmada',
+      );
+      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+    },
+    onError: (err) => toast.error(extraerMensajeError(err)),
   });
 
   if (isLoading) {
@@ -83,6 +103,7 @@ export function PortfolioInversorPage() {
                 <th className="text-right p-3">Invertido</th>
                 <th className="text-right p-3">Valor actual</th>
                 <th className="text-left p-3">Estado</th>
+                <th className="text-right p-3">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -91,6 +112,10 @@ export function PortfolioInversorPage() {
                 const invertido = Number(t.montoTotalUsd);
                 const precioActual = Number(t.tokenizacion.precioTokenUsd);
                 const valorActual = tokens * precioActual;
+                const reclamable =
+                  t.estado === 'activa' &&
+                  t.tokenizacion.campania.estadoToken === 'liquidada' &&
+                  !!walletAddress;
                 return (
                   <tr key={t.id} className="border-t border-border">
                     <td className="p-3">
@@ -107,6 +132,27 @@ export function PortfolioInversorPage() {
                     <td className="p-3 text-right font-medium">{FMT_USD.format(valorActual)}</td>
                     <td className="p-3">
                       <EstadoBadge estado={t.tokenizacion.campania.estadoToken} />
+                    </td>
+                    <td className="p-3 text-right">
+                      {reclamable ? (
+                        <button
+                          onClick={() => reclamarMutation.mutate(t.id)}
+                          disabled={reclamarMutation.isPending}
+                          className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                        >
+                          {reclamarMutation.isPending && reclamarMutation.variables === t.id ? (
+                            <Loader2 className="h-3 w-3 inline animate-spin" />
+                          ) : (
+                            'Cobrar'
+                          )}
+                        </button>
+                      ) : t.estado === 'reclamada' ? (
+                        <span className="text-xs text-muted-foreground">Cobrada</span>
+                      ) : t.estado === 'reembolsada' ? (
+                        <span className="text-xs text-muted-foreground">Reembolsada</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </td>
                   </tr>
                 );

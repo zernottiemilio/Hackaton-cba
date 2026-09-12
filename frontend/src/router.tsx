@@ -22,6 +22,7 @@ import { NuevaEmisionPage } from '@/pages/emisiones/NuevaEmisionPage';
 
 // ─── Inversor ────────────────────────────────────────────────
 import { MarketplacePage } from '@/pages/marketplace/MarketplacePage';
+import { FichaEmisionPage } from '@/pages/marketplace/FichaEmisionPage';
 import { PortfolioInversorPage } from '@/pages/portfolio/PortfolioInversorPage';
 
 // ─── Acopio ─────────────────────────────────────────────────
@@ -61,6 +62,7 @@ export const router = createBrowserRouter([
     element: <RutaProtegida roles={['inversor']} />,
     children: [
       { path: '/marketplace', element: <MarketplacePage /> },
+      { path: '/marketplace/:id', element: <FichaEmisionPage /> },
       { path: '/portfolio', element: <PortfolioInversorPage /> },
     ],
   },

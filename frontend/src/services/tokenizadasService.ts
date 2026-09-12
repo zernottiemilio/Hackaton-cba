@@ -67,12 +67,18 @@ export interface DetalleMarketplace extends TokenizacionCampanaResumen {
   };
 }
 
+export type EstadoTenencia = 'activa' | 'reclamada' | 'reembolsada';
+
 export interface Tenencia {
   id: string;
   tokens: string;
   montoTotalUsd: string;
+  estado: EstadoTenencia;
+  walletAddress: string;
   createdAt: string;
-  tokenizacion: TokenizacionCampanaResumen;
+  tokenizacion: TokenizacionCampanaResumen & {
+    precioLiquidacionUsdTn?: string | null;
+  };
 }
 
 export interface PortfolioInversor {
