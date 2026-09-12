@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
+    "@coral-xyz/anchor": "^0.31.1",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^10.0.0",
@@ -42,7 +43,10 @@
     "@nestjs/serve-static": "^4.0.2",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^5.22.0",
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.99.0",
     "bcrypt": "^6.0.0",
+    "bs58": "^6.0.0",
     "decimal.js": "^10.6.0",
     "nestjs-pino": "^4.6.1",
     "nestjs-zod": "^5.4.0",
