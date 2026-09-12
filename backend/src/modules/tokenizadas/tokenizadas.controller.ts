@@ -11,6 +11,7 @@ import {
   ListarMarketplaceDto,
   LiquidarTokenizacionDto,
 } from './dto/tokenizacion.dto';
+import { ListarComisionesDto } from './dto/comisiones.dto';
 import { CrearCampoDto, ActualizarCampoDto } from './dto/campo.dto';
 import { Usuario } from '../../common/decorators/usuario.decorator';
 import { Public } from '../../common/decorators/public.decorator';
@@ -216,5 +217,15 @@ export class TokenizadasController {
     @Body() dto: LiquidarTokenizacionDto,
   ) {
     return this.service.liquidar(id, user.id, dto);
+  }
+
+  /**
+   * Auditoría de comisiones de la plataforma (1,5% sobre cada operación).
+   * Devuelve el listado + agregados para el panel de administración.
+   */
+  @RolPlataforma('admin_plataforma')
+  @Get('admin/comisiones')
+  comisiones(@Query() filtros: ListarComisionesDto) {
+    return this.service.listarComisiones(filtros);
   }
 }

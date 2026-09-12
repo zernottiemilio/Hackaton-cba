@@ -171,4 +171,57 @@ export const tokenizadasApi = {
     const { data } = await apiClient.post(`/tokenizadas/${id}/liquidar`, payload);
     return data;
   },
+
+  /** Auditoría de comisiones de plataforma (1,5%) — panel del admin. */
+  async listarComisiones(filtros?: FiltrosComisiones): Promise<ComisionesResponse> {
+    const { data } = await apiClient.get('/tokenizadas/admin/comisiones', { params: filtros });
+    return data;
+  },
 };
+
+// ─── Comisiones ─────────────────────────────────────────────────
+
+export type TipoComision = 'compra_inversor' | 'cobro_productor';
+
+export interface FiltrosComisiones {
+  tipo?: TipoComision;
+  desde?: string;
+  hasta?: string;
+}
+
+export interface ComisionItem {
+  id: string;
+  tokenizacionId: string;
+  tenenciaId: string | null;
+  tipo: TipoComision;
+  usuarioId: string;
+  walletAddress: string | null;
+  montoBrutoUsd: string;
+  porcentaje: string;
+  montoComisionUsd: string;
+  montoNetoUsd: string;
+  txReferencia: string | null;
+  createdAt: string;
+  usuario: { id: string; nombre: string; email: string };
+  tokenizacion: {
+    id: string;
+    campania: {
+      id: string;
+      nombre: string;
+      cultivo?: { nombre: string } | null;
+      establecimiento?: { nombre: string; provincia?: string | null } | null;
+    };
+  };
+}
+
+export interface ComisionesResumen {
+  tasaVigentePct: number;
+  total: { operaciones: number; montoBrutoUsd: number; montoComisionUsd: number; montoNetoUsd: number };
+  compraInversor: { operaciones: number; montoBrutoUsd: number; montoComisionUsd: number };
+  cobroProductor: { operaciones: number; montoBrutoUsd: number; montoComisionUsd: number };
+}
+
+export interface ComisionesResponse {
+  items: ComisionItem[];
+  resumen: ComisionesResumen;
+}

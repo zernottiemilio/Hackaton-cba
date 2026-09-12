@@ -8,6 +8,8 @@ import {
   ListarMarketplaceDto,
   LiquidarTokenizacionDto,
 } from './dto/tokenizacion.dto';
+import { ListarComisionesDto } from './dto/comisiones.dto';
+import { calcularComision, COMISION_PLATAFORMA_PCT } from './comisiones';
 
 /**
  * Orquesta el flujo de tokenización: creación → revisión ADMIN → publicación
@@ -300,7 +302,48 @@ export class TokenizadasService {
   }
 
   async confirmarCompra(reservaId: string) {
-    return this.ledger.confirmarCompra(reservaId);
+    const res = await this.ledger.confirmarCompra(reservaId);
+
+    // La comisión se registra como asiento contable inmutable en la misma
+    // ventana temporal que el commit del ledger. El vault ya recibió el
+    // bruto — el 1,5% se contabiliza aparte para la auditoría del admin
+    // (HARVEST.md deja el ledger on-chain intacto).
+    try {
+      const tenencia = await this.prisma.tenenciaToken.findUnique({
+        where: { id: res.tenenciaId },
+        select: {
+          id: true,
+          tokenizacionId: true,
+          inversorId: true,
+          walletAddress: true,
+        },
+      });
+      if (tenencia) {
+        const desglose = calcularComision(res.montoTotalUsdc);
+        await this.prisma.comisionPlataforma.create({
+          data: {
+            tokenizacionId: tenencia.tokenizacionId,
+            tenenciaId: tenencia.id,
+            tipo: 'compra_inversor',
+            usuarioId: tenencia.inversorId,
+            walletAddress: tenencia.walletAddress,
+            montoBrutoUsd: new Decimal(desglose.montoBrutoUsd),
+            porcentaje: new Decimal(desglose.porcentaje),
+            montoComisionUsd: new Decimal(desglose.montoComisionUsd),
+            montoNetoUsd: new Decimal(desglose.montoNetoUsd),
+            txReferencia: res.txSignature,
+          },
+        });
+        return { ...res, comision: desglose };
+      }
+    } catch (err) {
+      // Ledger ya committeó — no reventamos la compra si la auditoría falla,
+      // solo dejamos el rastro para reprocesar manualmente.
+      this.logger.error(
+        `No se pudo registrar comisión de compra (reserva=${reservaId} tenencia=${res.tenenciaId}): ${err instanceof Error ? err.message : err}`,
+      );
+    }
+    return res;
   }
 
   // ─── Inversor: portfolio ───────────────────────────────────────
@@ -366,6 +409,7 @@ export class TokenizadasService {
     }
 
     const res = await this.ledger.liberarFondos(tokenizacionId);
+    const desglose = calcularComision(res.montoUsd);
 
     await this.prisma.$transaction([
       this.prisma.tokenizacionCampana.update({
@@ -376,10 +420,25 @@ export class TokenizadasService {
         where: { id: t.campaniaId },
         data: { estadoToken: 'fondeada' },
       }),
+      this.prisma.comisionPlataforma.create({
+        data: {
+          tokenizacionId,
+          tipo: 'cobro_productor',
+          usuarioId: t.productorId,
+          walletAddress: null,
+          montoBrutoUsd: new Decimal(desglose.montoBrutoUsd),
+          porcentaje: new Decimal(desglose.porcentaje),
+          montoComisionUsd: new Decimal(desglose.montoComisionUsd),
+          montoNetoUsd: new Decimal(desglose.montoNetoUsd),
+          txReferencia: res.txSignature,
+        },
+      }),
     ]);
 
-    this.logger.log(`Fondos liberados: tokenizacion=${tokenizacionId} monto=${res.montoUsd} tx=${res.txSignature}`);
-    return res;
+    this.logger.log(
+      `Fondos liberados: tokenizacion=${tokenizacionId} bruto=${res.montoUsd} comision=${desglose.montoComisionUsd} neto=${desglose.montoNetoUsd} tx=${res.txSignature}`,
+    );
+    return { ...res, comision: desglose };
   }
 
   // ─── Admin: liquidar (settle) ──────────────────────────────────
@@ -471,6 +530,80 @@ export class TokenizadasService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // ─── Admin: auditoría de comisiones ────────────────────────────
+
+  /**
+   * Listado detallado de comisiones cobradas por la plataforma + agregados
+   * para el dashboard del admin. Filtros opcionales por tipo (compra/cobro)
+   * y rango de fechas. El endpoint es la fuente única para el reporte
+   * contable — cada fila conserva la tasa vigente al momento del cobro.
+   */
+  async listarComisiones(filtros: ListarComisionesDto) {
+    const where: any = {};
+    if (filtros.tipo) where.tipo = filtros.tipo;
+    if (filtros.desde || filtros.hasta) {
+      where.createdAt = {};
+      if (filtros.desde) where.createdAt.gte = new Date(filtros.desde);
+      if (filtros.hasta) where.createdAt.lte = new Date(filtros.hasta);
+    }
+
+    const [items, totalGeneral, totalCompra, totalCobro] = await Promise.all([
+      this.prisma.comisionPlataforma.findMany({
+        where,
+        include: {
+          tokenizacion: {
+            include: {
+              campania: { include: { cultivo: true, establecimiento: true } },
+            },
+          },
+          usuario: { select: { id: true, nombre: true, email: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      }),
+      this.prisma.comisionPlataforma.aggregate({
+        where,
+        _sum: { montoBrutoUsd: true, montoComisionUsd: true, montoNetoUsd: true },
+        _count: { _all: true },
+      }),
+      this.prisma.comisionPlataforma.aggregate({
+        where: { ...where, tipo: 'compra_inversor' },
+        _sum: { montoBrutoUsd: true, montoComisionUsd: true },
+        _count: { _all: true },
+      }),
+      this.prisma.comisionPlataforma.aggregate({
+        where: { ...where, tipo: 'cobro_productor' },
+        _sum: { montoBrutoUsd: true, montoComisionUsd: true },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const toNum = (v: Decimal | null | undefined) => (v ? v.toNumber() : 0);
+
+    return {
+      items,
+      resumen: {
+        tasaVigentePct: COMISION_PLATAFORMA_PCT,
+        total: {
+          operaciones: totalGeneral._count._all,
+          montoBrutoUsd: toNum(totalGeneral._sum.montoBrutoUsd),
+          montoComisionUsd: toNum(totalGeneral._sum.montoComisionUsd),
+          montoNetoUsd: toNum(totalGeneral._sum.montoNetoUsd),
+        },
+        compraInversor: {
+          operaciones: totalCompra._count._all,
+          montoBrutoUsd: toNum(totalCompra._sum.montoBrutoUsd),
+          montoComisionUsd: toNum(totalCompra._sum.montoComisionUsd),
+        },
+        cobroProductor: {
+          operaciones: totalCobro._count._all,
+          montoBrutoUsd: toNum(totalCobro._sum.montoBrutoUsd),
+          montoComisionUsd: toNum(totalCobro._sum.montoComisionUsd),
+        },
+      },
+    };
   }
 
   // ─── Admin: cola de revisión ───────────────────────────────────

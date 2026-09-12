@@ -14,6 +14,7 @@ import { NuevaCampanaPage } from '@/modules/tokenizadas/pages/productor/NuevaCam
 import { MisCampanasPage } from '@/modules/tokenizadas/pages/productor/MisCampanasPage';
 import { RevisionColaPage } from '@/modules/tokenizadas/pages/admin/RevisionColaPage';
 import { LiquidacionPage } from '@/modules/tokenizadas/pages/admin/LiquidacionPage';
+import { ComisionesPage } from '@/modules/tokenizadas/pages/admin/ComisionesPage';
 import { ProductorDetallePage } from '@/modules/tokenizadas/pages/inversor/ProductorDetallePage';
 import { AsistenteHarvestPage } from '@/modules/tokenizadas/pages/AsistenteHarvestPage';
 import { ClimaHarvestPage } from '@/modules/tokenizadas/pages/ClimaHarvestPage';
@@ -98,6 +99,7 @@ export const router = createBrowserRouter([
         children: [
           { path: 'revision-emisiones', element: <RevisionColaPage /> },
           { path: 'liquidacion', element: <LiquidacionPage /> },
+          { path: 'comisiones', element: <ComisionesPage /> },
           { path: 'red-acopios', element: <AdminAcopiosPage /> },
           { path: 'conciliacion', element: <ConciliacionPage /> },
         ],
