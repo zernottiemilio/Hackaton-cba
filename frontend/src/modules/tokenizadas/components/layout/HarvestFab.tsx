@@ -181,7 +181,7 @@ function obtenerAcciones(rol: string | null): Accion[] {
   }
   if (rol === 'inversor') {
     base.push(
-      { to: '/invertir', icon: '⚡', titulo: 'Marketplace', sub: 'Emisiones abiertas' },
+      { to: '/invertir', icon: '◉', titulo: 'Cosechas', sub: 'Emisiones abiertas' },
       { to: '/portfolio', icon: '▤', titulo: 'Mi portfolio', sub: 'Tenencias HRV' },
     );
   }

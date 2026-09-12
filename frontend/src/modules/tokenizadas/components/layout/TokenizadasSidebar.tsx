@@ -17,7 +17,7 @@ interface NavItem {
 const ITEMS: NavItem[] = [
   { to: '/', label: 'Inicio', icon: '◈', roles: 'todos' },
   // Público / inversor
-  { to: '/invertir', label: 'Marketplace', icon: '⚡', roles: 'todos' },
+  { to: '/invertir', label: 'Cosechas', icon: '◉', roles: 'todos' },
   { to: '/portfolio', label: 'Portfolio', icon: '▤', roles: ['inversor'] },
   // Productor
   { to: '/campanas', label: 'Mis emisiones', icon: '⛢', roles: ['productor'] },

@@ -38,7 +38,7 @@ export function FichaCampanaPage() {
     <div className="max-w-7xl mx-auto">
       {/* Volver */}
       <Link to="/invertir" className="text-white/40 hover:text-white/80 text-xs mb-4 inline-flex items-center gap-1">
-        ← Marketplace
+        ← Cosechas
       </Link>
 
       {/* Hero: mapa a sangre */}
