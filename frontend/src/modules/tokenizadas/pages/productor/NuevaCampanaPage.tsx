@@ -21,7 +21,13 @@ interface FormState {
   campoId: string;
   cultivoId: string;
   cicloAgricola: string;
-  hectareas: number;
+  /**
+   * Producción total estimada del lote, en toneladas. Es el input protagonista
+   * del wizard: 1 token = 1 tonelada. Las hectáreas se derivan como
+   * `produccionEstimadaTn / rindeEstimadoTnHa` al enviar al backend, para
+   * no cambiar el modelo (el schema Prisma tiene hectareasAfectadas + rinde).
+   */
+  produccionEstimadaTn: number;
   fechaSiembra: string;
   fechaCosecha: string;
   rindeEstimadoTnHa: number;
@@ -64,7 +70,7 @@ const inicial: FormState = {
   campoId: '',
   cultivoId: '',
   cicloAgricola: cicloDefault(),
-  hectareas: 0,
+  produccionEstimadaTn: 0,
   fechaSiembra: '',
   fechaCosecha: '',
   rindeEstimadoTnHa: 0,
@@ -112,28 +118,45 @@ export function NuevaCampanaPage() {
   const campoElegido = useMemo(() => campos.find((c) => c.id === form.campoId), [campos, form.campoId]);
   const cultivoElegido = useMemo(() => cultivos.find((c) => c.id === form.cultivoId), [cultivos, form.cultivoId]);
 
+  const promedioZonal = cultivoElegido ? promedioZonalTnHa[cultivoElegido.nombre] ?? 3.5 : 3.5;
+
+  // Al elegir cultivo, seteo el rinde por defecto al promedio zonal para que
+  // el productor no tenga que adivinar. Lo puede ajustar después.
   useEffect(() => {
-    if (campoElegido) {
+    if (cultivoElegido && form.rindeEstimadoTnHa === 0) {
+      setForm((f) => ({ ...f, rindeEstimadoTnHa: promedioZonal }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.cultivoId]);
+
+  // Al elegir lote, sugiero producción = superficie × rinde. Es el default más
+  // útil: el productor puede tokenizar todo el lote o bajar el número si solo
+  // ofrece una parte.
+  useEffect(() => {
+    if (campoElegido && form.rindeEstimadoTnHa > 0 && form.produccionEstimadaTn === 0) {
       const sup = Number(campoElegido.superficieTotalHa ?? 0);
-      if (form.hectareas === 0 || form.hectareas > sup) {
-        setForm((f) => ({ ...f, hectareas: sup }));
-      }
+      setForm((f) => ({ ...f, produccionEstimadaTn: Math.round(sup * form.rindeEstimadoTnHa) }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.campoId]);
 
-  const produccionEstimadaTn = form.hectareas * form.rindeEstimadoTnHa;
-  const promedioZonal = cultivoElegido ? promedioZonalTnHa[cultivoElegido.nombre] ?? 3.5 : 3.5;
+  const produccionEstimadaTn = form.produccionEstimadaTn;
   const excedeHistorico = form.rindeEstimadoTnHa > promedioZonal * 1.15;
   const toneladasOfrecidas =
     form.modo === 'porcentual' ? (produccionEstimadaTn * form.valorModo) / 100 : form.valorModo;
+  // Hectáreas derivadas — solo para enviar al backend (schema legacy) y para
+  // avisar si la producción supera lo que el lote puede dar.
+  const hectareasCalc =
+    form.rindeEstimadoTnHa > 0 ? produccionEstimadaTn / form.rindeEstimadoTnHa : 0;
+  const superficieLote = campoElegido ? Number(campoElegido.superficieTotalHa ?? 0) : 0;
+  const excedeLote = superficieLote > 0 && hectareasCalc > superficieLote * 1.02;
 
   const cultivoNombre = normalizarCultivo(cultivoElegido?.nombre);
 
   const upd = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   const puedeAvanzar0 =
-    form.campoId && form.cultivoId && form.cicloAgricola && form.hectareas > 0 &&
+    form.campoId && form.cultivoId && form.cicloAgricola && form.produccionEstimadaTn > 0 &&
     form.fechaSiembra && form.fechaCosecha && form.rindeEstimadoTnHa > 0;
   const puedeAvanzar1 = !!form.modo && form.valorModo > 0;
   // Mínimo sugerido: 2/3 de lo ofrecido, entero, al menos 1.
@@ -174,7 +197,9 @@ export function NuevaCampanaPage() {
           establecimientoId: form.campoId,
           cultivoId: form.cultivoId,
           cicloAgricola: form.cicloAgricola,
-          hectareasAfectadas: form.hectareas,
+          // hectareasAfectadas se deriva de las toneladas + rinde, para no
+          // cambiar el schema. Redondeamos a 2 decimales por prolijidad.
+          hectareasAfectadas: Math.round(hectareasCalc * 100) / 100,
           fechaSiembraEstimada: form.fechaSiembra,
           fechaCosechaEstimada: form.fechaCosecha,
           rindeEstimadoTnHa: form.rindeEstimadoTnHa,
@@ -267,7 +292,7 @@ export function NuevaCampanaPage() {
                   <option value="">Elegí un lote</option>
                   {campos.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.nombre} — {hectareas(Number(c.superficieTotalHa ?? 0))}
+                      {c.nombre}
                     </option>
                   ))}
                 </Select>
@@ -286,16 +311,19 @@ export function NuevaCampanaPage() {
             <Field label="Ciclo agrícola">
               <TextInput value={form.cicloAgricola} onChange={(v) => upd('cicloAgricola', v)} placeholder="2026/27" />
             </Field>
-            <Field label="Hectáreas afectadas">
+            <Field label="Toneladas a producir">
               <NumberInput
-                value={form.hectareas}
-                onChange={(v) => upd('hectareas', v)}
-                unit="ha"
-                max={campoElegido ? Number(campoElegido.superficieTotalHa ?? 999999) : undefined}
+                value={form.produccionEstimadaTn}
+                onChange={(v) => upd('produccionEstimadaTn', v)}
+                unit="tn"
+                step={10}
               />
-              {campoElegido && (
-                <p className="hv-label-sm" style={{ fontSize: 10, marginTop: 6 }}>
-                  Superficie del lote: {hectareas(Number(campoElegido.superficieTotalHa ?? 0))}
+              {excedeLote && (
+                <p
+                  className="hv-mono"
+                  style={{ fontSize: 10, marginTop: 6, color: 'var(--hv-amber-text)', fontWeight: 600 }}
+                >
+                  ⚠ Necesitarías {hectareas(hectareasCalc)}, y el lote tiene {hectareas(superficieLote)}.
                 </p>
               )}
             </Field>
@@ -360,9 +388,9 @@ export function NuevaCampanaPage() {
                 {toneladas(produccionEstimadaTn, 0)}
               </div>
               <div className="hv-label-sm" style={{ fontSize: 10, marginTop: 4 }}>
-                {form.hectareas > 0 && form.rindeEstimadoTnHa > 0
-                  ? `${form.hectareas} ha × ${form.rindeEstimadoTnHa} tn/ha`
-                  : 'Cargá hectáreas y rinde'}
+                {produccionEstimadaTn > 0
+                  ? `Rinde asumido: ${form.rindeEstimadoTnHa.toFixed(1)} tn/ha`
+                  : 'Cargá las toneladas y el rinde'}
               </div>
             </div>
             <div style={{ fontSize: 48, opacity: 0.25 }}>🌾</div>
