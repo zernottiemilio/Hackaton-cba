@@ -66,7 +66,7 @@ WALLET=$(curl -s -m 60 -X POST "$API/tokenizadas/wallet/conectar" -H "authorizat
 [ -n "$WALLET" ] || { echo "✗ wallet de Carlos"; exit 1; }
 reserva=$(curl -s -m 60 -X POST "$API/tokenizadas/reservas" -H "authorization: Bearer $TC" -H 'content-type: application/json' \
   -d "{\"tokenizacionId\":\"$B\",\"cantidad\":60,\"inversorWallet\":\"$WALLET\"}")
-RID=$(echo "$reserva" | jq -r '.id // empty')
+RID=$(echo "$reserva" | jq -r '.reservaId // empty')
 [ -n "$RID" ] || { echo "✗ reserva: $(echo "$reserva" | jq -c '.message // .')"; exit 1; }
 compra=$(curl -s -m 120 -X POST "$API/tokenizadas/reservas/confirmar" -H "authorization: Bearer $TC" -H 'content-type: application/json' -d "{\"reservaId\":\"$RID\"}")
 txC=$(echo "$compra" | jq -r '.txSignature // empty')
