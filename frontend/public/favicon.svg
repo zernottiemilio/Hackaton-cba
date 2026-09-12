@@ -1,10 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="6" fill="#047C00"/>
-  <g fill="#FFFFFF">
-    <path d="M21 9 C 24 5.5, 27.3 5, 28.6 6.2 C 27.3 8.4, 24.6 9.8, 21.5 9.4 Z"/>
-    <path d="M21 9 L 22 8" stroke="#FFFFFF" stroke-width="0.8" stroke-linecap="round"/>
-    <rect x="4"  y="20" width="3.6" height="9"  rx="1.4"/>
-    <rect x="11" y="14" width="3.6" height="15" rx="1.4"/>
-    <rect x="18" y="9"  width="3.6" height="20" rx="1.4"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="hv-fab" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2BE06A"/>
+      <stop offset="1" stop-color="#16A32C"/>
+    </linearGradient>
+    <clipPath id="hv-clip">
+      <circle cx="60" cy="60" r="60"/>
+    </clipPath>
+  </defs>
+  <circle cx="60" cy="60" r="60" fill="url(#hv-fab)"/>
+  <g clip-path="url(#hv-clip)" fill="none" stroke-linecap="round" stroke-width="9">
+    <path d="M-6 106C22 106 34 84 60 84s40 22 66 22" stroke="#FFFFFF" stroke-opacity="0.35"/>
+    <path d="M-6 82C22 82 34 60 60 60s40 22 66 22" stroke="#FFFFFF" stroke-opacity="0.55"/>
+    <path d="M-6 58C22 58 34 36 60 36s40 22 66 22" stroke="#FFFFFF" stroke-opacity="0.8"/>
+    <path d="M-6 34C22 34 34 12 60 12s40 22 66 22" stroke="#FFFFFF"/>
   </g>
 </svg>
