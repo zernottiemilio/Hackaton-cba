@@ -33,6 +33,8 @@ export function FichaCampanaPage() {
   const partido = t.campania.establecimiento?.partido ?? '—';
   const provincia = t.campania.establecimiento?.provincia ?? '—';
   const disponibles = t.disponibilidad?.tokensDisponibles ?? t.tokensEmitidos - t.tokensVendidos;
+  // min_tons on-chain: sin este piso vendido, el programa no deja al productor cobrar (MinNotReached).
+  const minimo = Number(t.toneladasMinimas ?? 1);
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -87,10 +89,19 @@ export function FichaCampanaPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
         <div className="space-y-6">
           {/* Métricas principales */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Metrica label="Precio por token" valor={usd(t.precioTokenUsd, 2)} sub={`${porcentaje(-t.descuentoPct, 1)} pizarra`} destacado />
             <Metrica label="Toneladas ofrecidas" valor={toneladas(t.toneladasOfrecidas, 0)} sub={t.modo === 'porcentual' ? `${t.porcentaje}% producción` : 'Cantidad fija'} />
             <Metrica label="Disponibles" valor={toneladas(disponibles, 0)} sub={`${pctFondeado.toFixed(0)}% fondeado`} />
+            <Metrica
+              label="Mínimo a fondear"
+              valor={toneladas(minimo, 0)}
+              sub={
+                t.tokensVendidos >= minimo
+                  ? 'alcanzado · el productor ya puede cobrar'
+                  : `faltan ${toneladas(minimo - t.tokensVendidos, 0)} · si no se llega, no se libera`
+              }
+            />
             <Metrica label="Cierra en" valor={diasRestantes(t.fondeoHasta)} sub={fecha(t.fondeoHasta)} />
           </div>
 
@@ -102,7 +113,7 @@ export function FichaCampanaPage() {
                 {toneladas(t.tokensVendidos, 0)} / {toneladas(t.tokensEmitidos, 0)}
               </span>
             </div>
-            <BarraFondeo vendidos={t.tokensVendidos} emitidos={t.tokensEmitidos} />
+            <BarraFondeo vendidos={t.tokensVendidos} emitidos={t.tokensEmitidos} minimo={minimo} />
             <div className="flex justify-between items-baseline mt-3 text-xs">
               <span className="text-white/60">Recaudado</span>
               <span className="text-white font-semibold tabular-nums">{usd(t.montoRecaudadoUsd, 0)}</span>

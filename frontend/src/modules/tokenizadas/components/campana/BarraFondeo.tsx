@@ -4,6 +4,8 @@ interface Props {
   vendidos: number;
   emitidos: number;
   reservados?: number;
+  /** min_tons on-chain. Dibuja una marca: por debajo, el productor no puede cobrar. */
+  minimo?: number;
   compacta?: boolean;
 }
 
@@ -11,11 +13,13 @@ interface Props {
  * Barra de progreso del fondeo. Muestra: tokens vendidos, reservados
  * (más claros, en fluido), y el resto disponible. Estilo trading.
  */
-export function BarraFondeo({ vendidos, emitidos, reservados = 0, compacta = false }: Props) {
+export function BarraFondeo({ vendidos, emitidos, reservados = 0, minimo, compacta = false }: Props) {
   const pctVendidos = emitidos > 0 ? (vendidos / emitidos) * 100 : 0;
   const pctReservados = emitidos > 0 ? (reservados / emitidos) * 100 : 0;
   const total = Math.min(100, pctVendidos + pctReservados);
   const casiLleno = total >= 90;
+  const pctMinimo = minimo && emitidos > 0 ? Math.min(100, (minimo / emitidos) * 100) : null;
+  const minimoAlcanzado = pctMinimo !== null && pctVendidos >= pctMinimo;
 
   return (
     <div className="w-full">
@@ -47,6 +51,20 @@ export function BarraFondeo({ vendidos, emitidos, reservados = 0, compacta = fal
               : 'bg-gradient-to-r from-emerald-500 to-emerald-400'
           }`}
         />
+        {/* Marca del mínimo: hasta acá no se liberan fondos */}
+        {pctMinimo !== null && pctMinimo > 0 && pctMinimo < 100 && (
+          <div
+            title={`Mínimo para que el productor cobre: ${minimo} tn`}
+            className="absolute inset-y-0"
+            style={{
+              left: `${pctMinimo}%`,
+              width: 2,
+              transform: 'translateX(-1px)',
+              background: minimoAlcanzado ? 'rgba(255,255,255,0.7)' : 'var(--hv-amber, #FFB020)',
+              boxShadow: minimoAlcanzado ? 'none' : '0 0 6px rgba(255,176,32,0.8)',
+            }}
+          />
+        )}
         {/* Shimmer casi lleno */}
         {casiLleno && (
           <motion.div

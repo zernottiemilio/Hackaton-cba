@@ -170,7 +170,7 @@ export function CardCampana({ t }: Props) {
                 {toneladas(t.tokensVendidos, 0)} / {toneladas(t.tokensEmitidos, 0)}
               </span>
             </div>
-            <BarraFondeo vendidos={t.tokensVendidos} emitidos={t.tokensEmitidos} compacta />
+            <BarraFondeo vendidos={t.tokensVendidos} emitidos={t.tokensEmitidos} minimo={Number(t.toneladasMinimas ?? 1)} compacta />
           </div>
 
           {/* Meta */}
