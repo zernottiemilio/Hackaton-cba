@@ -10,8 +10,19 @@ export class SolanaConnectionService implements OnModuleInit {
   constructor(private readonly config: ConfigService) {}
 
   onModuleInit(): void {
+    const impl = this.config.get<string>('LEDGER_IMPL') ?? 'mock';
+    if (impl !== 'solana') {
+      this.logger.log(`LEDGER_IMPL=${impl} — SolanaConnectionService inactivo`);
+      return;
+    }
     const url = this.config.get<string>('SOLANA_RPC_URL') ?? 'https://api.devnet.solana.com';
-    this._connection = new Connection(url, 'confirmed');
+    // disableRetryOnRateLimit: no queremos que un 429 ponga en cola infinita.
+    // El WS por default no se usa para llamadas RPC salvo confirmTransaction;
+    // igual dejamos wsEndpoint explícito para evitar sorpresas.
+    this._connection = new Connection(url, {
+      commitment: 'confirmed',
+      disableRetryOnRateLimit: true,
+    });
     this.logger.log(`Solana RPC: ${url}`);
   }
 
