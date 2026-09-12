@@ -3,7 +3,6 @@ import { LoginPage } from '@/pages/auth/LoginPage';
 import { ActivarCuentaPage } from '@/pages/auth/ActivarCuentaPage';
 import { RutaProtegida } from '@/components/layout/RutaProtegida';
 import { RutaSuperAdmin } from '@/components/layout/RutaSuperAdmin';
-import { InicioPage } from '@/pages/InicioPage';
 import { EstablecimientosPage } from '@/pages/EstablecimientosPage';
 import { LotesPage } from '@/pages/LotesPage';
 import { CampaniasPage } from '@/pages/CampaniasPage';
@@ -31,12 +30,12 @@ import { AdminUsuariosPage } from '@/pages/admin/AdminUsuariosPage';
 import { AdminInvitacionesPage } from '@/pages/admin/AdminInvitacionesPage';
 import { AdminFacturacionPage } from '@/pages/admin/AdminFacturacionPage';
 
-// ─── Módulo Campañas Tokenizadas ───────────────────────────────
+// ─── Módulo Harvest.fi (Campañas Tokenizadas) — app principal ────
 import { TokenizadasLayout } from '@/modules/tokenizadas/components/layout/TokenizadasLayout';
-import { HomePage as TkHomePage } from '@/modules/tokenizadas/pages/HomePage';
-import { MarketplacePage as TkMarketplacePage } from '@/modules/tokenizadas/pages/MarketplacePage';
-import { FichaCampanaPage as TkFichaCampanaPage } from '@/modules/tokenizadas/pages/FichaCampanaPage';
-import { PortfolioPage as TkPortfolioPage } from '@/modules/tokenizadas/pages/PortfolioPage';
+import { HomePage as HarvestHomePage } from '@/modules/tokenizadas/pages/HomePage';
+import { MarketplacePage as HarvestMarketplacePage } from '@/modules/tokenizadas/pages/MarketplacePage';
+import { FichaCampanaPage as HarvestFichaCampanaPage } from '@/modules/tokenizadas/pages/FichaCampanaPage';
+import { PortfolioPage as HarvestPortfolioPage } from '@/modules/tokenizadas/pages/PortfolioPage';
 import { CamposListPage } from '@/modules/tokenizadas/pages/productor/CamposListPage';
 import { NuevoCampoPage } from '@/modules/tokenizadas/pages/productor/NuevoCampoPage';
 import { NuevaCampanaPage } from '@/modules/tokenizadas/pages/productor/NuevaCampanaPage';
@@ -52,12 +51,53 @@ import {
   ConciliacionPage,
 } from '@/modules/tokenizadas/pages/skeletons';
 
+/**
+ * Router de la app. Harvest.fi es la app principal en la raíz `/`.
+ *
+ * El MVP AgroFácil quedó en sus rutas propias (`/establecimientos`, `/lotes`,
+ * etc.) accesible sólo si se escribe la URL directa. Se irá removiendo en
+ * commits siguientes.
+ *
+ * Orden importante:
+ *   1. Rutas públicas (login, activar, reporte público)
+ *   2. Módulo Harvest en `/*` — GANA por especificidad y orden
+ *   3. Admin del MVP en `/admin-mvp` (renombrado para no chocar con Harvest)
+ *   4. Rutas MVP protegidas en sus paths históricos
+ *   5. Fallback `*` a la raíz
+ */
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/activar/:token', element: <ActivarCuentaPage /> },
   { path: '/r/:token', element: <ReportePublicoPage /> },
+
+  // ─── Módulo Harvest.fi (app principal, público, se opera con wallet mock) ────
   {
-    path: '/admin',
+    path: '/',
+    element: <TokenizadasLayout />,
+    children: [
+      { index: true, element: <HarvestHomePage /> },
+      { path: 'invertir', element: <HarvestMarketplacePage /> },
+      { path: 'invertir/:id', element: <HarvestFichaCampanaPage /> },
+      { path: 'portfolio', element: <HarvestPortfolioPage /> },
+      { path: 'productor/:id', element: <ProductorDetallePage /> },
+      { path: 'campos', element: <CamposListPage /> },
+      { path: 'campos/nuevo', element: <NuevoCampoPage /> },
+      { path: 'campanas', element: <MisCampanasProductorPage /> },
+      { path: 'campanas/nueva', element: <NuevaCampanaPage /> },
+      { path: 'acopio', element: <AcopioDashboardPage /> },
+      { path: 'acopio/recepcion', element: <RecepcionPage /> },
+      { path: 'acopio/posiciones', element: <PosicionesPage /> },
+      { path: 'acopio/liberaciones', element: <LiberacionesPage /> },
+      // Rutas de admin renombradas para no chocar con /admin del MVP legacy.
+      { path: 'revision-emisiones', element: <RevisionColaPage /> },
+      { path: 'red-acopios', element: <AdminAcopiosPage /> },
+      { path: 'conciliacion', element: <ConciliacionPage /> },
+    ],
+  },
+
+  // ─── LEGACY: Admin del MVP AgroFácil — accesible manualmente en /admin-mvp ────
+  {
+    path: '/admin-mvp',
     element: <RutaSuperAdmin />,
     children: [
       { index: true, element: <AdminDashboardPage /> },
@@ -69,10 +109,11 @@ export const router = createBrowserRouter([
       { path: 'facturacion', element: <AdminFacturacionPage /> },
     ],
   },
+
+  // ─── LEGACY: Módulo MVP AgroFácil — quedan las rutas propias por si hay que revisar ────
   {
     element: <RutaProtegida />,
     children: [
-      { path: '/', element: <InicioPage /> },
       { path: '/establecimientos', element: <EstablecimientosPage /> },
       { path: '/establecimientos/:id', element: <EstablecimientoDetallePage /> },
       { path: '/lotes', element: <LotesPage /> },
@@ -93,28 +134,6 @@ export const router = createBrowserRouter([
       { path: '/alertas', element: <AlertasPage /> },
     ],
   },
-  // ─── Módulo Campañas Tokenizadas (público, se opera con wallet) ────
-  {
-    path: '/tk',
-    element: <TokenizadasLayout />,
-    children: [
-      { index: true, element: <TkHomePage /> },
-      { path: 'invertir', element: <TkMarketplacePage /> },
-      { path: 'invertir/:id', element: <TkFichaCampanaPage /> },
-      { path: 'portfolio', element: <TkPortfolioPage /> },
-      { path: 'productor/:id', element: <ProductorDetallePage /> },
-      { path: 'campos', element: <CamposListPage /> },
-      { path: 'campos/nuevo', element: <NuevoCampoPage /> },
-      { path: 'campanas', element: <MisCampanasProductorPage /> },
-      { path: 'campanas/nueva', element: <NuevaCampanaPage /> },
-      { path: 'acopio', element: <AcopioDashboardPage /> },
-      { path: 'acopio/recepcion', element: <RecepcionPage /> },
-      { path: 'acopio/posiciones', element: <PosicionesPage /> },
-      { path: 'acopio/liberaciones', element: <LiberacionesPage /> },
-      { path: 'admin/revision', element: <RevisionColaPage /> },
-      { path: 'admin/acopios', element: <AdminAcopiosPage /> },
-      { path: 'admin/conciliacion', element: <ConciliacionPage /> },
-    ],
-  },
+
   { path: '*', element: <Navigate to="/" replace /> },
 ]);

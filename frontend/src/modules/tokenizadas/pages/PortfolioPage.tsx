@@ -70,7 +70,7 @@ export function PortfolioPage() {
         {tenencias.length === 0 ? (
           <div className="text-center py-16 text-white/40 text-sm">
             <div>Todavía no invertiste.</div>
-            <Link to="/tk/invertir" className="text-emerald-400 hover:underline text-xs mt-2 inline-block">
+            <Link to="/invertir" className="text-emerald-400 hover:underline text-xs mt-2 inline-block">
               Explorar marketplace →
             </Link>
           </div>
@@ -99,7 +99,7 @@ export function PortfolioPage() {
                     <tr key={t.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-5 py-3">
                         <Link
-                          to={`/tk/invertir/${t.tokenizacionId}`}
+                          to={`/invertir/${t.tokenizacionId}`}
                           className="text-white hover:text-emerald-400 font-medium"
                         >
                           {t.tokenizacion.campania.establecimiento?.nombre ?? t.tokenizacion.campania.nombre}

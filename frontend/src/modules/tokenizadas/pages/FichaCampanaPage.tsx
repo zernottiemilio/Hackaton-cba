@@ -32,7 +32,7 @@ export function FichaCampanaPage() {
   return (
     <div className="max-w-7xl mx-auto">
       {/* Volver */}
-      <Link to="/tk/invertir" className="text-white/40 hover:text-white/80 text-xs mb-4 inline-flex items-center gap-1">
+      <Link to="/invertir" className="text-white/40 hover:text-white/80 text-xs mb-4 inline-flex items-center gap-1">
         ← Marketplace
       </Link>
 

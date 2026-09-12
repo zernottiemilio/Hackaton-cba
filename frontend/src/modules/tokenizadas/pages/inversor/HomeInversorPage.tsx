@@ -200,7 +200,7 @@ function CardOportunidad({
   return (
     <motion.div whileHover={{ scale: 1.005 }} transition={{ duration: 0.15 }}>
       <Link
-        to={`/tk/invertir/${t.id}`}
+        to={`/invertir/${t.id}`}
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr auto',
@@ -317,7 +317,7 @@ function CardOportunidad({
 function ProductorCard({ p }: { p: ProductorResumen }) {
   return (
     <Link
-      to={`/tk/productor/${p.id}`}
+      to={`/productor/${p.id}`}
       style={{
         display: 'block',
         padding: 18,

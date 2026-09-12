@@ -391,7 +391,7 @@ function VacioCola() {
       <p style={{ color: 'var(--hv-text-muted)', fontSize: 13, marginTop: 6 }}>
         No hay emisiones esperando revisión. Se auto-actualiza cada 8 segundos.
       </p>
-      <Link to="/tk/invertir" style={{ color: 'var(--hv-green-text)', fontSize: 12, textDecoration: 'none', marginTop: 20, display: 'inline-block' }}>
+      <Link to="/invertir" style={{ color: 'var(--hv-green-text)', fontSize: 12, textDecoration: 'none', marginTop: 20, display: 'inline-block' }}>
         Ver marketplace →
       </Link>
     </div>

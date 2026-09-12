@@ -549,7 +549,7 @@ function PasoListo({
       </div>
 
       <div className="flex flex-col gap-2">
-        <a href="/tk/portfolio" className="hv-cta" style={{ textDecoration: 'none', display: 'block', textAlign: 'center' }}>
+        <a href="/portfolio" className="hv-cta" style={{ textDecoration: 'none', display: 'block', textAlign: 'center' }}>
           Ver mi portfolio →
         </a>
         <button onClick={onCerrar} className="hv-cta-ghost" style={{ padding: '10px' }}>

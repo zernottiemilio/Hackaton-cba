@@ -38,7 +38,7 @@ export function CamposListPage() {
           </p>
         </div>
         <Link
-          to="/tk/campos/nuevo"
+          to="/campos/nuevo"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-sm font-semibold shadow-lg shadow-emerald-900/30"
         >
           <span>＋</span> Nuevo campo
@@ -70,7 +70,7 @@ function CampoCard({ campo }: { campo: any }) {
   return (
     <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.15 }}>
       <Link
-        to={`/tk/campos/${campo.id}`}
+        to={`/campos/${campo.id}`}
         className="block bg-[#0F1216] border border-white/5 hover:border-white/15 rounded-2xl overflow-hidden transition-colors"
       >
         <div className="relative h-32 bg-gradient-to-br from-emerald-900/60 via-emerald-800/40 to-lime-900/60 overflow-hidden">
@@ -161,7 +161,7 @@ function EstadoVacio() {
       <div className="text-white text-lg font-medium mb-1">Aún no cargaste ningún campo</div>
       <p className="text-white/40 text-sm mb-6">Empezá dibujando tu primer lote sobre el mapa</p>
       <Link
-        to="/tk/campos/nuevo"
+        to="/campos/nuevo"
         className="inline-flex px-4 py-2 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 text-sm font-medium"
       >
         Nuevo campo →

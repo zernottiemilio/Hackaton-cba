@@ -36,7 +36,7 @@ export function CardCampana({ t }: Props) {
   return (
     <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.15 }} className="group">
       <Link
-        to={`/tk/invertir/${t.id}`}
+        to={`/invertir/${t.id}`}
         style={{
           display: 'block',
           background: 'var(--hv-bg-panel)',

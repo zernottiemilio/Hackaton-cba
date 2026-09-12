@@ -171,7 +171,7 @@ export function NuevaCampanaPage() {
       });
       qc.invalidateQueries({ queryKey: ['tk'] });
       toast.success('Emisión enviada a revisión');
-      navigate('/tk/campanas');
+      navigate('/campanas');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error al enviar');
     }
@@ -190,7 +190,7 @@ export function NuevaCampanaPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <Link to="/tk/campanas" style={{ color: 'var(--hv-text-muted)', fontSize: 12, marginBottom: 16, display: 'inline-flex', gap: 6, textDecoration: 'none' }}>
+      <Link to="/campanas" style={{ color: 'var(--hv-text-muted)', fontSize: 12, marginBottom: 16, display: 'inline-flex', gap: 6, textDecoration: 'none' }}>
         ← Mis emisiones
       </Link>
 
@@ -216,7 +216,7 @@ export function NuevaCampanaPage() {
               {campos.length === 0 ? (
                 <div style={{ padding: 14, border: '1px dashed var(--hv-border)', borderRadius: 10, color: 'var(--hv-text-muted)', fontSize: 13 }}>
                   Sin lotes cargados.{' '}
-                  <Link to="/tk/campos/nuevo" style={{ color: 'var(--hv-green-text)', textDecoration: 'underline' }}>
+                  <Link to="/campos/nuevo" style={{ color: 'var(--hv-green-text)', textDecoration: 'underline' }}>
                     Cargar uno
                   </Link>
                 </div>
@@ -412,7 +412,7 @@ export function NuevaCampanaPage() {
       {/* Nav */}
       <div className="mt-8 flex items-center justify-between pt-6" style={{ borderTop: '1px solid var(--hv-border-subtle)' }}>
         <button
-          onClick={() => (paso === 0 ? navigate('/tk/campanas') : setPaso(paso - 1))}
+          onClick={() => (paso === 0 ? navigate('/campanas') : setPaso(paso - 1))}
           style={{ background: 'transparent', border: 'none', color: 'var(--hv-text-muted)', fontSize: 13, cursor: 'pointer', padding: '10px 14px' }}
         >
           {paso === 0 ? 'Cancelar' : '← Atrás'}

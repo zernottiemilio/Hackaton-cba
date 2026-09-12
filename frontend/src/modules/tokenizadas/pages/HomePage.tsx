@@ -85,13 +85,13 @@ export function HomePage() {
               </div>
             ) : (
               <>
-                <Link to="/tk/invertir" className="hv-cta" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+                <Link to="/invertir" className="hv-cta" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9 }}>
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M13 5l7 7-7 7M20 12H4" />
                   </svg>
                   Explorar marketplace
                 </Link>
-                <Link to="/tk/portfolio" className="hv-cta-ghost" style={{ textDecoration: 'none' }}>
+                <Link to="/portfolio" className="hv-cta-ghost" style={{ textDecoration: 'none' }}>
                   Mi portfolio
                 </Link>
               </>
@@ -155,7 +155,7 @@ export function HomePage() {
                 Cierran pronto · descuento sobre pizarra
               </p>
             </div>
-            <Link to="/tk/invertir" style={{ color: 'var(--hv-green-text)', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+            <Link to="/invertir" style={{ color: 'var(--hv-green-text)', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
               Ver todas →
             </Link>
           </div>

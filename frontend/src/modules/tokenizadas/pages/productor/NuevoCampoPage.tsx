@@ -66,7 +66,7 @@ export function NuevoCampoPage() {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['tk', 'campos'] });
       toast.success(`Campo "${data.nombre}" creado`);
-      navigate('/tk/campos');
+      navigate('/campos');
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -88,7 +88,7 @@ export function NuevoCampoPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Volver */}
-      <Link to="/tk/campos" className="text-white/40 hover:text-white/80 text-xs mb-4 inline-flex items-center gap-1">
+      <Link to="/campos" className="text-white/40 hover:text-white/80 text-xs mb-4 inline-flex items-center gap-1">
         ← Mis campos
       </Link>
 
@@ -247,7 +247,7 @@ export function NuevoCampoPage() {
       {/* Nav */}
       <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-6">
         <button
-          onClick={() => (paso === 0 ? navigate('/tk/campos') : setPaso(paso - 1))}
+          onClick={() => (paso === 0 ? navigate('/campos') : setPaso(paso - 1))}
           className="px-4 py-2 rounded-lg text-white/60 hover:text-white text-sm"
         >
           {paso === 0 ? 'Cancelar' : '← Atrás'}
