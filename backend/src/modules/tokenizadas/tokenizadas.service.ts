@@ -103,6 +103,11 @@ export class TokenizadasService {
       precioPisoUsd: dto.precioPisoUsd ? new Decimal(dto.precioPisoUsd) : null,
       fondeoDesde: new Date(dto.fondeoDesde),
       fondeoHasta: new Date(dto.fondeoHasta),
+      fechaLiquidacionEstimada: dto.fechaLiquidacionEstimada
+        ? new Date(dto.fechaLiquidacionEstimada)
+        : null,
+      toneladasMinimas:
+        dto.toneladasMinimas !== undefined ? new Decimal(dto.toneladasMinimas) : new Decimal(1),
       montoObjetivoUsd,
       tieneSeguroGranizo: dto.tieneSeguroGranizo,
       tieneSeguroParametrico: dto.tieneSeguroParametrico,
