@@ -20,6 +20,7 @@ import {
 } from './ledger.interface';
 import { MockLedgerService } from './mock-ledger.service';
 import { AnchorProgramService } from './solana/anchor-program.service';
+import { microUsdcToUsd, usdToMicroUsdc } from './solana/micro-usdc.util';
 import { SolanaConnectionService } from './solana/solana-connection.service';
 import { WalletCustodianService } from './solana/wallet-custodian.service';
 
@@ -91,10 +92,7 @@ export class SolanaLedgerService extends LedgerService {
     const minTons = new BN(
       t.toneladasMinimas.toDecimalPlaces(0, Decimal.ROUND_FLOOR).toString(),
     );
-    // precio en micro-USDC (6 decimales).
-    const pricePerTon = new BN(
-      t.precioTokenUsd.mul(new Decimal(1_000_000)).toDecimalPlaces(0, Decimal.ROUND_FLOOR).toString(),
-    );
+    const pricePerTon = new BN(usdToMicroUsdc(t.precioTokenUsd).toString());
 
     const saleEnd = new BN(Math.floor(t.fondeoHasta.getTime() / 1000));
     // Si el productor no fijó fecha objetivo, fallback a fondeoHasta + 90 días.
@@ -386,7 +384,7 @@ export class SolanaLedgerService extends LedgerService {
         status: 'draft',
         tonsOffered: t.toneladasOfrecidas.toNumber(),
         tonsSold: t.tokensVendidos.toNumber(),
-        minTons: 1,
+        minTons: t.toneladasMinimas.toNumber(),
         pricePerTonUsd: t.precioTokenUsd.toNumber(),
         settlementDate: null,
         tonsDelivered: null,
@@ -415,15 +413,16 @@ export class SolanaLedgerService extends LedgerService {
     let tonsDelivered: number | null = null;
     let settlementPriceUsd: number | null = t.precioLiquidacionUsdTn?.toNumber() ?? null;
     let payoutPerTokenUsd: number | null = null;
-    let settlementDateMs: number | null = null;
-    let minTons = 1;
+    let settlementDateMs: number | null = t.fechaLiquidacionEstimada?.getTime() ?? null;
+    let minTons = t.toneladasMinimas.toNumber();
 
     try {
       const program = this.anchor.programAs(this.custodian.feePayer);
       const account = await program.account.campaign.fetch(campaignPda);
 
       tonsSold = Number((account.tonsSold as BN).toString());
-      minTons = Number((account.minTons as BN).toString()) || 1;
+      const onChainMinTons = Number((account.minTons as BN).toString());
+      if (onChainMinTons > 0) minTons = onChainMinTons;
 
       const acctStatus = account.status as Record<string, unknown>;
       if ('refunded' in acctStatus) status = 'refunded';
@@ -440,13 +439,13 @@ export class SolanaLedgerService extends LedgerService {
       const settlementPriceBn = account.settlementPrice as BN | undefined;
       if (settlementPriceBn) {
         const micro = Number(settlementPriceBn.toString());
-        if (micro > 0) settlementPriceUsd = micro / 1_000_000;
+        if (micro > 0) settlementPriceUsd = microUsdcToUsd(micro);
       }
 
       const payoutBn = account.payoutPerToken as BN | undefined;
       if (payoutBn) {
         const micro = Number(payoutBn.toString());
-        if (micro > 0) payoutPerTokenUsd = micro / 1_000_000;
+        if (micro > 0) payoutPerTokenUsd = microUsdcToUsd(micro);
       }
     } catch (err) {
       this.logger.warn(`No pude leer campaign PDA (${campaignAddress}): ${(err as Error).message}`);
@@ -615,7 +614,7 @@ export class SolanaLedgerService extends LedgerService {
       const acopioUsdc = this.anchor.ata(this.custodian.usdcMint, acopioKp.publicKey);
       const tonsSold = account.tonsSold as BN;
       const settlementPriceMicro = new BN(
-        new Decimal(ctx.settlementPriceUsdTn).mul(1_000_000).toDecimalPlaces(0, Decimal.ROUND_FLOOR).toString(),
+        usdToMicroUsdc(new Decimal(ctx.settlementPriceUsdTn)).toString(),
       );
 
       this.logger.log(
