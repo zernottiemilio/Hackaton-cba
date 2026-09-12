@@ -32,6 +32,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { EmailModule } from './modules/email/email.module';
 import { MiembrosModule } from './modules/miembros/miembros.module';
 import { FacturacionModule } from './modules/facturacion/facturacion.module';
+import { TokenizadasModule } from './modules/tokenizadas/tokenizadas.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { SuperAdminGuard } from './common/guards/super-admin.guard';
 
@@ -88,6 +89,7 @@ import { SuperAdminGuard } from './common/guards/super-admin.guard';
     AdminModule,
     MiembrosModule,
     FacturacionModule,
+    TokenizadasModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },

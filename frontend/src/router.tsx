@@ -31,6 +31,26 @@ import { AdminUsuariosPage } from '@/pages/admin/AdminUsuariosPage';
 import { AdminInvitacionesPage } from '@/pages/admin/AdminInvitacionesPage';
 import { AdminFacturacionPage } from '@/pages/admin/AdminFacturacionPage';
 
+// ─── Módulo Campañas Tokenizadas ───────────────────────────────
+import { TokenizadasLayout } from '@/modules/tokenizadas/components/layout/TokenizadasLayout';
+import { HomePage as TkHomePage } from '@/modules/tokenizadas/pages/HomePage';
+import { MarketplacePage as TkMarketplacePage } from '@/modules/tokenizadas/pages/MarketplacePage';
+import { FichaCampanaPage as TkFichaCampanaPage } from '@/modules/tokenizadas/pages/FichaCampanaPage';
+import { PortfolioPage as TkPortfolioPage } from '@/modules/tokenizadas/pages/PortfolioPage';
+import { CamposListPage } from '@/modules/tokenizadas/pages/productor/CamposListPage';
+import { NuevoCampoPage } from '@/modules/tokenizadas/pages/productor/NuevoCampoPage';
+import { NuevaCampanaPage } from '@/modules/tokenizadas/pages/productor/NuevaCampanaPage';
+import {
+  MisCampanasProductorPage,
+  AcopioDashboardPage,
+  RecepcionPage,
+  PosicionesPage,
+  LiberacionesPage,
+  RevisionColaPage,
+  AdminAcopiosPage,
+  ConciliacionPage,
+} from '@/modules/tokenizadas/pages/skeletons';
+
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/activar/:token', element: <ActivarCuentaPage /> },
@@ -70,6 +90,28 @@ export const router = createBrowserRouter([
       { path: '/equipo', element: <EquipoPage /> },
       { path: '/reportes', element: <ReportesPage /> },
       { path: '/alertas', element: <AlertasPage /> },
+    ],
+  },
+  // ─── Módulo Campañas Tokenizadas (público, se opera con wallet) ────
+  {
+    path: '/tk',
+    element: <TokenizadasLayout />,
+    children: [
+      { index: true, element: <TkHomePage /> },
+      { path: 'invertir', element: <TkMarketplacePage /> },
+      { path: 'invertir/:id', element: <TkFichaCampanaPage /> },
+      { path: 'portfolio', element: <TkPortfolioPage /> },
+      { path: 'campos', element: <CamposListPage /> },
+      { path: 'campos/nuevo', element: <NuevoCampoPage /> },
+      { path: 'campanas', element: <MisCampanasProductorPage /> },
+      { path: 'campanas/nueva', element: <NuevaCampanaPage /> },
+      { path: 'acopio', element: <AcopioDashboardPage /> },
+      { path: 'acopio/recepcion', element: <RecepcionPage /> },
+      { path: 'acopio/posiciones', element: <PosicionesPage /> },
+      { path: 'acopio/liberaciones', element: <LiberacionesPage /> },
+      { path: 'admin/revision', element: <RevisionColaPage /> },
+      { path: 'admin/acopios', element: <AdminAcopiosPage /> },
+      { path: 'admin/conciliacion', element: <ConciliacionPage /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
