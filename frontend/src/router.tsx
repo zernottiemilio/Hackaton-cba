@@ -11,13 +11,13 @@ import { PortfolioPage as HarvestPortfolioPage } from '@/modules/tokenizadas/pag
 import { CamposListPage } from '@/modules/tokenizadas/pages/productor/CamposListPage';
 import { NuevoCampoPage } from '@/modules/tokenizadas/pages/productor/NuevoCampoPage';
 import { NuevaCampanaPage } from '@/modules/tokenizadas/pages/productor/NuevaCampanaPage';
+import { MisCampanasPage } from '@/modules/tokenizadas/pages/productor/MisCampanasPage';
 import { RevisionColaPage } from '@/modules/tokenizadas/pages/admin/RevisionColaPage';
 import { ProductorDetallePage } from '@/modules/tokenizadas/pages/inversor/ProductorDetallePage';
 import { AsistenteHarvestPage } from '@/modules/tokenizadas/pages/AsistenteHarvestPage';
 import { ClimaHarvestPage } from '@/modules/tokenizadas/pages/ClimaHarvestPage';
 import { LluviasHarvestPage } from '@/modules/tokenizadas/pages/LluviasHarvestPage';
 import {
-  MisCampanasProductorPage,
   AcopioDashboardPage,
   RecepcionPage,
   PosicionesPage,
@@ -62,7 +62,7 @@ export const router = createBrowserRouter([
         children: [
           { path: 'campos', element: <CamposListPage /> },
           { path: 'campos/nuevo', element: <NuevoCampoPage /> },
-          { path: 'campanas', element: <MisCampanasProductorPage /> },
+          { path: 'campanas', element: <MisCampanasPage /> },
           { path: 'campanas/nueva', element: <NuevaCampanaPage /> },
           { path: 'asistente', element: <AsistenteHarvestPage /> },
           { path: 'clima', element: <ClimaHarvestPage /> },

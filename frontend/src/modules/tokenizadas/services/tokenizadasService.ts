@@ -4,6 +4,7 @@ import type {
   Reserva,
   ConfirmacionCompra,
   ReclamoResult,
+  LiberarFondosResult,
   PortfolioResponse,
   WalletInfo,
   ModoTokenizacion,
@@ -84,6 +85,16 @@ export const tokenizadasApi = {
 
   async misCampanas(): Promise<Tokenizacion[]> {
     const { data } = await apiClient.get('/tokenizadas/mis-campanas');
+    return data;
+  },
+
+  /**
+   * release_funds: vacía el vault hacia la wallet del productor. Solo si
+   * tokensVendidos >= toneladasMinimas y la campaña está abierta.
+   * Contrato acordado en HARVEST.md (VAL-12).
+   */
+  async liberarFondos(id: string): Promise<LiberarFondosResult> {
+    const { data } = await apiClient.post(`/tokenizadas/${id}/liberar-fondos`);
     return data;
   },
 

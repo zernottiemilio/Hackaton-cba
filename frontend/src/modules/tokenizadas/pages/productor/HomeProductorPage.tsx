@@ -8,6 +8,7 @@ import { CardCampana } from '../../components/marketplace/CardCampana';
 import { BarraFondeo } from '../../components/campana/BarraFondeo';
 import { EstadoCampanaBadge } from '../../components/campana/EstadoCampanaBadge';
 import { BadgeModo } from '../../components/campana/BadgeModo';
+import { BotonCobrarSiembra } from '../../components/campana/BotonCobrarSiembra';
 import { HarvestLogo } from '../../components/brand/HarvestLogo';
 import { usd, usdCompacto, toneladas, fecha, diasRestantes } from '../../utils/format';
 import type { Tokenizacion } from '../../types/tokenizadas';
@@ -36,6 +37,9 @@ export function HomeProductorPage() {
   const nombre = usuario?.nombre.split(' ')[0] ?? 'Productor';
 
   const activas = emisiones.filter((e) => estadoEsActivo(e.campania.estadoToken));
+  const paraCobrar = emisiones.filter(
+    (e) => e.campania.estadoToken === 'abierta' && Number(e.tokensVendidos) >= Number(e.toneladasMinimas ?? 1),
+  );
   const enRevision = emisiones.filter((e) => e.campania.estadoToken === 'en_revision');
   const borradores = emisiones.filter((e) => e.campania.estadoToken === 'borrador');
 
@@ -175,6 +179,31 @@ export function HomeProductorPage() {
           Tokenizar campaña
         </Link>
       </section>
+
+      {/* Para cobrar: paso 4 de la demo (release_funds) */}
+      {paraCobrar.length > 0 && (
+        <section>
+          <div className="flex items-baseline justify-between mb-3">
+            <div>
+              <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--hv-text)', letterSpacing: '-0.02em' }}>
+                Listas para cobrar
+              </h2>
+              <p className="hv-label-sm" style={{ marginTop: 4 }}>
+                Alcanzaron el mínimo. El vault espera tu firma.
+              </p>
+            </div>
+            <span className="hv-chip" style={{ fontSize: 11, color: 'var(--hv-green-text)', borderColor: 'rgba(43,224,106,0.28)', background: 'var(--hv-green-soft)' }}>
+              <span className="hv-dot" style={{ background: 'var(--hv-green)' }} />
+              {paraCobrar.length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {paraCobrar.map((t) => (
+              <FilaParaCobrar key={t.id} t={t} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* En revisión */}
       {enRevision.length > 0 && (
@@ -485,6 +514,35 @@ function FilaEmisionPendiente({ t }: { t: Tokenizacion }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+function FilaParaCobrar({ t }: { t: Tokenizacion }) {
+  return (
+    <div
+      className="flex flex-col md:flex-row md:items-center gap-4"
+      style={{
+        padding: '16px 20px',
+        background: 'rgba(43,224,106,0.05)',
+        border: '1px solid rgba(43,224,106,0.3)',
+        borderRadius: 14,
+        boxShadow: '0 0 24px rgba(43,224,106,0.08), var(--hv-inset-top)',
+      }}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <Link to="/campanas" style={{ color: 'var(--hv-text)', fontSize: 15, fontWeight: 600, textDecoration: 'none' }}>
+            {t.campania.establecimiento?.nombre ?? t.campania.nombre}
+          </Link>
+          <BadgeModo modo={t.modo} />
+        </div>
+        <div className="hv-label-sm" style={{ fontSize: 10 }}>
+          {toneladas(Number(t.tokensVendidos), 0)} vendidas de {toneladas(Number(t.tokensEmitidos), 0)} ·{' '}
+          <span style={{ color: 'var(--hv-green-text)' }}>{usd(Number(t.montoRecaudadoUsd), 2)} USDC en el vault</span>
+        </div>
+      </div>
+      <BotonCobrarSiembra t={t} compacto />
+    </div>
   );
 }
 
