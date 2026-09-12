@@ -5,6 +5,7 @@ import { tokenizadasApi } from '../services/tokenizadasService';
 import { CardCampana } from '../components/marketplace/CardCampana';
 import { usePreciosLive } from '../hooks/usePreciosLive';
 import { TickerGrande } from '../components/precios/TickerGrande';
+import { ChipEnVivo } from '../components/precios/ChipEnVivo';
 import { usdCompacto, porcentaje } from '../utils/format';
 import { useWalletStore } from '../stores/walletStore';
 import { HarvestLogo } from '../components/brand/HarvestLogo';
@@ -145,10 +146,7 @@ export function HomePage() {
               Pizarra Rosario · actualización on-chain cada 12 s
             </p>
           </div>
-          <span className="hv-chip hv-chip-green" style={{ fontSize: 11 }}>
-            <span className="hv-dot" style={{ background: 'var(--hv-green)' }} />
-            en vivo
-          </span>
+          <ChipEnVivo />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {ticks.map((t) => (
