@@ -176,7 +176,10 @@ export function AsistenteHarvestPage() {
             style={{ padding: 24 }}
           >
             {!conversacion || (conversacion.mensajes?.length ?? 0) === 0 ? (
-              <EstadoInicial usuarioNombre={usuario?.nombre ?? 'Productor'} />
+              <EstadoInicial
+                usuarioNombre={usuario?.nombre ?? 'Productor'}
+                rol={usuario?.rolPlataforma ?? null}
+              />
             ) : (
               <div className="space-y-4">
                 {conversacion.mensajes!.map((m) => (
@@ -436,13 +439,62 @@ function BurbujaEscribiendo() {
   );
 }
 
-function EstadoInicial({ usuarioNombre }: { usuarioNombre: string }) {
-  const sugerencias = [
-    '¿Cómo calculo la tasa implícita de mi emisión?',
-    '¿Cuándo conviene tokenizar modo porcentual vs fijo?',
-    '¿Qué garantías reducen más el descuento?',
-    '¿Cómo funciona la liquidación con el acopio?',
-  ];
+type RolAsistente = 'productor' | 'inversor' | 'admin_plataforma' | 'acopio' | null;
+
+const SUGERENCIAS_POR_ROL: Record<Exclude<RolAsistente, null> | 'default', { intro: string; items: string[] }> = {
+  productor: {
+    intro:
+      'Soy el agrónomo Harvest. Preguntame sobre tu cultivo, precios, tokenización o pedime que registre labores, insumos o lluvias.',
+    items: [
+      '¿Cómo calculo la tasa implícita de mi emisión?',
+      '¿Cuándo conviene tokenizar modo porcentual vs fijo?',
+      'Registrame 25mm de lluvia de hoy',
+      '¿Qué margen me da la campaña actual?',
+    ],
+  },
+  inversor: {
+    intro:
+      'Soy el asesor de inversión Harvest. Puedo comparar campañas del marketplace, mirar el historial de un productor y simular retornos.',
+    items: [
+      '¿Cuál es la mejor campaña abierta para invertir hoy?',
+      'Compará las 3 campañas de soja con más historial',
+      'Simulá 5000 USDC en la campaña que cierra pronto',
+      '¿Cuánto le rindió al inversor el último productor que liquidó?',
+    ],
+  },
+  admin_plataforma: {
+    intro:
+      'Soy el asistente operativo de Harvest. Preguntame por la cola de revisión, campañas fondeadas pendientes de liquidar o comisiones del mes.',
+    items: [
+      '¿Qué tengo pendiente de revisar?',
+      '¿Cuánto lleva la plataforma en comisiones este mes?',
+      'Priorizame la cola por antigüedad',
+      '¿Cuántas campañas están fondeadas esperando liquidación?',
+    ],
+  },
+  acopio: {
+    intro:
+      'Todavía no tenés acciones habilitadas para el rol acopio en Harvest. Puedo derivar tus consultas al asistente correspondiente.',
+    items: [
+      '¿Qué acciones voy a tener disponibles?',
+      '¿Cómo se conecta el acopio con Harvest?',
+    ],
+  },
+  default: {
+    intro:
+      'Soy el agente Harvest. Preguntame sobre precios, tokenización, garantías o cualquier duda de tu campo.',
+    items: [
+      '¿Cómo calculo la tasa implícita de mi emisión?',
+      '¿Cuándo conviene tokenizar modo porcentual vs fijo?',
+      '¿Qué garantías reducen más el descuento?',
+      '¿Cómo funciona la liquidación con el acopio?',
+    ],
+  },
+};
+
+function EstadoInicial({ usuarioNombre, rol }: { usuarioNombre: string; rol: RolAsistente }) {
+  const key = (rol ?? 'default') as keyof typeof SUGERENCIAS_POR_ROL;
+  const { intro, items: sugerencias } = SUGERENCIAS_POR_ROL[key] ?? SUGERENCIAS_POR_ROL.default;
   return (
     <div className="flex flex-col items-center justify-center h-full text-center">
       <HarvestLogo variant="mark" size={64} animated />
@@ -457,9 +509,8 @@ function EstadoInicial({ usuarioNombre }: { usuarioNombre: string }) {
       >
         Hola {usuarioNombre.split(' ')[0]}
       </h3>
-      <p style={{ color: 'var(--hv-text-muted)', fontSize: 13, marginTop: 6, maxWidth: 400 }}>
-        Soy el agente Harvest. Preguntame sobre precios, tokenización, garantías o
-        cualquier duda de tu campo.
+      <p style={{ color: 'var(--hv-text-muted)', fontSize: 13, marginTop: 6, maxWidth: 480 }}>
+        {intro}
       </p>
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-2 max-w-xl w-full">
         {sugerencias.map((s) => (

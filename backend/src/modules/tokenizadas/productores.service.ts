@@ -39,6 +39,114 @@ export class ProductoresService {
     return productores.map((p) => this.armarProductorResumen(p));
   }
 
+  /**
+   * Histórico de campañas ya liquidadas del productor + KPIs agregados.
+   * Público. Lo consume el marketplace, la ficha del productor y el
+   * asistente IA (para responder "¿en qué productor conviene invertir?").
+   *
+   * A diferencia de `detalle()`, acá solo devolvemos las liquidadas y
+   * derivamos rendimientos reales — no series mock. Si el productor no
+   * tiene campañas liquidadas todavía, `campanas` es [] y `kpis` refleja
+   * "sin historial".
+   */
+  async historial(productorId: string) {
+    const productor = await this.prisma.usuario.findUnique({
+      where: { id: productorId },
+      select: { id: true, nombre: true, walletAddress: true, createdAt: true },
+    });
+    if (!productor) throw new NotFoundException('Productor no encontrado');
+
+    const liquidadas = await this.prisma.tokenizacionCampana.findMany({
+      where: {
+        productorId,
+        campania: { estadoToken: 'liquidada' },
+      },
+      include: {
+        campania: {
+          include: { cultivo: true, establecimiento: true },
+        },
+        tenencias: {
+          select: { id: true, tokens: true, precioCompraUsd: true, usdcRecibido: true },
+        },
+      },
+      orderBy: { liquidadaEn: 'desc' },
+    });
+
+    const campanas = liquidadas.map((t) => {
+      const rindeReal = t.campania.rindeRealTnHa ? Number(t.campania.rindeRealTnHa) : null;
+      const rindeEstimado = t.campania.rindeEstimadoTnHa ? Number(t.campania.rindeEstimadoTnHa) : null;
+      const precioReferencia = Number(t.precioReferenciaUsdTn);
+      const precioLiquidacion = t.precioLiquidacionUsdTn ? Number(t.precioLiquidacionUsdTn) : null;
+      const payoutPorToken = t.payoutPorTokenUsd ? Number(t.payoutPorTokenUsd) : null;
+
+      // Retorno promedio ponderado de las tenencias.
+      const totalTokens = t.tenencias.reduce((acc, ten) => acc + Number(ten.tokens), 0);
+      const totalInvertido = t.tenencias.reduce(
+        (acc, ten) => acc + Number(ten.tokens) * Number(ten.precioCompraUsd),
+        0,
+      );
+      const totalRecibido = t.tenencias.reduce(
+        (acc, ten) => acc + Number(ten.usdcRecibido ?? 0),
+        0,
+      );
+      const retornoPct =
+        totalInvertido > 0 ? ((totalRecibido - totalInvertido) / totalInvertido) * 100 : null;
+
+      // On-time: liquidada dentro del margen (24h) sobre la fecha estimada.
+      const onTime = t.fechaLiquidacionEstimada && t.liquidadaEn
+        ? new Date(t.liquidadaEn).getTime() <=
+            new Date(t.fechaLiquidacionEstimada).getTime() + 24 * 3600 * 1000
+        : null;
+
+      return {
+        id: t.id,
+        campaniaId: t.campaniaId,
+        nombre: t.campania.nombre,
+        cultivo: t.campania.cultivo?.nombre ?? null,
+        cicloAgricola: t.campania.cicloAgricola,
+        establecimiento: t.campania.establecimiento?.nombre ?? null,
+        provincia: t.campania.establecimiento?.provincia ?? null,
+        rindeEstimadoTnHa: rindeEstimado,
+        rindeRealTnHa: rindeReal,
+        rindeCumplimientoPct:
+          rindeEstimado && rindeReal ? (rindeReal / rindeEstimado) * 100 : null,
+        precioReferenciaUsdTn: precioReferencia,
+        precioLiquidacionUsdTn: precioLiquidacion,
+        toneladasOfrecidas: Number(t.toneladasOfrecidas),
+        toneladasEntregadas: t.toneladasEntregadas ? Number(t.toneladasEntregadas) : null,
+        payoutPorTokenUsd: payoutPorToken,
+        retornoInversorPct: retornoPct,
+        onTime,
+        inversoresCount: t.tenencias.length,
+        totalRecaudadoUsd: totalInvertido,
+        fondeoDesde: t.fondeoDesde,
+        fondeoHasta: t.fondeoHasta,
+        fechaLiquidacionEstimada: t.fechaLiquidacionEstimada,
+        liquidadaEn: t.liquidadaEn,
+      };
+    });
+
+    const retornos = campanas.map((c) => c.retornoInversorPct).filter((r): r is number => r !== null);
+    const cumplimientos = campanas
+      .map((c) => c.rindeCumplimientoPct)
+      .filter((r): r is number => r !== null);
+    const onTimeCount = campanas.filter((c) => c.onTime === true).length;
+    const onTimeEvaluables = campanas.filter((c) => c.onTime !== null).length;
+
+    const kpis = {
+      campanasLiquidadas: campanas.length,
+      retornoInversorPromedioPct:
+        retornos.length > 0 ? retornos.reduce((a, b) => a + b, 0) / retornos.length : null,
+      cumpleFechasPct: onTimeEvaluables > 0 ? (onTimeCount / onTimeEvaluables) * 100 : null,
+      rindeCumplimientoPromedioPct:
+        cumplimientos.length > 0
+          ? cumplimientos.reduce((a, b) => a + b, 0) / cumplimientos.length
+          : null,
+    };
+
+    return { productor, campanas, kpis };
+  }
+
   async detalle(productorId: string) {
     const productor = await this.prisma.usuario.findUnique({
       where: { id: productorId },

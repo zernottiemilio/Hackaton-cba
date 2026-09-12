@@ -1,6 +1,6 @@
 /**
- * Definición de las tools (acciones) que Claude puede ejecutar en nombre
- * del productor. Sigue el formato del Anthropic SDK Tool Use.
+ * Definición de las tools (acciones) que Claude puede ejecutar según el rol
+ * del usuario. Sigue el formato del Anthropic SDK Tool Use.
  *
  * Cada tool tiene:
  *  - name: identificador único, snake_case
@@ -8,12 +8,15 @@
  *  - input_schema: JSON Schema de los parámetros.
  *
  * Convenciones:
- *  - El cuentaId no es parámetro: se toma del usuario autenticado en runtime.
- *  - Para referencias a entidades de la cuenta (establecimiento, lote, etc.)
- *    se usa el ID que el LLM saca del contexto inyectado al inicio.
+ *  - El cuentaId/usuarioId no son parámetros: se toman del usuario autenticado.
+ *  - Para referencias a entidades (establecimiento, lote, productor, etc.) se
+ *    usa el ID que el LLM saca del contexto inyectado al inicio.
  *  - Las tools de actualización son idempotentes y vuelven a leer la entidad
  *    antes de modificar.
+ *  - `toolsParaRol(rol)` elige el set correcto según `Usuario.rolPlataforma`.
  */
+
+import type { RolTokenizacion } from '@prisma/client';
 
 export interface ToolDefinition {
   name: string;
@@ -25,10 +28,10 @@ export interface ToolDefinition {
   };
 }
 
-export const TOOLS: ToolDefinition[] = [
-  // ============================================================
-  // REGISTROS — lo más usado en el campo
-  // ============================================================
+// ============================================================
+// TOOLS PARA EL PRODUCTOR — operación diaria del campo
+// ============================================================
+export const TOOLS_PRODUCTOR: ToolDefinition[] = [
   {
     name: 'registrar_lluvia',
     description:
@@ -99,10 +102,6 @@ export const TOOLS: ToolDefinition[] = [
       required: ['loteCampaniaId', 'tipo', 'producto', 'cantidad', 'unidad', 'costoTotalUsd'],
     },
   },
-
-  // ============================================================
-  // ACTUALIZACIONES DEL LOTE-CAMPAÑA
-  // ============================================================
   {
     name: 'actualizar_lote_campania',
     description:
@@ -126,10 +125,6 @@ export const TOOLS: ToolDefinition[] = [
       required: ['loteCampaniaId'],
     },
   },
-
-  // ============================================================
-  // CREACIÓN DE ENTIDADES BASE
-  // ============================================================
   {
     name: 'crear_lote',
     description:
@@ -170,3 +165,121 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
 ];
+
+// ============================================================
+// TOOLS PARA EL INVERSOR — asesoría para decidir en qué invertir
+// ============================================================
+export const TOOLS_INVERSOR: ToolDefinition[] = [
+  {
+    name: 'consultar_historial_productor',
+    description:
+      'Trae el histórico de campañas ya liquidadas de un productor + KPIs (retorno promedio, ' +
+      'cumplimiento de fechas, cumplimiento de rinde). Usalo SIEMPRE que el inversor pregunte ' +
+      'sobre un productor específico o cuando estés comparando campañas del marketplace: sin ' +
+      'este dato no podés justificar una recomendación. El productorId lo sacás del contexto ' +
+      '(marketplace[].productor.id o portfolio[].tokenizacion.productor.id).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        productorId: { type: 'string', description: 'UUID del productor.' },
+      },
+      required: ['productorId'],
+    },
+  },
+  {
+    name: 'buscar_campanas_marketplace',
+    description:
+      'Lista campañas actualmente abiertas en el marketplace con filtros. Usalo cuando el ' +
+      'inversor pida ver oportunidades ("qué hay para invertir en soja", "campañas de córdoba ' +
+      'con garantías"). Por defecto ordena por "cierra_pronto".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        cultivo: { type: 'string', description: 'Nombre del cultivo (soja, maíz, trigo, girasol).' },
+        provincia: { type: 'string' },
+        soloConGarantias: { type: 'boolean' },
+        orden: {
+          type: 'string',
+          enum: ['cierra_pronto', 'mayor_descuento', 'menor_riesgo', 'recientes'],
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'simular_retorno',
+    description:
+      'Simula el retorno del inversor en 3 escenarios (pesimista/base/optimista) para una ' +
+      'tokenización dada del marketplace. Devuelve USDC estimado + retorno % en cada escenario. ' +
+      'Usalo cuando el inversor pregunte cuánto podría ganar o cuál es el riesgo. La ' +
+      'tokenizacionId la sacás del contexto.marketplace.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        tokenizacionId: { type: 'string' },
+        cantidadTokens: {
+          type: 'number',
+          description: 'Cuántos tokens (toneladas) simular. Default: 100.',
+        },
+      },
+      required: ['tokenizacionId'],
+    },
+  },
+];
+
+// ============================================================
+// TOOLS PARA EL ADMIN — operaciones y métricas globales
+// ============================================================
+export const TOOLS_ADMIN: ToolDefinition[] = [
+  {
+    name: 'listar_campanas_revision',
+    description:
+      'Devuelve las campañas en estado `en_revision` esperando aprobación del admin, con detalle ' +
+      'del productor, cultivo, monto objetivo, garantías y antigüedad de la solicitud. Usalo ' +
+      'cuando el admin pregunte "qué tengo pendiente" o "cuáles reviso primero".',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'resumen_comisiones',
+    description:
+      'Resumen de comisiones cobradas por la plataforma en el período pedido (default: mes actual). ' +
+      'Devuelve total, cantidad de operaciones, breakdown por tipo (compra inversor vs cobro ' +
+      'productor). Usalo cuando el admin pregunte por ingresos / facturación.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        desde: { type: 'string', description: 'YYYY-MM-DD (opcional).' },
+        hasta: { type: 'string', description: 'YYYY-MM-DD (opcional).' },
+      },
+      required: [],
+    },
+  },
+];
+
+// ============================================================
+// TOOLS PARA ACOPIO — placeholder, sin acciones habilitadas todavía
+// ============================================================
+export const TOOLS_ACOPIO: ToolDefinition[] = [];
+
+/**
+ * Devuelve las tools disponibles para el rol activo. Si el usuario no tiene
+ * rol de plataforma seteado (típico ingeniero legacy), asumimos productor
+ * porque es el flujo AgroFácil original.
+ */
+export function toolsParaRol(rol: RolTokenizacion | null | undefined): ToolDefinition[] {
+  switch (rol) {
+    case 'inversor':
+      return TOOLS_INVERSOR;
+    case 'admin_plataforma':
+      return TOOLS_ADMIN;
+    case 'acopio':
+      return TOOLS_ACOPIO;
+    case 'productor':
+    default:
+      return TOOLS_PRODUCTOR;
+  }
+}
+
+// Backwards-compat: el executor viejo importaba `TOOLS`. Lo dejamos apuntando
+// al set de productor para que nada roto suba hasta el rebuild.
+export const TOOLS = TOOLS_PRODUCTOR;

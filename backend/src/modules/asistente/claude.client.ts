@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
-import { TOOLS } from './tools';
+import { TOOLS, type ToolDefinition } from './tools';
 
 /** Una imagen adjunta a un mensaje user. */
 export interface ImagenAdjunta {
@@ -71,7 +71,9 @@ export class ClaudeClient {
     systemPrompt: string,
     messages: ClaudeMessage[],
     executor: ToolExecutor,
+    toolsOverride?: ToolDefinition[],
   ): Promise<ClaudeRunResult> {
+    const toolsHabilitadas = toolsOverride ?? TOOLS;
     const inicio = Date.now();
 
     if (!this.client) {
@@ -118,7 +120,9 @@ export class ClaudeClient {
         max_tokens: 2048,
         system: systemPrompt,
         messages: conversacion,
-        tools: TOOLS as unknown as Anthropic.Tool[],
+        ...(toolsHabilitadas.length > 0
+          ? { tools: toolsHabilitadas as unknown as Anthropic.Tool[] }
+          : {}),
       });
 
       totalInputTokens += res.usage.input_tokens;
