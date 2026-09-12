@@ -8,10 +8,12 @@ import { BadgeModo } from '../components/campana/BadgeModo';
 import { PanelOnChain } from '../components/campana/PanelOnChain';
 import { BotonCobrarInversor } from '../components/campana/BotonCobrarInversor';
 import { useWalletStore } from '../stores/walletStore';
+import { explorerTxUrl } from '../utils/explorer';
 import { Link } from 'react-router-dom';
 
 export function PortfolioPage() {
   const conectada = useWalletStore((s) => s.conectada);
+  const red = conectada?.network ?? 'mock';
   const [expandida, setExpandida] = useState<string | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ['tk', 'portfolio'],
@@ -152,9 +154,26 @@ export function PortfolioPage() {
                         </td>
                         <td className="px-3 py-3">
                           {t.txSignatureCompra ? (
-                            <span className="font-mono text-[11px] text-white/40" title={t.txSignatureCompra}>
-                              {abreviarTx(t.txSignatureCompra)}
-                            </span>
+                            (() => {
+                              const link = explorerTxUrl(t.txSignatureCompra, red);
+                              return link ? (
+                                <a
+                                  href={link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-mono text-[11px] hover:underline"
+                                  style={{ color: 'var(--hv-green-text)' }}
+                                  title="Ver la compra en Solana Explorer"
+                                >
+                                  {abreviarTx(t.txSignatureCompra)} ↗
+                                </a>
+                              ) : (
+                                <span className="font-mono text-[11px] text-white/40" title={t.txSignatureCompra}>
+                                  {abreviarTx(t.txSignatureCompra)}
+                                </span>
+                              );
+                            })()
                           ) : (
                             <span className="text-white/30">—</span>
                           )}
