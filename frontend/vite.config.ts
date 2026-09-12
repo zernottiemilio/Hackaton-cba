@@ -17,8 +17,15 @@ export default defineConfig({
       // El SW cachea HTML/JS/CSS/imágenes durante el build (precaching) y además
       // configuramos runtime caching para fuentes externas y API GET.
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
-        navigateFallback: '/index.html',
+        // Sin `html` en el precache y sin navigateFallback: cada navegación va a
+        // la red y trae el index.html nuevo (con los hashes nuevos). Antes el SW
+        // servía el index.html cacheado y la gente veía deploys viejos hasta
+        // recargar a mano. Los assets hasheados sí se precachean: son inmutables.
+        globPatterns: ['**/*.{js,css,svg,png,ico,webmanifest}'],
+        navigateFallback: null,
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         // El bundle superó los 2 MB default con el módulo tokenizadas (leaflet +
         // recharts + framer + turf). Subimos el límite hasta que el code-splitting
         // por route corte el bundle inicial. 4 MB deja margen sin ser absurdo.
