@@ -45,11 +45,10 @@ export class WalletCustodianService implements OnModuleInit {
     private readonly prisma: PrismaService,
   ) {}
 
-  async onModuleInit(): Promise<void> {
-    // Solo inicializamos si el ledger real está activo. Si el flag es mock
-    // o falta cualquier env crítica, salimos temprano sin lanzar: el módulo
-    // sigue registrado para que Nest resuelva la DI, pero nunca se llamará
-    // porque la factory del LedgerService devuelve el mock.
+  onModuleInit(): void {
+    // Init 100% síncrono. Cualquier IO (getBalance a devnet) queda diferido
+    // para no bloquear el bootstrap ni caer si el RPC de Solana está lento
+    // o inalcanzable desde el container de Railway.
     const impl = this.config.get<string>('LEDGER_IMPL') ?? 'mock';
     if (impl !== 'solana') {
       this.logger.log(`LEDGER_IMPL=${impl} — WalletCustodianService inactivo`);
@@ -66,16 +65,30 @@ export class WalletCustodianService implements OnModuleInit {
       return;
     }
 
-    this._feePayer = this.loadFeePayer(feePayerSecret);
-    this._usdcMint = new PublicKey(usdcMint);
-    this._encryptionKey = encKey;
-    this._fundLamports = Number(this.config.get<string>('SOLANA_USER_FUND_LAMPORTS') ?? '20000000');
-    this._testUsdc = BigInt(this.config.get<string>('SOLANA_USER_TEST_USDC') ?? '10000000000');
+    try {
+      this._feePayer = this.loadFeePayer(feePayerSecret);
+      this._usdcMint = new PublicKey(usdcMint);
+      this._encryptionKey = encKey;
+      this._fundLamports = Number(this.config.get<string>('SOLANA_USER_FUND_LAMPORTS') ?? '20000000');
+      this._testUsdc = BigInt(this.config.get<string>('SOLANA_USER_TEST_USDC') ?? '10000000000');
+      this.logger.log(
+        `WalletCustodianService listo. Fee-payer: ${this._feePayer.publicKey.toBase58()}`,
+      );
+    } catch (err) {
+      this.logger.error(`Init falló: ${(err as Error).message}. El servicio queda inactivo.`);
+      return;
+    }
 
+    // Balance check en background (no bloquea el arranque).
+    setImmediate(() => this.logFeePayerBalance());
+  }
+
+  private async logFeePayerBalance(): Promise<void> {
+    if (!this._feePayer) return;
     try {
       const balance = await this.conn.connection.getBalance(this._feePayer.publicKey);
       this.logger.log(
-        `Fee-payer ${this._feePayer.publicKey.toBase58()} balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`,
+        `Fee-payer balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`,
       );
       if (balance < 0.1 * LAMPORTS_PER_SOL) {
         this.logger.warn(
@@ -83,7 +96,7 @@ export class WalletCustodianService implements OnModuleInit {
         );
       }
     } catch (err) {
-      this.logger.warn(`No pude leer balance del fee-payer al arrancar: ${(err as Error).message}`);
+      this.logger.warn(`No pude leer balance del fee-payer: ${(err as Error).message}`);
     }
   }
 
