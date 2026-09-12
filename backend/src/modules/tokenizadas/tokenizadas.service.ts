@@ -297,11 +297,57 @@ export class TokenizadasService {
 
   // ─── Inversor: compra ──────────────────────────────────────────
 
+  /**
+   * El programa Anchor rechaza `invest` con `SaleEnded` si `now > sale_end`.
+   * Ese caso llegaba al frontend como 500 opaco. Validamos acá antes de firmar
+   * para devolver 400 con un mensaje claro y no gastar rent en una tx que
+   * la chain va a rechazar. Mismo criterio para `now < fondeoDesde` (no
+   * dejamos comprar antes de que se abra la ventana) y estados que no sean
+   * `abierta`.
+   */
+  private async assertFondeoAbierto(tokenizacionId: string): Promise<void> {
+    const t = await this.prisma.tokenizacionCampana.findUnique({
+      where: { id: tokenizacionId },
+      select: {
+        fondeoDesde: true,
+        fondeoHasta: true,
+        campania: { select: { estadoToken: true } },
+      },
+    });
+    if (!t) throw new NotFoundException('Tokenización no encontrada');
+    if (t.campania.estadoToken !== 'abierta') {
+      throw new BadRequestException(
+        `La campaña no está abierta (estado actual: ${t.campania.estadoToken}).`,
+      );
+    }
+    const now = new Date();
+    if (now < t.fondeoDesde) {
+      throw new BadRequestException(
+        `La ventana de fondeo abre el ${t.fondeoDesde.toISOString()}.`,
+      );
+    }
+    if (now >= t.fondeoHasta) {
+      throw new BadRequestException(
+        `La ventana de fondeo cerró el ${t.fondeoHasta.toISOString()}. Ya no se puede invertir en esta campaña.`,
+      );
+    }
+  }
+
   async crearReserva(tokenizacionId: string, cantidad: number, inversorWallet: string) {
+    await this.assertFondeoAbierto(tokenizacionId);
     return this.ledger.reservarTokens({ tokenizacionId, cantidad, inversorWallet });
   }
 
   async confirmarCompra(reservaId: string) {
+    const reserva = await this.prisma.reservaToken.findUnique({
+      where: { id: reservaId },
+      select: { tokenizacionId: true },
+    });
+    if (!reserva) throw new NotFoundException('Reserva no encontrada');
+    // Chequeo de nuevo por si la reserva se creó al filo del cierre y el
+    // usuario tarda en confirmar. El programa on-chain valida lo mismo pero
+    // devuelve 500; acá lo cortamos con 400 antes de firmar.
+    await this.assertFondeoAbierto(reserva.tokenizacionId);
     const res = await this.ledger.confirmarCompra(reservaId);
 
     // La comisión se registra como asiento contable inmutable en la misma
