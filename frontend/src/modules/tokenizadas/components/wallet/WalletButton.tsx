@@ -4,6 +4,7 @@ import { useWalletStore, useNombreWallet } from '../../stores/walletStore';
 import { abreviarAddress, usd } from '../../utils/format';
 import { etiquetaRed, explorerAddressUrl } from '../../utils/explorer';
 import { WalletModal } from './WalletModal';
+import { ActividadWallet } from './ActividadWallet';
 
 /**
  * Chip compacto para el topbar. Muestra la wallet custodial del usuario
@@ -103,7 +104,7 @@ export function WalletButton() {
           <motion.div
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute right-0 top-full mt-2 w-72 rounded-xl overflow-hidden z-50"
+            className="absolute right-0 top-full mt-2 w-80 rounded-xl overflow-hidden z-50"
             style={{
               background: 'var(--hv-bg-panel)',
               border: '1px solid var(--hv-border)',
@@ -147,6 +148,7 @@ export function WalletButton() {
               <BalanceRow label="SOL" value={conectada.balanceSol.toFixed(4)} />
               <BalanceRow label="USDC" value={usd(conectada.balanceUsdc, 2)} accent />
             </div>
+            <ActividadWallet />
             <button
               onClick={() => {
                 void refrescar();

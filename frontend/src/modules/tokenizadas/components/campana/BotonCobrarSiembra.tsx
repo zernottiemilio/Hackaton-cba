@@ -71,6 +71,15 @@ export function BotonCobrarSiembra({ t, compacto = false }: Props) {
       usdcMovido: res.montoUsd,
       timestamp: Date.now(),
     });
+    if (res.comision?.txComision) {
+      registrarTx({
+        signature: res.comision.txComision,
+        tipo: 'fee',
+        descripcion: `Fee ${porcentaje(res.comision.porcentaje, 1)} · cobro de ${t.campania.establecimiento?.nombre ?? t.campania.nombre}`,
+        usdcMovido: -res.comision.montoComisionUsd,
+        timestamp: Date.now() + 1,
+      });
+    }
     qc.invalidateQueries({ queryKey: ['tk'] });
     const link = conectada ? explorerTxUrl(res.txSignature, conectada.network) : null;
     const neto = res.comision?.montoNetoUsd ?? res.montoUsd;

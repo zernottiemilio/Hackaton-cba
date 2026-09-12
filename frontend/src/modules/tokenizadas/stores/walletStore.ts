@@ -18,7 +18,7 @@ import type { ContextoTokenizacion, WalletInfo } from '../types/tokenizadas';
 
 export interface TxEntry {
   signature: string;
-  tipo: 'publicar' | 'reservar' | 'comprar' | 'reclamar' | 'liberar' | 'liquidar';
+  tipo: 'publicar' | 'reservar' | 'comprar' | 'reclamar' | 'liberar' | 'liquidar' | 'fee';
   descripcion: string;
   usdcMovido?: number;
   timestamp: number;
