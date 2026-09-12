@@ -289,6 +289,7 @@ function DetalleLiquidacion({
   const fechaLiq = fechaSettlement(t).getTime();
   const todaviaNo = fechaLiq > ahora;
   const segundosFaltan = Math.max(0, Math.ceil((fechaLiq - ahora) / 1000));
+  const cuentaRegresiva = `${Math.floor(segundosFaltan / 60)}:${String(segundosFaltan % 60).padStart(2, '0')}`;
 
   const entregadasOk = form.entregadas >= 1 && form.entregadas <= vendidas && Number.isInteger(form.entregadas);
   const precioOk = form.precio > 0;
@@ -425,7 +426,6 @@ function DetalleLiquidacion({
                 marginTop: 4,
               }}
             >
-              {retornoPct >= 0 ? '+' : ''}
               {porcentaje(retornoPct, 1)}
             </div>
             <div style={{ color: 'var(--hv-text-muted)', fontSize: 11, marginTop: 2 }}>
@@ -443,7 +443,7 @@ function DetalleLiquidacion({
 
       <div className="flex flex-wrap items-center gap-3 pt-4" style={{ borderTop: '1px solid var(--hv-border-subtle)' }}>
         <button onClick={onLiquidar} disabled={procesando || todaviaNo || !entregadasOk || !precioOk} className="hv-cta">
-          {procesando ? 'Firmando...' : todaviaNo ? `Liquidar en ${segundosFaltan}s` : 'Liquidar campaña'}
+          {procesando ? 'Firmando...' : todaviaNo ? `Liquidar en ${cuentaRegresiva}` : 'Liquidar campaña'}
         </button>
         <span style={{ color: 'var(--hv-text-muted)', fontSize: 11 }}>
           {todaviaNo
