@@ -120,6 +120,27 @@ El seed es **idempotente** (todo con `upsert`):
 
 > 💡 Como es idempotente, podés cambiar la `SUPERADMIN_PASSWORD` en Variables y al próximo deploy se rotea sola.
 
+### 6.1 Usuarios seed de Harvest (VAL-17)
+
+Todos con password `agrofacil123`:
+
+| Email | `rolPlataforma` | Uso en la demo |
+|---|---|---|
+| `juan@productor.demo` | `productor` | Crea la campaña, cobra la siembra |
+| `maria@productor.demo` | `productor` (contexto también `inversor`) | Alternativa productora |
+| `carlos@inversor.demo` | `inversor` | Compra 300 tn en la demo — el seed on-chain le mintea ≥75.000 USDC |
+| `sofia@inversor.demo` | `inversor` | Inversora secundaria |
+| `admin@tokenizadas.demo` | `admin_plataforma` | Aprueba campañas, liquida en nombre del acopio |
+| `acopio@sanmartin.demo` | `acopio` | Placeholder (no firma nada por ahora) |
+
+Cuando `LEDGER_IMPL=solana` está activo, al final del seed corre `prisma/seed-onchain.ts`. Ese script:
+
+1. Reemplaza las wallets fake (`7fH2m...`) por wallets custodiales reales — genera keypair, lo cifra con `WALLET_ENCRYPTION_KEY` y lo persiste en `Usuario.walletSecretCifrado`. Idempotente: si ya hay un secret válido, lo reusa.
+2. Fondea `juan`, `carlos` y `admin` con SOL (`SOLANA_USER_FUND_LAMPORTS`) y USDC (`SOLANA_USER_TEST_USDC`). Carlos siempre queda con ≥75.000 USDC (mint delta si hace falta).
+3. Publica on-chain la campaña `00000000-2000-0000-0000-000000000004` ("El Peral · Soja 2026/27") si todavía tiene mint fake. Después de esto la campaña queda `abierta` con `mintAddress`/`vaultAddress` reales, lista para que Carlos invierta en la demo.
+
+Si `LEDGER_IMPL=mock` o faltan envs de Solana, el paso on-chain se salta con un warning y el seed base sigue funcionando.
+
 ### Si querés correr el seed manualmente contra Railway desde tu máquina
 1. En el servicio Postgres → `Connect` → copiá la `DATABASE_PUBLIC_URL`.
 2. En tu terminal local:

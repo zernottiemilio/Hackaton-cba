@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { seedOnChain } from './seed-onchain';
 
 const prisma = new PrismaClient();
 
@@ -10,6 +11,7 @@ async function main(): Promise<void> {
   await seedDemo();
   await seedCultivos();
   await seedTokenizadas();
+  await seedOnChain(prisma);
 }
 
 /// Crea (o actualiza) el superadmin de la plataforma a partir de variables de entorno.
