@@ -9,6 +9,7 @@ import { PanelOnChain } from '../components/campana/PanelOnChain';
 import { BotonCobrarInversor } from '../components/campana/BotonCobrarInversor';
 import { useWalletStore } from '../stores/walletStore';
 import { explorerTxUrl } from '../utils/explorer';
+import { LinksOnChain } from '../components/campana/LinksOnChain';
 import { Link } from 'react-router-dom';
 
 export function PortfolioPage() {
@@ -128,6 +129,12 @@ export function PortfolioPage() {
                             {t.tokenizacion.campania.cultivo?.nombre} ·{' '}
                             {t.tokenizacion.campania.establecimiento?.partido}, {t.tokenizacion.campania.establecimiento?.provincia}
                           </div>
+                          <LinksOnChain
+                            compacto
+                            mintAddress={t.tokenizacion.mintAddress}
+                            vaultAddress={t.tokenizacion.vaultAddress}
+                            txSignaturePublicacion={t.tokenizacion.txSignaturePublicacion}
+                          />
                         </td>
                         <td className="px-3 py-3">
                           <BadgeModo modo={t.tokenizacion.modo} />

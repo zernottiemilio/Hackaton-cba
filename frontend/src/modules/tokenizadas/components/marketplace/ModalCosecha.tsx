@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import type { Tokenizacion } from '../../types/tokenizadas';
 import { BadgeModo } from '../campana/BadgeModo';
+import { LinksOnChain } from '../campana/LinksOnChain';
 import { BarraFondeo } from '../campana/BarraFondeo';
 import { useHistoriaPrecios, usePrecioLive } from '../../hooks/usePreciosLive';
 import { normalizarCultivo } from '../../services/mockPreciosService';
@@ -159,6 +160,12 @@ function ModalContent({ cosecha: t, onClose }: { cosecha: Tokenizacion; onClose:
           <p className="relative" style={{ color: 'var(--hv-text-2)', fontSize: 13, marginTop: 6 }}>
             {t.campania.cultivo?.nombre} · {hectareas(superficie)} · {partido}, {provincia}
           </p>
+          <LinksOnChain
+            className="relative"
+            mintAddress={t.mintAddress}
+            vaultAddress={t.vaultAddress}
+            txSignaturePublicacion={t.txSignaturePublicacion}
+          />
         </div>
 
         <div className="p-6 space-y-6" style={{ maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' }}>
