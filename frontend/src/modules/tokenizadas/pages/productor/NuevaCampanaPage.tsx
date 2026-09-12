@@ -177,18 +177,19 @@ export function NuevaCampanaPage() {
   const puedeAvanzar2 = form.precioReferenciaUsdTn > 0 && ventanaOk && cierreFuturo && liquidacionOk && minimasOk;
 
   /**
-   * Demo en vivo: la venta cierra en 2 minutos y se puede liquidar al tercero.
-   * El programa solo exige sale_end < settlement_date; el reloj arranca al
-   * publicar, no al comprar. Dos minutos alcanzan para aprobar, invertir y
-   * cobrar la siembra mientras se explica cada paso.
+   * Demo en vivo: la venta cierra en 5 minutos y se puede liquidar al sexto.
+   * El reloj arranca ACÁ, al apretar el botón, no al publicar: entre terminar
+   * el wizard, firmar y que el admin apruebe se van 2 o 3 minutos, y si la
+   * venta ya cerró el programa rechaza create_campaign (InvalidDates).
+   * Para publicar y comprar sin esperas usar "Publicar campaña demo".
    */
   const armarDemoEnVivo = () => {
     const ahora = Date.now();
     setForm((f) => ({
       ...f,
       fondeoDesde: aLocalInput(new Date(ahora)),
-      fondeoHasta: aLocalInput(new Date(ahora + 2 * 60_000)),
-      fechaLiquidacionEstimada: aLocalInput(new Date(ahora + 3 * 60_000)),
+      fondeoHasta: aLocalInput(new Date(ahora + 5 * 60_000)),
+      fechaLiquidacionEstimada: aLocalInput(new Date(ahora + 6 * 60_000)),
     }));
   };
 
@@ -465,9 +466,9 @@ export function NuevaCampanaPage() {
                 onClick={armarDemoEnVivo}
                 className="hv-cta-ghost"
                 style={{ padding: '8px 14px', fontSize: 12, whiteSpace: 'nowrap' }}
-                title="Fondeo cierra en 2 minutos y se liquida al tercero"
+                title="Fondeo cierra en 5 minutos y se liquida al sexto"
               >
-                ⚡ Demo en vivo (2 + 1 min)
+                ⚡ Demo en vivo (5 + 1 min)
               </button>
             </div>
 
