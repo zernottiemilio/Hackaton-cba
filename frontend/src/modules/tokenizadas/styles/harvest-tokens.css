@@ -61,6 +61,12 @@ html.tk-mounted ::-webkit-scrollbar-thumb:hover {
   --hv-red-soft:         rgba(255, 77, 77, 0.12);
   --hv-red-strong:       rgba(255, 77, 77, 0.30);
 
+  /* ---- Dato — azul frío, RESERVADO a cifras financieras (§6 hackaton.md) - */
+  --hv-dato:             #4FA3D8;        /* base #1E5F8C liftado para dark theme */
+  --hv-dato-strong:      #6BB5E4;
+  --hv-dato-soft:        rgba(79, 163, 216, 0.10);
+  --hv-dato-border:      rgba(79, 163, 216, 0.28);
+
   /* ---- Surface effects ------------------------------------------------- */
   --hv-glass:            linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
   --hv-radial:           radial-gradient(120% 100% at 22% 0%, rgba(43,224,106,0.10), rgba(255,255,255,0.02) 60%);
@@ -139,6 +145,14 @@ html.tk-mounted ::-webkit-scrollbar-thumb:hover {
   background: rgba(255,255,255,0.09);
   border-color: rgba(255,255,255,0.2);
   transform: translateY(-1px);
+}
+
+/* Cifra de plata — se usa SOLO para números financieros (payout, vault, precio).
+   Verde queda para lo agronómico; azul para plata. Regla del hackaton.md §6. */
+.hv-dato {
+  color: var(--hv-dato-strong);
+  font-family: var(--hv-font-mono);
+  font-feature-settings: 'ss01', 'tnum';
 }
 
 /* Chip / badge base */

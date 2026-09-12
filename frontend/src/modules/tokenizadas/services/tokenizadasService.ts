@@ -11,6 +11,7 @@ import type {
   WalletInfo,
   ModoTokenizacion,
   FuentePrecio,
+  EstadoOnChain,
 } from '../types/tokenizadas';
 
 export interface CrearTokenizacionPayload {
@@ -108,6 +109,15 @@ export const tokenizadasApi = {
 
   async detalleMarketplace(id: string): Promise<Tokenizacion> {
     const { data } = await apiClient.get(`/tokenizadas/marketplace/${id}`);
+    return data;
+  },
+
+  /**
+   * Estado on-chain: lo que el jurado verifica clickeando al explorer.
+   * Contrato en HARVEST.md (VAL-18). Público, refresca cada 10s en la UI.
+   */
+  async estadoOnChain(id: string): Promise<EstadoOnChain> {
+    const { data } = await apiClient.get(`/tokenizadas/${id}/on-chain`);
     return data;
   },
 

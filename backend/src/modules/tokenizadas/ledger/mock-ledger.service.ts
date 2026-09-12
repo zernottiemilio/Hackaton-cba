@@ -13,6 +13,7 @@ import {
   ReclamarInput,
   ReclamarResult,
   DisponibilidadResult,
+  EstadoOnChainResult,
 } from './ledger.interface';
 
 /**
@@ -249,6 +250,70 @@ export class MockLedgerService extends LedgerService {
       tokensVendidos: vendidos,
       tokensReservados: reservados,
       tokensDisponibles: Math.max(0, disponibles),
+    };
+  }
+
+  async obtenerEstadoOnChain(tokenizacionId: string): Promise<EstadoOnChainResult> {
+    const t = await this.prisma.tokenizacionCampana.findUnique({
+      where: { id: tokenizacionId },
+      include: { campania: true, productor: true },
+    });
+    if (!t) throw new NotFoundException('Tokenización no encontrada');
+
+    const publicada = !!t.mintAddress;
+    const estadoCampania = t.campania.estadoToken;
+    const status: EstadoOnChainResult['status'] = !publicada
+      ? 'draft'
+      : estadoCampania === 'liquidada'
+        ? 'settled'
+        : estadoCampania === 'cancelada'
+          ? 'refunded'
+          : estadoCampania === 'fondeada' || estadoCampania === 'en_curso' || estadoCampania === 'en_cosecha'
+            ? 'funded'
+            : 'open';
+
+    const tonsOffered = t.toneladasOfrecidas.toNumber();
+    const tonsSold = t.tokensVendidos.toNumber();
+    const settlementPriceUsd = t.precioLiquidacionUsdTn?.toNumber() ?? null;
+    // Mock: el vault "tiene" lo recaudado hasta que se libera/liquida.
+    // Si ya liquidó, sumamos el depósito del acopio (tonsSold × settlementPrice)
+    // porque el mock no persiste ese estado intermedio.
+    let vaultBalanceUsd = t.montoRecaudadoUsd.toNumber();
+    if (status === 'settled' && settlementPriceUsd) {
+      vaultBalanceUsd = tonsSold * settlementPriceUsd;
+    }
+    // Payout por token: cuando 1 token = 1 tonelada, coincide con settlementPrice.
+    const payoutPerTokenUsd = settlementPriceUsd;
+
+    // fondeoHasta + 90 días (§HARVEST.md trampa "settlementDate" — VAL-11 lo cambia).
+    const settlementDate = t.fondeoHasta
+      ? new Date(t.fondeoHasta.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
+    return {
+      onChain: publicada,
+      status,
+      tonsOffered,
+      tonsSold,
+      minTons: 1,
+      pricePerTonUsd: t.precioTokenUsd.toNumber(),
+      settlementDate,
+      tonsDelivered: null,
+      settlementPriceUsd,
+      payoutPerTokenUsd,
+      vaultBalanceUsd,
+      addresses: {
+        campaign: null, // el mock no tiene PDA de campaña
+        tokenMint: t.mintAddress,
+        vault: t.vaultAddress,
+        producer: t.productor.walletAddress,
+        acopio: null,
+      },
+      explorer: {
+        campaign: null,
+        tokenMint: null, // sin cluster real no hay explorer al que apuntar
+        vault: null,
+      },
     };
   }
 

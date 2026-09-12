@@ -1,10 +1,11 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { tokenizadasApi } from '../services/tokenizadasService';
-import { usd, usdTn, porcentaje, toneladas, hectareas, fecha, diasRestantes, abreviarTx } from '../utils/format';
+import { usd, usdTn, porcentaje, toneladas, hectareas, fecha, diasRestantes } from '../utils/format';
 import { BadgeModo } from '../components/campana/BadgeModo';
 import { EstadoCampanaBadge } from '../components/campana/EstadoCampanaBadge';
 import { BarraFondeo } from '../components/campana/BarraFondeo';
+import { PanelOnChain } from '../components/campana/PanelOnChain';
 import { Sparkline } from '../components/charts/Sparkline';
 import { useHistoriaPrecios, usePrecioLive } from '../hooks/usePreciosLive';
 import type { Cultivo } from '../services/mockPreciosService';
@@ -150,22 +151,12 @@ export function FichaCampanaPage() {
             </div>
           </div>
 
-          {/* On-chain */}
-          {t.mintAddress && (
-            <div className="bg-[#0F1216] border border-white/5 rounded-2xl p-5">
-              <h3 className="text-white font-semibold text-sm mb-3">On-chain</h3>
-              <div className="space-y-2 text-xs">
-                <FilaOnChain label="Mint address" valor={t.mintAddress} />
-                <FilaOnChain label="Vault address" valor={t.vaultAddress ?? '—'} />
-                <FilaOnChain label="Tx publicación" valor={t.txSignaturePublicacion ?? '—'} />
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Panel de compra sticky */}
-        <div className="lg:sticky lg:top-6 h-fit">
+        {/* Panel de compra sticky + on-chain debajo (columna derecha) */}
+        <div className="lg:sticky lg:top-6 h-fit space-y-4">
           <PanelCompra tokenizacion={t} disponibles={disponibles} />
+          <PanelOnChain tokenizacionId={t.id} />
         </div>
       </div>
     </div>
@@ -254,13 +245,3 @@ function ItemGarantia({ activo, label }: { activo: boolean; label: string }) {
   );
 }
 
-function FilaOnChain({ label, valor }: { label: string; valor: string }) {
-  return (
-    <div className="flex justify-between items-center gap-3">
-      <span className="text-white/40">{label}</span>
-      <span className="font-mono text-white/70 truncate max-w-[240px]" title={valor}>
-        {valor.length > 20 ? abreviarTx(valor) : valor}
-      </span>
-    </div>
-  );
-}
