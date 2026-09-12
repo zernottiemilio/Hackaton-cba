@@ -102,9 +102,11 @@ export function NuevaCampanaPage() {
   const [paso, setPaso] = useState(0);
   const [form, setForm] = useState<FormState>(inicial);
   const [modalFirma, setModalFirma] = useState(false);
+  const [enviada, setEnviada] = useState(false);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const conectada = useWalletStore((s) => s.conectada);
+  const registrarTx = useWalletStore((s) => s.registrarTx);
   const comisionCfg = useComisionConfig();
 
   const { data: campos = [] } = useQuery({
@@ -266,22 +268,34 @@ export function NuevaCampanaPage() {
   });
 
   const enviarRevision = async (tokenizacionId: string) => {
-    await tokenizadasApi.enviarARevision(tokenizacionId);
+    return tokenizadasApi.enviarARevision(tokenizacionId);
   };
 
   const handleEnviarARevision = () => setModalFirma(true);
 
-  // Enviar a revisión NO es una transacción on-chain: es un cambio de estado
-  // en la base. La publicación en Solana (create_campaign) la firma el backend
-  // cuando el admin aprueba. Por eso acá no se registra ninguna signature.
+  // En modo demo (AUTO_APROBAR_CAMPANAS en el backend) enviar a revisión
+  // aprueba y publica en Solana en el mismo paso: el modal muestra la
+  // signature de create_campaign. Si el modo está apagado, queda en revisión
+  // y el modal confirma sin transacción.
   const confirmarEnvio = async () => {
     const t = await crearMut.mutateAsync();
-    await enviarRevision(t.id);
+    const res = await enviarRevision(t.id);
     qc.invalidateQueries({ queryKey: ['tk'] });
+    setEnviada(true);
+    if (res.publicacion?.txSignature) {
+      registrarTx({
+        signature: res.publicacion.txSignature,
+        tipo: 'publicar',
+        descripcion: `Publicación · ${campoElegido?.nombre ?? 'Campaña'}`,
+        timestamp: Date.now(),
+      });
+      toast.success('Campaña publicada en Solana', { description: 'Ya está en el marketplace para invertir.' });
+      return { txSignature: res.publicacion.txSignature };
+    }
     toast.success('Emisión enviada a revisión', {
       description: 'Un admin la aprueba y recién ahí se publica en Solana.',
     });
-    navigate('/campanas');
+    return {};
   };
 
   if (!conectada) {
@@ -621,9 +635,9 @@ export function NuevaCampanaPage() {
       <FirmaTxModal
         open={modalFirma}
         detalle={{
-          titulo: 'Enviar emisión a revisión',
-          descripcion: 'Un admin la revisa. Cuando la aprueba, se publica en Solana y aparece en el marketplace.',
-          onChain: false,
+          titulo: 'Publicar la emisión',
+          descripcion:
+            'Se crea el contrato de la campaña en Solana: un token por tonelada y un vault en USDC. Queda en el marketplace al instante.',
           items: [
             { label: 'Cultivo', value: cultivoElegido?.nombre ?? '' },
             { label: 'Ciclo', value: form.cicloAgricola },
@@ -633,7 +647,10 @@ export function NuevaCampanaPage() {
           ],
         }}
         onAprobar={confirmarEnvio}
-        onCerrar={() => setModalFirma(false)}
+        onCerrar={() => {
+          setModalFirma(false);
+          if (enviada) navigate('/campanas');
+        }}
       />
     </div>
   );
