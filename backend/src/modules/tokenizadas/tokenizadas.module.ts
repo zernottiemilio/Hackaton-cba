@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TokenizadasController } from './tokenizadas.controller';
 import { TokenizadasService } from './tokenizadas.service';
 import { CamposTokenizadasService } from './campos-tokenizadas.service';
+import { ProductoresService } from './productores.service';
 import { LedgerService } from './ledger/ledger.interface';
 import { MockLedgerService } from './ledger/mock-ledger.service';
 
@@ -17,8 +18,9 @@ import { MockLedgerService } from './ledger/mock-ledger.service';
   providers: [
     TokenizadasService,
     CamposTokenizadasService,
+    ProductoresService,
     { provide: LedgerService, useClass: MockLedgerService },
   ],
-  exports: [TokenizadasService, CamposTokenizadasService],
+  exports: [TokenizadasService, CamposTokenizadasService, ProductoresService],
 })
 export class TokenizadasModule {}

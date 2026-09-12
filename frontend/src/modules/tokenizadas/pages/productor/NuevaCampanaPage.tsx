@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { camposApi } from '../../services/camposService';
+import { tokenizadasApi } from '../../services/tokenizadasService';
 import { WizardSteps } from '../../components/shared/WizardSteps';
 import { SelectorModoTokenizacion } from '../../components/campana/SelectorModoTokenizacion';
-import { hectareas, toneladas } from '../../utils/format';
+import { CalculadoraCotizacion } from '../../components/campana/CalculadoraCotizacion';
+import { PasoGarantias } from '../../components/campana/PasoGarantias';
+import { hectareas, toneladas, usd, usdCompacto } from '../../utils/format';
 import { useWalletStore } from '../../stores/walletStore';
-import type { ModoTokenizacion } from '../../types/tokenizadas';
+import type { ModoTokenizacion, FuentePrecio } from '../../types/tokenizadas';
+import type { Cultivo } from '../../services/mockPreciosService';
+import { FirmaTxModal } from '../../components/wallet/FirmaTxModal';
 
 const PASOS = ['La campaña', 'Cuánto tokenizar', 'Cotización', 'Garantías'];
+const promedioZonalTnHa: Record<string, number> = { soja: 3.5, 'maíz': 8.0, trigo: 4.0, girasol: 2.4 };
 
 interface FormState {
   campoId: string;
@@ -23,6 +29,19 @@ interface FormState {
   modo: ModoTokenizacion | null;
   valorModo: number;
   rindeSimuladoPct: number;
+
+  fuentePrecio: FuentePrecio;
+  precioReferenciaUsdTn: number;
+  descuentoPct: number;
+  precioDinamico: boolean;
+  precioPisoUsd: number | null;
+  fondeoDesde: string;
+  fondeoHasta: string;
+
+  tieneSeguroGranizo: boolean;
+  tieneSeguroParametrico: boolean;
+  tieneAvalSgr: boolean;
+  sobrecolateralPct: number;
 }
 
 const inicial: FormState = {
@@ -36,6 +55,17 @@ const inicial: FormState = {
   modo: null,
   valorModo: 30,
   rindeSimuladoPct: 100,
+  fuentePrecio: 'pizarra_rosario',
+  precioReferenciaUsdTn: 310,
+  descuentoPct: 7,
+  precioDinamico: false,
+  precioPisoUsd: null,
+  fondeoDesde: '',
+  fondeoHasta: '',
+  tieneSeguroGranizo: false,
+  tieneSeguroParametrico: false,
+  tieneAvalSgr: false,
+  sobrecolateralPct: 0,
 };
 
 function cicloDefault(): string {
@@ -46,8 +76,11 @@ function cicloDefault(): string {
 export function NuevaCampanaPage() {
   const [paso, setPaso] = useState(0);
   const [form, setForm] = useState<FormState>(inicial);
+  const [modalFirma, setModalFirma] = useState(false);
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const conectada = useWalletStore((s) => s.conectada);
+  const registrarTx = useWalletStore((s) => s.registrarTx);
 
   const { data: campos = [] } = useQuery({
     queryKey: ['tk', 'campos'],
@@ -62,7 +95,6 @@ export function NuevaCampanaPage() {
   const campoElegido = useMemo(() => campos.find((c) => c.id === form.campoId), [campos, form.campoId]);
   const cultivoElegido = useMemo(() => cultivos.find((c) => c.id === form.cultivoId), [cultivos, form.cultivoId]);
 
-  // Cuando cambia el campo, precargar hectáreas
   useEffect(() => {
     if (campoElegido) {
       const sup = Number(campoElegido.superficieTotalHa ?? 0);
@@ -74,41 +106,101 @@ export function NuevaCampanaPage() {
   }, [form.campoId]);
 
   const produccionEstimadaTn = form.hectareas * form.rindeEstimadoTnHa;
-  const promedioZonalTnHa: Record<string, number> = { soja: 3.5, 'maíz': 8.0, trigo: 4.0, girasol: 2.4 };
   const promedioZonal = cultivoElegido ? promedioZonalTnHa[cultivoElegido.nombre] ?? 3.5 : 3.5;
   const excedeHistorico = form.rindeEstimadoTnHa > promedioZonal * 1.15;
+  const toneladasOfrecidas =
+    form.modo === 'porcentual' ? (produccionEstimadaTn * form.valorModo) / 100 : form.valorModo;
+
+  const cultivoNombre = (cultivoElegido?.nombre?.toLowerCase() ?? 'soja') as Cultivo;
 
   const upd = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   const puedeAvanzar0 =
-    form.campoId &&
-    form.cultivoId &&
-    form.cicloAgricola &&
-    form.hectareas > 0 &&
-    form.fechaSiembra &&
-    form.fechaCosecha &&
-    form.rindeEstimadoTnHa > 0;
+    form.campoId && form.cultivoId && form.cicloAgricola && form.hectareas > 0 &&
+    form.fechaSiembra && form.fechaCosecha && form.rindeEstimadoTnHa > 0;
   const puedeAvanzar1 = !!form.modo && form.valorModo > 0;
+  const puedeAvanzar2 = form.precioReferenciaUsdTn > 0 && form.fondeoDesde && form.fondeoHasta;
+
+  const crearMut = useMutation({
+    mutationFn: async () => {
+      const data = await tokenizadasApi.crear({
+        campaniaNueva: {
+          nombre: `${campoElegido?.nombre ?? 'Campaña'} · ${cultivoElegido?.nombre ?? ''} ${form.cicloAgricola}`,
+          establecimientoId: form.campoId,
+          cultivoId: form.cultivoId,
+          cicloAgricola: form.cicloAgricola,
+          hectareasAfectadas: form.hectareas,
+          fechaSiembraEstimada: form.fechaSiembra,
+          fechaCosechaEstimada: form.fechaCosecha,
+          rindeEstimadoTnHa: form.rindeEstimadoTnHa,
+        },
+        modo: form.modo!,
+        porcentaje: form.modo === 'porcentual' ? form.valorModo : undefined,
+        toneladasFijas: form.modo === 'fijo' ? form.valorModo : undefined,
+        fuentePrecio: form.fuentePrecio,
+        precioReferenciaUsdTn: form.precioReferenciaUsdTn,
+        descuentoPct: form.descuentoPct,
+        precioDinamico: form.precioDinamico,
+        precioPisoUsd: form.precioPisoUsd ?? undefined,
+        fondeoDesde: form.fondeoDesde,
+        fondeoHasta: form.fondeoHasta,
+        tieneSeguroGranizo: form.tieneSeguroGranizo,
+        tieneSeguroParametrico: form.tieneSeguroParametrico,
+        tieneAvalSgr: form.tieneAvalSgr,
+        sobrecolateralPct: form.sobrecolateralPct,
+      } as any);
+      return data;
+    },
+  });
+
+  const enviarRevision = async (tokenizacionId: string) => {
+    await tokenizadasApi.enviarARevision(tokenizacionId);
+  };
+
+  const handleEnviarARevision = () => setModalFirma(true);
+
+  const confirmarEnvio = async () => {
+    try {
+      const t = await crearMut.mutateAsync();
+      await enviarRevision(t.id);
+      registrarTx({
+        signature: `SIG${Math.random().toString(36).slice(2, 10)}`,
+        tipo: 'publicar',
+        descripcion: `Envío a revisión: ${cultivoElegido?.nombre} · ${form.cicloAgricola}`,
+        timestamp: Date.now(),
+      });
+      qc.invalidateQueries({ queryKey: ['tk'] });
+      toast.success('Emisión enviada a revisión');
+      navigate('/tk/campanas');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al enviar');
+    }
+  };
 
   if (!conectada) {
     return (
       <div className="max-w-3xl mx-auto text-center py-24">
-        <div className="text-5xl mb-4 opacity-70">🌾</div>
-        <h1 className="text-white text-2xl font-semibold mb-2">Conectá tu wallet</h1>
+        <h1 style={{ color: 'var(--hv-text)', fontSize: 24, fontWeight: 600 }}>Conectá tu wallet</h1>
       </div>
     );
   }
 
+  const precioToken = form.precioReferenciaUsdTn * (1 - form.descuentoPct / 100);
+  const totalUsd = precioToken * toneladasOfrecidas;
+
   return (
     <div className="max-w-5xl mx-auto">
-      <Link to="/tk/campanas" className="text-white/40 hover:text-white/80 text-xs mb-4 inline-flex items-center gap-1">
-        ← Mis campañas
+      <Link to="/tk/campanas" style={{ color: 'var(--hv-text-muted)', fontSize: 12, marginBottom: 16, display: 'inline-flex', gap: 6, textDecoration: 'none' }}>
+        ← Mis emisiones
       </Link>
 
       <div className="mb-6">
-        <h1 className="text-white text-2xl font-semibold">Nueva campaña tokenizada</h1>
-        <p className="text-white/40 text-xs mt-0.5">
-          4 pasos. Al final enviás a revisión y ADMIN aprueba antes de publicarla al marketplace.
+        <div className="hv-label" style={{ fontSize: 10 }}>Tokenizar lote · Solana devnet</div>
+        <h1 style={{ color: 'var(--hv-text)', fontSize: 30, fontWeight: 600, letterSpacing: '-0.025em', marginTop: 6 }}>
+          Nueva emisión HRV
+        </h1>
+        <p style={{ color: 'var(--hv-text-muted)', fontSize: 13, marginTop: 4 }}>
+          Al finalizar firmás una transacción. Un admin revisa antes de publicarla al marketplace.
         </p>
       </div>
 
@@ -120,88 +212,58 @@ export function NuevaCampanaPage() {
       {paso === 0 && (
         <section className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Campo *">
+            <Field label="Lote">
               {campos.length === 0 ? (
-                <div className="text-white/40 text-sm italic p-3 border border-dashed border-white/10 rounded-lg">
-                  No tenés campos cargados.{' '}
-                  <Link to="/tk/campos/nuevo" className="text-emerald-400 hover:underline">
-                    Cargá uno primero
+                <div style={{ padding: 14, border: '1px dashed var(--hv-border)', borderRadius: 10, color: 'var(--hv-text-muted)', fontSize: 13 }}>
+                  Sin lotes cargados.{' '}
+                  <Link to="/tk/campos/nuevo" style={{ color: 'var(--hv-green-text)', textDecoration: 'underline' }}>
+                    Cargar uno
                   </Link>
                 </div>
               ) : (
-                <select
-                  value={form.campoId}
-                  onChange={(e) => upd('campoId', e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500/50"
-                >
-                  <option value="">Elegí un campo</option>
+                <Select value={form.campoId} onChange={(v) => upd('campoId', v)}>
+                  <option value="">Elegí un lote</option>
                   {campos.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nombre} — {hectareas(Number(c.superficieTotalHa ?? 0))}
                     </option>
                   ))}
-                </select>
+                </Select>
               )}
             </Field>
-            <Field label="Cultivo *">
-              <select
-                value={form.cultivoId}
-                onChange={(e) => upd('cultivoId', e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500/50"
-              >
+            <Field label="Cultivo">
+              <Select value={form.cultivoId} onChange={(v) => upd('cultivoId', v)}>
                 <option value="">Elegí un cultivo</option>
                 {cultivos.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nombre}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
-            <Field label="Ciclo agrícola *">
-              <input
-                type="text"
-                value={form.cicloAgricola}
-                onChange={(e) => upd('cicloAgricola', e.target.value)}
-                placeholder="2026/27"
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500/50"
+            <Field label="Ciclo agrícola">
+              <TextInput value={form.cicloAgricola} onChange={(v) => upd('cicloAgricola', v)} placeholder="2026/27" />
+            </Field>
+            <Field label="Hectáreas afectadas">
+              <NumberInput
+                value={form.hectareas}
+                onChange={(v) => upd('hectareas', v)}
+                unit="ha"
+                max={campoElegido ? Number(campoElegido.superficieTotalHa ?? 999999) : undefined}
               />
-            </Field>
-            <Field label="Hectáreas afectadas *">
-              <div className="relative">
-                <input
-                  type="number"
-                  step={0.1}
-                  min={0}
-                  max={campoElegido ? Number(campoElegido.superficieTotalHa ?? 999999) : undefined}
-                  value={form.hectareas || ''}
-                  onChange={(e) => upd('hectareas', Number(e.target.value) || 0)}
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 pr-12 text-white text-right tabular-nums focus:outline-none focus:border-emerald-500/50"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 text-xs">ha</span>
-              </div>
               {campoElegido && (
-                <p className="text-white/30 text-[11px] mt-1">
-                  Superficie del campo: {hectareas(Number(campoElegido.superficieTotalHa ?? 0))}
+                <p className="hv-label-sm" style={{ fontSize: 10, marginTop: 6 }}>
+                  Superficie del lote: {hectareas(Number(campoElegido.superficieTotalHa ?? 0))}
                 </p>
               )}
             </Field>
-            <Field label="Fecha siembra estimada *">
-              <input
-                type="date"
-                value={form.fechaSiembra}
-                onChange={(e) => upd('fechaSiembra', e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500/50"
-              />
+            <Field label="Fecha siembra estimada">
+              <TextInput type="date" value={form.fechaSiembra} onChange={(v) => upd('fechaSiembra', v)} />
             </Field>
-            <Field label="Fecha cosecha estimada *">
-              <input
-                type="date"
-                value={form.fechaCosecha}
-                onChange={(e) => upd('fechaCosecha', e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500/50"
-              />
+            <Field label="Fecha cosecha estimada">
+              <TextInput type="date" value={form.fechaCosecha} onChange={(v) => upd('fechaCosecha', v)} />
             </Field>
-            <Field label="Rinde estimado * (tn/ha)" className="md:col-span-2">
+            <Field label="Rinde estimado" className="md:col-span-2">
               <div className="flex items-center gap-4">
                 <input
                   type="range"
@@ -210,60 +272,69 @@ export function NuevaCampanaPage() {
                   step={0.1}
                   value={form.rindeEstimadoTnHa}
                   onChange={(e) => upd('rindeEstimadoTnHa', Number(e.target.value))}
-                  className="flex-1 accent-emerald-500"
+                  style={{ flex: 1, accentColor: 'var(--hv-green)' }}
                 />
-                <div className="relative w-32">
-                  <input
-                    type="number"
-                    step={0.1}
-                    min={0}
-                    value={form.rindeEstimadoTnHa || ''}
-                    onChange={(e) => upd('rindeEstimadoTnHa', Number(e.target.value) || 0)}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 pr-12 text-white text-right tabular-nums focus:outline-none focus:border-emerald-500/50"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 text-[10px]">tn/ha</span>
-                </div>
+                <NumberInput
+                  value={form.rindeEstimadoTnHa}
+                  onChange={(v) => upd('rindeEstimadoTnHa', v)}
+                  unit="tn/ha"
+                  step={0.1}
+                  width={128}
+                />
               </div>
-              <div className="mt-2 flex justify-between text-[11px]">
-                <span className="text-white/40">
-                  Promedio zonal: <span className="text-white/70 tabular-nums">{promedioZonal.toFixed(1)} tn/ha</span>
+              <div className="flex justify-between mt-2" style={{ fontSize: 11 }}>
+                <span style={{ color: 'var(--hv-text-muted)' }}>
+                  Promedio zonal:{' '}
+                  <span className="hv-mono" style={{ color: 'var(--hv-text-2)' }}>{promedioZonal.toFixed(1)} tn/ha</span>
                 </span>
                 {excedeHistorico && (
-                  <span className="text-amber-400 font-medium">
-                    ⚠ Estás estimando por encima del promedio zonal
+                  <span className="hv-mono" style={{ color: 'var(--hv-amber-text)', fontWeight: 600 }}>
+                    ⚠ 15% por encima del promedio
                   </span>
                 )}
               </div>
             </Field>
           </div>
 
-          {/* Producción estimada — resultado grande */}
-          <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-700/10 border border-emerald-500/20 rounded-2xl p-6 flex items-center justify-between">
+          {/* Producción estimada */}
+          <div
+            style={{
+              borderRadius: 16,
+              padding: 24,
+              background: 'linear-gradient(180deg, rgba(43,224,106,0.10) 0%, rgba(43,224,106,0.02) 100%)',
+              border: '1px solid rgba(43,224,106,0.28)',
+              boxShadow: 'var(--hv-inset-top)',
+            }}
+            className="flex items-center justify-between"
+          >
             <div>
-              <div className="text-emerald-400 text-[10px] font-semibold uppercase tracking-wider">
+              <div className="hv-label" style={{ fontSize: 10, color: 'var(--hv-green-text)' }}>
                 Producción estimada
               </div>
-              <div className="text-white text-3xl font-semibold tabular-nums mt-1">
+              <div
+                className="hv-mono"
+                style={{ fontSize: 34, fontWeight: 600, color: 'var(--hv-text)', letterSpacing: '-0.025em', marginTop: 4 }}
+              >
                 {toneladas(produccionEstimadaTn, 0)}
               </div>
-              <div className="text-white/50 text-xs mt-1">
+              <div className="hv-label-sm" style={{ fontSize: 10, marginTop: 4 }}>
                 {form.hectareas > 0 && form.rindeEstimadoTnHa > 0
                   ? `${form.hectareas} ha × ${form.rindeEstimadoTnHa} tn/ha`
-                  : 'Cargá hectáreas y rinde para verlo'}
+                  : 'Cargá hectáreas y rinde'}
               </div>
             </div>
-            <div className="text-6xl opacity-30">🌾</div>
+            <div style={{ fontSize: 48, opacity: 0.25 }}>🌾</div>
           </div>
         </section>
       )}
 
-      {/* Paso 2: SelectorModoTokenizacion */}
+      {/* Paso 2 */}
       {paso === 1 && (
         <section>
-          <div className="mb-4">
-            <h2 className="text-white font-semibold">¿Cómo querés tokenizar?</h2>
-            <p className="text-white/40 text-xs mt-0.5">
-              Elegí el modo y movele el slider de rinde real para ver el impacto.
+          <div className="mb-5">
+            <h2 style={{ color: 'var(--hv-text)', fontWeight: 600, fontSize: 18 }}>¿Cómo tokenizás?</h2>
+            <p style={{ color: 'var(--hv-text-muted)', fontSize: 12, marginTop: 4 }}>
+              Elegí el modo y movele el slider de rinde real para ver el impacto en vivo.
             </p>
           </div>
           <SelectorModoTokenizacion
@@ -278,27 +349,71 @@ export function NuevaCampanaPage() {
         </section>
       )}
 
-      {/* Pasos 3 y 4 — placeholder (Sprint 3) */}
+      {/* Paso 3 */}
       {paso === 2 && (
-        <PlaceholderProximo
-          titulo="Cotización"
-          descripcion="Fuente de precio (pizarra Rosario / MATBA / manual), slider de descuento, cotización dinámica opcional, tasa implícita."
-          sprint="Sprint 3"
-        />
+        <section>
+          <div className="mb-5">
+            <h2 style={{ color: 'var(--hv-text)', fontWeight: 600, fontSize: 18 }}>Cotización</h2>
+            <p style={{ color: 'var(--hv-text-muted)', fontSize: 12, marginTop: 4 }}>
+              Fuente de precio, descuento y ventana de fondeo. La tasa implícita se calcula sola.
+            </p>
+          </div>
+          <CalculadoraCotizacion
+            cultivo={cultivoNombre}
+            fuentePrecio={form.fuentePrecio}
+            precioReferenciaUsdTn={form.precioReferenciaUsdTn}
+            descuentoPct={form.descuentoPct}
+            toneladasOfrecidas={toneladasOfrecidas}
+            precioDinamico={form.precioDinamico}
+            precioPisoUsd={form.precioPisoUsd}
+            fondeoDesde={form.fondeoDesde}
+            fondeoHasta={form.fondeoHasta}
+            onFuenteCambia={(f) => upd('fuentePrecio', f)}
+            onPrecioReferenciaCambia={(v) => upd('precioReferenciaUsdTn', v)}
+            onDescuentoCambia={(v) => upd('descuentoPct', v)}
+            onPrecioDinamicoCambia={(v) => upd('precioDinamico', v)}
+            onPrecioPisoCambia={(v) => upd('precioPisoUsd', v)}
+            onFondeoDesdeCambia={(v) => upd('fondeoDesde', v)}
+            onFondeoHastaCambia={(v) => upd('fondeoHasta', v)}
+          />
+        </section>
       )}
+
+      {/* Paso 4 */}
       {paso === 3 && (
-        <PlaceholderProximo
-          titulo="Garantías + revisión"
-          descripcion="Seguros, aval SGR, sobrecolateralización, vista previa y envío a revisión."
-          sprint="Sprint 3"
-        />
+        <section>
+          <div className="mb-5">
+            <h2 style={{ color: 'var(--hv-text)', fontWeight: 600, fontSize: 18 }}>Garantías + revisión final</h2>
+            <p style={{ color: 'var(--hv-text-muted)', fontSize: 12, marginTop: 4 }}>
+              Cada garantía sube el score que ve el inversor y acelera fondeo.
+            </p>
+          </div>
+          <PasoGarantias
+            tieneSeguroGranizo={form.tieneSeguroGranizo}
+            tieneSeguroParametrico={form.tieneSeguroParametrico}
+            tieneAvalSgr={form.tieneAvalSgr}
+            sobrecolateralPct={form.sobrecolateralPct}
+            onCambia={(patch) => setForm((f) => ({ ...f, ...patch }))}
+          />
+
+          {/* Resumen final antes del envío */}
+          <div className="hv-glass mt-6" style={{ borderRadius: 16, padding: 20 }}>
+            <div className="hv-label" style={{ fontSize: 10, marginBottom: 12 }}>Vista previa</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <MetricaVista label="HRV a emitir" valor={toneladas(toneladasOfrecidas, 0)} />
+              <MetricaVista label="Precio HRV" valor={usd(precioToken, 2)} />
+              <MetricaVista label="Recaudación" valor={usdCompacto(totalUsd)} accent />
+              <MetricaVista label="Cierre fondeo" valor={form.fondeoHasta ? new Date(form.fondeoHasta).toLocaleDateString('es-AR') : '—'} />
+            </div>
+          </div>
+        </section>
       )}
 
       {/* Nav */}
-      <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-6">
+      <div className="mt-8 flex items-center justify-between pt-6" style={{ borderTop: '1px solid var(--hv-border-subtle)' }}>
         <button
           onClick={() => (paso === 0 ? navigate('/tk/campanas') : setPaso(paso - 1))}
-          className="px-4 py-2 rounded-lg text-white/60 hover:text-white text-sm"
+          style={{ background: 'transparent', border: 'none', color: 'var(--hv-text-muted)', fontSize: 13, cursor: 'pointer', padding: '10px 14px' }}
         >
           {paso === 0 ? 'Cancelar' : '← Atrás'}
         </button>
@@ -306,22 +421,41 @@ export function NuevaCampanaPage() {
           {paso < PASOS.length - 1 ? (
             <button
               onClick={() => setPaso(paso + 1)}
-              disabled={(paso === 0 && !puedeAvanzar0) || (paso === 1 && !puedeAvanzar1)}
-              className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-sm font-semibold shadow-lg shadow-emerald-900/40 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={
+                (paso === 0 && !puedeAvanzar0) ||
+                (paso === 1 && !puedeAvanzar1) ||
+                (paso === 2 && !puedeAvanzar2)
+              }
+              className="hv-cta"
             >
               Continuar →
             </button>
           ) : (
-            <button
-              onClick={() => toast.info('Pasos 3 y 4 quedan para Sprint 3')}
-              className="px-5 py-2.5 rounded-lg bg-white/5 text-white/40 text-sm cursor-not-allowed"
-              disabled
-            >
-              Enviar a revisión
+            <button onClick={handleEnviarARevision} className="hv-cta" disabled={crearMut.isPending}>
+              {crearMut.isPending ? 'Firmando...' : 'Enviar a revisión'}
             </button>
           )}
         </div>
       </div>
+
+      <FirmaTxModal
+        open={modalFirma}
+        detalle={{
+          titulo: 'Enviar emisión a revisión',
+          descripcion: 'Se registra la emisión on-chain. Un admin la revisa antes de que aparezca en el marketplace.',
+          usdcAMover: 0,
+          costoSol: 0.0125,
+          items: [
+            { label: 'Cultivo', value: cultivoElegido?.nombre ?? '' },
+            { label: 'Ciclo', value: form.cicloAgricola },
+            { label: 'HRV a emitir', value: toneladas(toneladasOfrecidas, 0) },
+            { label: 'Precio HRV', value: usd(precioToken, 2) },
+            { label: 'Recaudación potencial', value: usdCompacto(totalUsd) },
+          ],
+        }}
+        onAprobar={confirmarEnvio}
+        onRechazar={() => setModalFirma(false)}
+      />
     </div>
   );
 }
@@ -329,22 +463,134 @@ export function NuevaCampanaPage() {
 function Field({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <label className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-1.5 block">
+      <div className="hv-label" style={{ fontSize: 10, marginBottom: 6 }}>
         {label}
-      </label>
+      </div>
       {children}
     </div>
   );
 }
 
-function PlaceholderProximo({ titulo, descripcion, sprint }: { titulo: string; descripcion: string; sprint: string }) {
+function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
-    <div className="bg-[#0F1216] border border-white/5 rounded-2xl p-10 text-center">
-      <div className="text-4xl mb-3 opacity-40">⏳</div>
-      <h3 className="text-white text-lg font-semibold">{titulo}</h3>
-      <p className="text-white/40 text-sm mt-1 max-w-md mx-auto">{descripcion}</p>
-      <div className="mt-4 inline-flex items-center gap-2 text-[10px] font-medium uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1">
-        {sprint}
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        width: '100%',
+        background: 'var(--hv-bg-input)',
+        border: '1px solid var(--hv-border)',
+        color: 'var(--hv-text)',
+        fontSize: 14,
+        padding: '10px 14px',
+        borderRadius: 10,
+      }}
+    >
+      {children}
+    </select>
+  );
+}
+
+function TextInput({
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: 'text' | 'date';
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      style={{
+        width: '100%',
+        background: 'var(--hv-bg-input)',
+        border: '1px solid var(--hv-border)',
+        color: 'var(--hv-text)',
+        fontSize: 14,
+        padding: '10px 14px',
+        borderRadius: 10,
+      }}
+    />
+  );
+}
+
+function NumberInput({
+  value,
+  onChange,
+  unit,
+  max,
+  step = 1,
+  width,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  unit: string;
+  max?: number;
+  step?: number;
+  width?: number;
+}) {
+  return (
+    <div style={{ position: 'relative', width: width ?? '100%' }}>
+      <input
+        type="number"
+        value={value || ''}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        min={0}
+        max={max}
+        step={step}
+        className="hv-mono"
+        style={{
+          width: '100%',
+          background: 'var(--hv-bg-input)',
+          border: '1px solid var(--hv-border)',
+          color: 'var(--hv-text)',
+          fontSize: 14,
+          padding: '10px 46px 10px 14px',
+          borderRadius: 10,
+          textAlign: 'right',
+        }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          right: 12,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          fontFamily: 'var(--hv-font-mono)',
+          fontSize: 10,
+          color: 'var(--hv-text-dim)',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {unit}
+      </span>
+    </div>
+  );
+}
+
+function MetricaVista({ label, valor, accent }: { label: string; valor: string; accent?: boolean }) {
+  return (
+    <div>
+      <div className="hv-label-sm" style={{ fontSize: 9 }}>{label}</div>
+      <div
+        className="hv-mono"
+        style={{
+          fontSize: 18,
+          fontWeight: 600,
+          color: accent ? 'var(--hv-green-text)' : 'var(--hv-text)',
+          letterSpacing: '-0.01em',
+          marginTop: 4,
+        }}
+      >
+        {valor}
       </div>
     </div>
   );

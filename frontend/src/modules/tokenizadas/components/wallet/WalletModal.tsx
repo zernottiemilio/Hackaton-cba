@@ -47,16 +47,48 @@ export function WalletModal({ open, onClose }: Props) {
             transition={{ type: 'spring', duration: 0.35 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
           >
-            <div className="bg-[#0F1216] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+            <div
+              style={{
+                background: 'var(--hv-bg-panel)',
+                border: '1px solid var(--hv-border)',
+                borderRadius: 20,
+                overflow: 'hidden',
+                boxShadow: '0 30px 80px rgba(0,0,0,0.6), var(--hv-inset-top)',
+              }}
+            >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+              <div
+                className="flex items-center justify-between px-6 py-5"
+                style={{ borderBottom: '1px solid var(--hv-border-subtle)' }}
+              >
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-lg font-bold">
-                    ⬢
+                  <div
+                    style={{
+                      height: 40,
+                      width: 40,
+                      borderRadius: 12,
+                      background: 'var(--hv-green-soft)',
+                      border: '1px solid rgba(43,224,106,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 120 120" fill="none">
+                      <g clipPath="url(#wm-clip)" strokeLinecap="round" fill="none" strokeWidth="11">
+                        <path d="M-6 106C22 106 34 84 60 84s40 22 66 22" stroke="#0A6B12" />
+                        <path d="M-6 82C22 82 34 60 60 60s40 22 66 22" stroke="#12912a" />
+                        <path d="M-6 58C22 58 34 36 60 36s40 22 66 22" stroke="#1fc04c" />
+                        <path d="M-6 34C22 34 34 12 60 12s40 22 66 22" stroke="#2BE06A" />
+                      </g>
+                      <defs>
+                        <clipPath id="wm-clip"><circle cx="60" cy="60" r="54" /></clipPath>
+                      </defs>
+                    </svg>
                   </div>
                   <div>
-                    <h2 className="text-white font-semibold text-base leading-tight">Conectar wallet</h2>
-                    <p className="text-white/40 text-xs">Solana · Devnet mock</p>
+                    <h2 style={{ color: 'var(--hv-text)', fontWeight: 600, fontSize: 15 }}>Conectar wallet</h2>
+                    <p className="hv-label-sm" style={{ fontSize: 10, marginTop: 2 }}>Solana · devnet mock</p>
                   </div>
                 </div>
                 <button
@@ -136,9 +168,12 @@ export function WalletModal({ open, onClose }: Props) {
               </div>
 
               {/* Footer */}
-              <div className="border-t border-white/5 px-6 py-3 flex items-center justify-between text-[10px] text-white/30">
-                <span>Wallet mock · No hay tx reales on-chain</span>
-                <span className="font-mono">v0.1.0</span>
+              <div
+                className="px-6 py-3 flex items-center justify-between hv-label-sm"
+                style={{ borderTop: '1px solid var(--hv-border-subtle)', fontSize: 9 }}
+              >
+                <span>Wallet mock · sin tx reales on-chain</span>
+                <span className="hv-mono">harvest.fi v0.1</span>
               </div>
             </div>
           </motion.div>

@@ -84,15 +84,6 @@ export const LiberacionesPage = () => (
 );
 
 // Admin
-export const RevisionColaPage = () => (
-  <PageSkeleton
-    titulo="Cola de revisión"
-    descripcion="Campañas esperando aprobación. Aprobás o rechazás con motivo."
-    sprint="Sprint 3"
-    emoji="⚑"
-  />
-);
-
 export const AdminAcopiosPage = () => (
   <PageSkeleton
     titulo="Red de acopios"
