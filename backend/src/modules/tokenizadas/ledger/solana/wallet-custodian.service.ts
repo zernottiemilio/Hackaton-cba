@@ -46,25 +46,49 @@ export class WalletCustodianService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    this._feePayer = this.loadFeePayer();
-    this._usdcMint = new PublicKey(this.config.getOrThrow<string>('SOLANA_USDC_MINT'));
-    this._encryptionKey = this.config.getOrThrow<string>('WALLET_ENCRYPTION_KEY');
+    // Solo inicializamos si el ledger real está activo. Si el flag es mock
+    // o falta cualquier env crítica, salimos temprano sin lanzar: el módulo
+    // sigue registrado para que Nest resuelva la DI, pero nunca se llamará
+    // porque la factory del LedgerService devuelve el mock.
+    const impl = this.config.get<string>('LEDGER_IMPL') ?? 'mock';
+    if (impl !== 'solana') {
+      this.logger.log(`LEDGER_IMPL=${impl} — WalletCustodianService inactivo`);
+      return;
+    }
+
+    const feePayerSecret = this.config.get<string>('SOLANA_FEE_PAYER_SECRET');
+    const usdcMint = this.config.get<string>('SOLANA_USDC_MINT');
+    const encKey = this.config.get<string>('WALLET_ENCRYPTION_KEY');
+    if (!feePayerSecret || !usdcMint || !encKey) {
+      this.logger.error(
+        `LEDGER_IMPL=solana pero faltan envs. SOLANA_FEE_PAYER_SECRET=${!!feePayerSecret} SOLANA_USDC_MINT=${!!usdcMint} WALLET_ENCRYPTION_KEY=${!!encKey}. El servicio queda inactivo — chequeá que estén seteadas en Railway.`,
+      );
+      return;
+    }
+
+    this._feePayer = this.loadFeePayer(feePayerSecret);
+    this._usdcMint = new PublicKey(usdcMint);
+    this._encryptionKey = encKey;
     this._fundLamports = Number(this.config.get<string>('SOLANA_USER_FUND_LAMPORTS') ?? '20000000');
     this._testUsdc = BigInt(this.config.get<string>('SOLANA_USER_TEST_USDC') ?? '10000000000');
 
-    const balance = await this.conn.connection.getBalance(this._feePayer.publicKey);
-    this.logger.log(
-      `Fee-payer ${this._feePayer.publicKey.toBase58()} balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`,
-    );
-    if (balance < 0.1 * LAMPORTS_PER_SOL) {
-      this.logger.warn(
-        `Fee-payer con menos de 0.1 SOL — el módulo tokenizadas puede fallar. Refondealo con "solana airdrop 5 ${this._feePayer.publicKey.toBase58()}".`,
+    try {
+      const balance = await this.conn.connection.getBalance(this._feePayer.publicKey);
+      this.logger.log(
+        `Fee-payer ${this._feePayer.publicKey.toBase58()} balance: ${(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL`,
       );
+      if (balance < 0.1 * LAMPORTS_PER_SOL) {
+        this.logger.warn(
+          `Fee-payer con menos de 0.1 SOL — refondealo con "solana airdrop 5 ${this._feePayer.publicKey.toBase58()}".`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(`No pude leer balance del fee-payer al arrancar: ${(err as Error).message}`);
     }
   }
 
-  private loadFeePayer(): Keypair {
-    const secret = this.config.getOrThrow<string>('SOLANA_FEE_PAYER_SECRET').trim();
+  private loadFeePayer(secretRaw: string): Keypair {
+    const secret = secretRaw.trim();
     // Soporta dos formatos: JSON array (64 bytes) o base58.
     if (secret.startsWith('[')) {
       return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secret) as number[]));
