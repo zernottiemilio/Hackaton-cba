@@ -234,3 +234,22 @@ html.tk-mounted ::-webkit-scrollbar-thumb:hover {
 @media (prefers-reduced-motion: reduce) {
   .tk-scope * { animation: none !important; transition: none !important; }
 }
+
+/* Selects: Safari ignora background/border y dibuja el menulist nativo (gris
+   con gradiente) salvo que se apague appearance. Chevron propio como
+   background-image; !important porque varios selects setean `background`
+   inline (shorthand), que de otro modo pisaría la imagen. */
+.tk-scope select {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa3ad' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  padding-right: 34px !important;
+  color-scheme: dark;
+}
+.tk-scope select option {
+  background: #0f1216;
+  color: #e6e9ec;
+}
