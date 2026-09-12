@@ -131,7 +131,7 @@ export function FirmaTxModal({ open, detalle, onAprobar, onCerrar }: Props) {
                       <div className="bg-black/40 rounded-lg p-3 mb-4 border border-white/5">
                         <div className="flex justify-between items-baseline text-xs">
                           <span className="text-white/40">Firma</span>
-                          <span className="text-white/70">Wallet custodial · comisión la paga la plataforma</span>
+                          <span className="text-white/70">Wallet custodial · gas lo paga la plataforma</span>
                         </div>
                         {detalle.usdcAMover !== undefined && detalle.usdcAMover > 0 && (
                           <div className="flex justify-between items-baseline text-xs mt-1.5 pt-1.5 border-t border-white/5">

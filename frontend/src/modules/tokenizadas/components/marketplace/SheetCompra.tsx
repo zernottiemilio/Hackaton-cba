@@ -415,7 +415,7 @@ function PasoConfirmacion({
           <FilaResumen label="Cantidad" value={`${cantidad} HRV`} mono />
           <FilaResumen label="Precio HRV" value={usd(t.precioTokenUsd, 2)} mono />
           <FilaResumen label="Va al vault de la campaña" value={usd(total, 2)} mono />
-          <FilaResumen label={`Comisión de plataforma (${porcentaje(comisionPct, 1)})`} value={`+ ${usd(comisionUsd, 2)}`} mono />
+          <FilaResumen label={`Fee (${porcentaje(comisionPct, 1)})`} value={`+ ${usd(comisionUsd, 2)}`} mono />
           <div className="pt-2 mt-2" style={{ borderTop: '1px solid var(--hv-border-subtle)' }}>
             <FilaResumen label="Total a debitar" value={usd(total + comisionUsd, 2)} destacado />
           </div>
@@ -569,12 +569,12 @@ function PasoListo({
           {comision && (
             <>
               <FilaResumen
-                label={`Comisión plataforma (${porcentaje(comision.porcentaje, 1)})`}
+                label={`Fee (${porcentaje(comision.porcentaje, 1)})`}
                 value={usd(comision.montoComisionUsd, 2)}
                 mono
               />
               <FilaResumen
-                label="Tx comisión"
+                label="Tx fee"
                 value={comision.txComision ? abreviarTx(comision.txComision) : 'pendiente'}
                 mono
               />
@@ -591,7 +591,7 @@ function PasoListo({
             )}
             {linkComision && (
               <a href={linkComision} target="_blank" rel="noreferrer" style={{ color: 'var(--hv-green-text)', fontWeight: 600, textDecoration: 'none' }}>
-                Ver comisión en Explorer ↗
+                Ver fee en Explorer ↗
               </a>
             )}
           </div>
