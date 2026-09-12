@@ -108,6 +108,11 @@ export class TokenizadasService {
       precioPisoUsd: dto.precioPisoUsd ? new Decimal(dto.precioPisoUsd) : null,
       fondeoDesde: new Date(dto.fondeoDesde),
       fondeoHasta: new Date(dto.fondeoHasta),
+      fechaLiquidacionEstimada: dto.fechaLiquidacionEstimada
+        ? new Date(dto.fechaLiquidacionEstimada)
+        : null,
+      toneladasMinimas:
+        dto.toneladasMinimas !== undefined ? new Decimal(dto.toneladasMinimas) : new Decimal(1),
       montoObjetivoUsd,
       tieneSeguroGranizo: dto.tieneSeguroGranizo,
       tieneSeguroParametrico: dto.tieneSeguroParametrico,
@@ -260,6 +265,15 @@ export class TokenizadasService {
     });
   }
 
+  /**
+   * Estado on-chain listo para pintar. Endpoint público — el jurado tiene que
+   * poder verificar cada número clickeando al explorer.
+   * Contrato definido en HARVEST.md (VAL-18).
+   */
+  async obtenerEstadoOnChain(tokenizacionId: string) {
+    return this.ledger.obtenerEstadoOnChain(tokenizacionId);
+  }
+
   async detalleCampanaMarketplace(tokenizacionId: string) {
     const t = await this.prisma.tokenizacionCampana.findUnique({
       where: { id: tokenizacionId },
@@ -345,8 +359,10 @@ export class TokenizadasService {
     if (t.campania.estadoToken !== 'abierta') {
       throw new BadRequestException(`No se pueden liberar fondos en estado ${t.campania.estadoToken}`);
     }
-    if (t.tokensVendidos.lte(0)) {
-      throw new BadRequestException('Todavía no se vendió ninguna tonelada');
+    if (t.tokensVendidos.lt(t.toneladasMinimas)) {
+      throw new BadRequestException(
+        `Faltan ${t.toneladasMinimas.sub(t.tokensVendidos)} tn para el mínimo (${t.tokensVendidos}/${t.toneladasMinimas}). El programa rechaza release_funds con MinNotReached`,
+      );
     }
 
     const res = await this.ledger.liberarFondos(tokenizacionId);
@@ -401,9 +417,15 @@ export class TokenizadasService {
     if (dto.toneladasEntregadas > vendidas) {
       throw new BadRequestException(`No se pueden entregar más toneladas (${dto.toneladasEntregadas}) que las vendidas (${vendidas})`);
     }
-    if (t.fechaLiquidacion && t.fechaLiquidacion.getTime() > Date.now()) {
+    // settlement_date on-chain: sale de fechaLiquidacionEstimada (VAL-11) o,
+    // si el productor no la fijó, de fondeoHasta + 90 días. Espejamos la regla
+    // acá para no gastar una tx que el programa va a rechazar con TooEarly.
+    const settlementMs = t.fechaLiquidacionEstimada
+      ? t.fechaLiquidacionEstimada.getTime()
+      : t.fondeoHasta.getTime() + 90 * 24 * 60 * 60 * 1000;
+    if (settlementMs > Date.now()) {
       throw new BadRequestException(
-        `La liquidación está programada para ${t.fechaLiquidacion.toISOString()}. El programa rechaza settle antes de esa fecha`,
+        `La liquidación está programada para ${new Date(settlementMs).toISOString()}. El programa rechaza settle antes de esa fecha`,
       );
     }
 

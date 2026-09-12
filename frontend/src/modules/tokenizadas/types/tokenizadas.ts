@@ -197,6 +197,36 @@ export interface ReclamoResult {
   usdcRecibido: number;
 }
 
+/**
+ * Estado on-chain agregado que devuelve `GET /tokenizadas/:id/on-chain`.
+ * Contrato definido en HARVEST.md (VAL-18). Refresca cada 10s en el panel.
+ */
+export interface EstadoOnChain {
+  onChain: boolean;
+  status: 'draft' | 'open' | 'funded' | 'settled' | 'refunded';
+  tonsOffered: number;
+  tonsSold: number;
+  minTons: number;
+  pricePerTonUsd: number;
+  settlementDate: string | null;
+  tonsDelivered: number | null;
+  settlementPriceUsd: number | null;
+  payoutPerTokenUsd: number | null;
+  vaultBalanceUsd: number;
+  addresses: {
+    campaign: string | null;
+    tokenMint: string | null;
+    vault: string | null;
+    producer: string | null;
+    acopio: string | null;
+  };
+  explorer: {
+    campaign: string | null;
+    tokenMint: string | null;
+    vault: string | null;
+  };
+}
+
 // ─── Datos técnicos externos (mock) ─────────────────────────────
 
 export interface DatosClima {

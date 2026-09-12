@@ -1000,6 +1000,13 @@ model TokenizacionCampana {
   montoObjetivoUsd        Decimal  @map("monto_objetivo_usd") @db.Decimal(14, 2)
   montoRecaudadoUsd       Decimal  @default(0) @map("monto_recaudado_usd") @db.Decimal(14, 2)
 
+  // ─── Liquidación programada (settlement_date on-chain) ────────
+  /// Fecha objetivo a partir de la cual el admin puede ejecutar settle.
+  /// Si el productor no la fija, publicarCampana() usa fondeoHasta + 90 días.
+  fechaLiquidacionEstimada DateTime? @map("fecha_liquidacion_estimada")
+  /// Piso de toneladas para que release_funds sea legal. Default 1 (mínimo).
+  toneladasMinimas         Decimal   @default(1) @map("toneladas_minimas") @db.Decimal(12, 4)
+
   // ─── Garantías (informativo en esta fase) ─────────────────────
   tieneSeguroGranizo      Boolean  @default(false) @map("tiene_seguro_granizo")
   tieneSeguroParametrico  Boolean  @default(false) @map("tiene_seguro_parametrico")
@@ -1025,19 +1032,17 @@ model TokenizacionCampana {
   txSignatureLiberacion   String?   @map("tx_signature_liberacion")
   fondosLiberadosEn       DateTime? @map("fondos_liberados_en")
 
-  // ─── Liquidación (settle) ─────────────────────────────────────
-  /// Fecha programada de liquidación (settlement_date on-chain). Antes de esta
-  /// fecha el programa rechaza settle.
-  fechaLiquidacion        DateTime? @map("fecha_liquidacion")
+  // ─── Liquidación (post-settle) ────────────────────────────────
   /// Precio por tonelada que pagó el acopio (settlement_price).
-  precioLiquidacionUsdTn  Decimal? @map("precio_liquidacion_usd_tn") @db.Decimal(14, 4)
+  precioLiquidacionUsdTn  Decimal?  @map("precio_liquidacion_usd_tn") @db.Decimal(14, 4)
   /// Toneladas que efectivamente entregó el productor (tons_delivered). Puede
   /// ser menor a tokensVendidos: sequía. La pérdida se reparte pro rata.
-  toneladasEntregadas     Decimal? @map("toneladas_entregadas") @db.Decimal(12, 4)
+  toneladasEntregadas     Decimal?  @map("toneladas_entregadas") @db.Decimal(12, 4)
   /// USDC que cobra cada token al redimir (payout_per_token). Lo fija el
   /// programa con división entera en micro-USDC; se guarda tal cual.
-  payoutPorTokenUsd       Decimal? @map("payout_por_token_usd") @db.Decimal(14, 6)
-  txSignatureLiquidacion  String?  @map("tx_signature_liquidacion")
+  payoutPorTokenUsd       Decimal?  @map("payout_por_token_usd") @db.Decimal(14, 6)
+  txSignatureLiquidacion  String?   @map("tx_signature_liquidacion")
+  /// Timestamp del `settle` on-chain. Se llena al ejecutar la liquidación.
   liquidadaEn             DateTime? @map("liquidada_en")
 
   activo                  Boolean  @default(true)

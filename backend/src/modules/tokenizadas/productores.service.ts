@@ -252,9 +252,9 @@ export class ProductoresService {
         });
       }
     });
-    if (t.fechaLiquidacion) {
+    if (t.liquidadaEn) {
       hitos.push({
-        fecha: new Date(t.fechaLiquidacion).toISOString(),
+        fecha: new Date(t.liquidadaEn).toISOString(),
         tipo: 'liquidacion' as const,
         descripcion: `Liquidada a ${Number(t.precioLiquidacionUsdTn ?? 0).toFixed(2)} USD/t`,
       });
