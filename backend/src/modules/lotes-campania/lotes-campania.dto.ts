@@ -2,16 +2,11 @@ import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
 
 const fechaIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato YYYY-MM-DD');
-const tipoCampaniaSchema = z.enum(['fina', 'gruesa']);
 
 export const crearLoteCampaniaSchema = z.object({
   loteId: z.string().uuid('loteId inválido'),
   campaniaId: z.string().uuid('campaniaId inválido'),
   cultivoId: z.string().uuid('cultivoId inválido'),
-  variedadId: z.string().uuid().optional().nullable(),
-  /** Ciclo del cultivo en este lote. Vive acá, no en Campania, porque
-   * en una misma campaña puede haber lotes finos y gruesos. */
-  tipo: tipoCampaniaSchema.optional().nullable(),
   superficieSembradaHa: z.coerce.number().positive('Debe ser > 0').max(100000, 'Superficie inusualmente alta'),
   fechaSiembra: fechaIso.optional(),
   rindeEstimadoQqHa: z.coerce
@@ -29,8 +24,6 @@ export class CrearLoteCampaniaDto extends createZodDto(crearLoteCampaniaSchema) 
 
 export const actualizarLoteCampaniaSchema = z.object({
   cultivoId: z.string().uuid().optional(),
-  variedadId: z.string().uuid().nullable().optional(),
-  tipo: tipoCampaniaSchema.nullable().optional(),
   superficieSembradaHa: z.coerce.number().positive().max(100000).optional(),
   fechaSiembra: fechaIso.nullable().optional(),
   rindeEstimadoQqHa: z.coerce

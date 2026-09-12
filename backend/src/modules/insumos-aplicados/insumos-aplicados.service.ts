@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { calcularSkip, paginar } from '../../common/pagination';
-import { InsumosService } from '../insumos/insumos.service';
 import type {
   CrearInsumoAplicadoDto,
   ActualizarInsumoAplicadoDto,
@@ -10,10 +9,7 @@ import type {
 
 @Injectable()
 export class InsumosAplicadosService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly insumos: InsumosService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async listar(cuentaId: string, q: ListarInsumosQuery) {
     const where = {
@@ -28,7 +24,6 @@ export class InsumosAplicadosService {
         skip: calcularSkip(q.page, q.limit),
         take: q.limit,
         orderBy: { createdAt: 'desc' },
-        include: { insumo: { select: { id: true, nombre: true, stockActual: true, unidad: true } } },
       }),
       this.prisma.insumoAplicado.count({ where }),
     ]);
@@ -36,10 +31,7 @@ export class InsumosAplicadosService {
   }
 
   async obtenerPorId(cuentaId: string, id: string) {
-    const item = await this.prisma.insumoAplicado.findFirst({
-      where: { id, cuentaId },
-      include: { insumo: { select: { id: true, nombre: true } } },
-    });
+    const item = await this.prisma.insumoAplicado.findFirst({ where: { id, cuentaId } });
     if (!item) throw new NotFoundException(`Insumo ${id} no encontrado`);
     return item;
   }
@@ -51,16 +43,10 @@ export class InsumosAplicadosService {
     });
     if (!lc) throw new BadRequestException('LoteCampania no encontrado en esta cuenta');
 
-    // Si está linkeado al catálogo, descontamos stock primero. Si falla, no creamos.
-    if (dto.insumoId) {
-      await this.insumos.ajustarStockPorAplicacion(cuentaId, dto.insumoId, dto.cantidad);
-    }
-
     return this.prisma.insumoAplicado.create({
       data: {
         cuentaId,
         loteCampaniaId: dto.loteCampaniaId,
-        insumoId: dto.insumoId ?? null,
         tipo: dto.tipo,
         producto: dto.producto,
         cantidad: dto.cantidad,
@@ -68,37 +54,14 @@ export class InsumosAplicadosService {
         costoTotalUsd: dto.costoTotalUsd,
         formaPago: dto.formaPago,
       },
-      include: { insumo: { select: { id: true, nombre: true, stockActual: true, unidad: true } } },
     });
   }
 
   async actualizar(cuentaId: string, id: string, dto: ActualizarInsumoAplicadoDto) {
-    const previo = await this.obtenerPorId(cuentaId, id);
-
-    // Diferencial de stock: restaurar lo previo (si tenía insumoId), descontar lo nuevo.
-    const cantidadNueva = dto.cantidad ?? Number(previo.cantidad);
-    const insumoIdNuevo = dto.insumoId === undefined ? previo.insumoId : dto.insumoId;
-
-    if (previo.insumoId && previo.insumoId === insumoIdNuevo) {
-      // Mismo insumo: ajuste por diferencia
-      const delta = cantidadNueva - Number(previo.cantidad);
-      if (delta !== 0) {
-        await this.insumos.ajustarStockPorAplicacion(cuentaId, previo.insumoId, delta);
-      }
-    } else {
-      // Cambió el vínculo: restaurar previo y descontar nuevo
-      if (previo.insumoId) {
-        await this.insumos.ajustarStockPorAplicacion(cuentaId, previo.insumoId, -Number(previo.cantidad));
-      }
-      if (insumoIdNuevo) {
-        await this.insumos.ajustarStockPorAplicacion(cuentaId, insumoIdNuevo, cantidadNueva);
-      }
-    }
-
+    await this.obtenerPorId(cuentaId, id);
     return this.prisma.insumoAplicado.update({
       where: { id },
       data: {
-        ...(dto.insumoId !== undefined && { insumoId: dto.insumoId }),
         ...(dto.tipo && { tipo: dto.tipo }),
         ...(dto.producto && { producto: dto.producto }),
         ...(dto.cantidad !== undefined && { cantidad: dto.cantidad }),
@@ -106,16 +69,11 @@ export class InsumosAplicadosService {
         ...(dto.costoTotalUsd !== undefined && { costoTotalUsd: dto.costoTotalUsd }),
         ...(dto.formaPago !== undefined && { formaPago: dto.formaPago }),
       },
-      include: { insumo: { select: { id: true, nombre: true, stockActual: true, unidad: true } } },
     });
   }
 
   async eliminar(cuentaId: string, id: string) {
-    const previo = await this.obtenerPorId(cuentaId, id);
-    if (previo.insumoId) {
-      // Restaurar stock antes del soft delete
-      await this.insumos.ajustarStockPorAplicacion(cuentaId, previo.insumoId, -Number(previo.cantidad));
-    }
+    await this.obtenerPorId(cuentaId, id);
     await this.prisma.insumoAplicado.update({ where: { id }, data: { activo: false } });
   }
 }

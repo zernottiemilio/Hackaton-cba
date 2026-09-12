@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Share, Plus, X, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { HarvestLogo as Logo } from '@/modules/tokenizadas/components/brand/HarvestLogo';
+import { Logo } from '@/components/layout/Logo';
 import {
   esSafariIos,
   esStandalone,

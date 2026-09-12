@@ -29,7 +29,6 @@ export class LotesCampaniaService {
           lote: { include: { establecimiento: { select: { id: true, nombre: true } } } },
           campania: true,
           cultivo: true,
-          variedad: true,
         },
       }),
       this.prisma.loteCampania.count({ where }),
@@ -44,7 +43,6 @@ export class LotesCampaniaService {
         lote: { include: { establecimiento: true } },
         campania: true,
         cultivo: true,
-        variedad: true,
         labores: { where: { activo: true }, orderBy: { fecha: 'desc' } },
         insumosAplicados: { where: { activo: true }, orderBy: { createdAt: 'desc' } },
       },
@@ -70,22 +68,12 @@ export class LotesCampaniaService {
     });
     if (existente) throw new ConflictException('Ese lote ya está asignado a esa campaña');
 
-    // Validar variedad si se pasó
-    if (dto.variedadId) {
-      const variedad = await this.prisma.variedad.findFirst({
-        where: { id: dto.variedadId, cultivoId: dto.cultivoId, activo: true },
-      });
-      if (!variedad) throw new BadRequestException('Variedad no válida para ese cultivo');
-    }
-
     return this.prisma.loteCampania.create({
       data: {
         cuentaId,
         loteId: dto.loteId,
         campaniaId: dto.campaniaId,
         cultivoId: dto.cultivoId,
-        variedadId: dto.variedadId ?? null,
-        tipo: dto.tipo ?? null,
         superficieSembradaHa: dto.superficieSembradaHa,
         fechaSiembra: dto.fechaSiembra ? new Date(dto.fechaSiembra) : null,
         rindeEstimadoQqHa: dto.rindeEstimadoQqHa,
@@ -106,8 +94,6 @@ export class LotesCampaniaService {
       where: { id },
       data: {
         ...(dto.cultivoId && { cultivoId: dto.cultivoId }),
-        ...(dto.variedadId !== undefined && { variedadId: dto.variedadId }),
-        ...(dto.tipo !== undefined && { tipo: dto.tipo }),
         ...(dto.superficieSembradaHa !== undefined && { superficieSembradaHa: dto.superficieSembradaHa }),
         ...(dto.fechaSiembra !== undefined && {
           fechaSiembra: dto.fechaSiembra ? new Date(dto.fechaSiembra) : null,

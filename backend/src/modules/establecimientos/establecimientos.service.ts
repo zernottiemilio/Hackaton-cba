@@ -29,25 +29,7 @@ export class EstablecimientosService {
   async obtenerPorId(cuentaId: string, id: string) {
     const item = await this.prisma.establecimiento.findFirst({
       where: { id, cuentaId },
-      include: {
-        lotes: {
-          where: { activo: true },
-          orderBy: { nombre: 'asc' },
-          include: {
-            // Campaña activa por lote: el último lote_campania activo,
-            // ordenado por createdAt desc.
-            lotesCampania: {
-              where: { activo: true },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-              include: {
-                campania: { select: { id: true, nombre: true, tipo: true } },
-                cultivo: { select: { id: true, nombre: true } },
-              },
-            },
-          },
-        },
-      },
+      include: { lotes: { where: { activo: true }, orderBy: { nombre: 'asc' } } },
     });
     if (!item) throw new NotFoundException(`Establecimiento ${id} no encontrado`);
     return item;
