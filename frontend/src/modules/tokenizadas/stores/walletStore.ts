@@ -41,6 +41,29 @@ interface WalletState {
 /** Lo único que va a localStorage. `conectando` y `error` son efímeros. */
 type WalletPersistido = Pick<WalletState, 'conectada' | 'historialTx'>;
 
+/**
+ * El store nunca guarda una wallet con forma inválida. Si el backend devuelve
+ * algo inesperado (por ejemplo una página de error con status 200 durante un
+ * redeploy), tiramos y el caller conserva el estado anterior. Sin esto, un
+ * `balanceUsdc` ausente terminaba en "US$ NaN" en el topbar.
+ */
+function validarWallet(raw: unknown): WalletInfo {
+  const w = raw as Partial<WalletInfo> | null;
+  if (
+    !w ||
+    typeof w.address !== 'string' ||
+    w.address.length < 32 ||
+    typeof w.balanceSol !== 'number' ||
+    !Number.isFinite(w.balanceSol) ||
+    typeof w.balanceUsdc !== 'number' ||
+    !Number.isFinite(w.balanceUsdc) ||
+    (w.network !== 'devnet' && w.network !== 'mainnet-beta' && w.network !== 'mock')
+  ) {
+    throw new Error('Respuesta de wallet inválida');
+  }
+  return { address: w.address, balanceSol: w.balanceSol, balanceUsdc: w.balanceUsdc, network: w.network };
+}
+
 const mensajeError = (e: unknown): string => {
   if (typeof e === 'object' && e !== null && 'response' in e) {
     const r = (e as { response?: { data?: { message?: string | string[] } } }).response;
@@ -63,7 +86,7 @@ export const useWalletStore = create<WalletState>()(
         if (get().conectando) return;
         set({ conectando: true, error: null });
         try {
-          const wallet = await tokenizadasApi.conectarWallet();
+          const wallet = validarWallet(await tokenizadasApi.conectarWallet());
           set({ conectada: wallet, conectando: false });
         } catch (e) {
           set({ conectando: false, error: mensajeError(e) });
@@ -74,7 +97,7 @@ export const useWalletStore = create<WalletState>()(
       refrescar: async () => {
         if (!get().conectada || get().conectando) return;
         try {
-          const wallet = await tokenizadasApi.conectarWallet();
+          const wallet = validarWallet(await tokenizadasApi.conectarWallet());
           set({ conectada: wallet });
         } catch {
           /* balances viejos son mejor que nada; no rompemos la UI por un refresh */

@@ -6,6 +6,8 @@
  */
 
 export function usd(monto: number, decimales = 2): string {
+  // Nunca imprimir "US$ NaN": si el dato no llegó, se muestra un guion.
+  if (typeof monto !== 'number' || !Number.isFinite(monto)) return 'US$ —';
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
     currency: 'USD',
