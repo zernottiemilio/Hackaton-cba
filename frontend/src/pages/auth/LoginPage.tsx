@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LogoLockup } from '@/components/layout/Logo';
 import { authService } from '@/services/authService';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore, rutaInicialPorTipo } from '@/stores/authStore';
 import { extraerMensajeError } from '@/lib/apiClient';
 
 const schema = z.object({
@@ -25,6 +25,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const setTokens = useAuthStore((s) => s.setTokens);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const usuario = useAuthStore((s) => s.usuario);
 
   const {
     register,
@@ -39,13 +40,13 @@ export function LoginPage() {
     mutationFn: (data: FormData) => authService.login(data.email, data.password),
     onSuccess: (res) => {
       setTokens(res.accessToken, res.refreshToken, res.usuario);
-      toast.success(`Bienvenido, ${res.usuario.nombre}`);
-      navigate('/', { replace: true });
+      toast.success(`Bienvenido, ${res.usuario.nombreVisible ?? res.usuario.nombre}`);
+      navigate(rutaInicialPorTipo(res.usuario.tipo), { replace: true });
     },
     onError: (err) => toast.error(extraerMensajeError(err)),
   });
 
-  if (isAuthenticated) return <Navigate to="/" replace />;
+  if (isAuthenticated && usuario) return <Navigate to={rutaInicialPorTipo(usuario.tipo)} replace />;
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4">
@@ -79,7 +80,7 @@ export function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="demo@agrofacil.dev"
+                placeholder="juan@agrofacil.dev"
                 {...register('email')}
               />
               {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
@@ -100,15 +101,22 @@ export function LoginPage() {
             </Button>
           </form>
 
-          <p className="text-xs text-center text-muted-foreground mt-5 pt-5 border-t border-border">
-            Demo: <code className="bg-muted/70 px-1.5 py-0.5 rounded font-mono text-foreground">demo@agrofacil.dev</code>{' '}
-            ·{' '}
-            <code className="bg-muted/70 px-1.5 py-0.5 rounded font-mono text-foreground">agrofacil123</code>
-          </p>
+          <div className="text-xs text-center text-muted-foreground mt-5 pt-5 border-t border-border space-y-2">
+            <p>
+              ¿No tenés cuenta?{' '}
+              <Link to="/registro" className="text-primary font-medium hover:underline">
+                Registrate
+              </Link>
+            </p>
+            <p className="pt-2 border-t border-border/60">
+              Demos <code className="bg-muted/70 px-1 rounded">agrofacil123</code>:{' '}
+              <code className="bg-muted/70 px-1 rounded">juan@agrofacil.dev</code> · <code className="bg-muted/70 px-1 rounded">maria@agrofacil.dev</code>
+            </p>
+          </div>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
-          Plataforma de gestión para productores agropecuarios
+          Plataforma de gestión y financiamiento para el agro
         </p>
       </motion.div>
     </div>

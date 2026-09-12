@@ -1,16 +1,26 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogOut, Search } from 'lucide-react';
-import { navItems } from '@/constants/navigation';
+import { navItemsPorTipo } from '@/constants/navigation';
 import { LogoLockup } from './Logo';
 import { useAuthStore } from '@/stores/authStore';
 import { useCommandPalette } from '@/stores/commandPaletteStore';
 import { cn } from '@/lib/utils';
 
+const ETIQUETA_ROL: Record<string, string> = {
+  propietario: 'Productor',
+  inversor: 'Inversor',
+  acopio: 'Acopio',
+  admin: 'Administrador',
+};
+
 export function Sidebar() {
   const usuario = useAuthStore((s) => s.usuario);
   const logout = useAuthStore((s) => s.logout);
   const openPalette = useCommandPalette((s) => s.setOpen);
+
+  const navItems = usuario ? navItemsPorTipo(usuario.tipo) : [];
+  const etiquetaRol = usuario ? ETIQUETA_ROL[usuario.tipo] : '';
 
   return (
     <aside className="hidden lg:flex w-64 shrink-0 h-screen sticky top-0 flex-col p-4">
@@ -22,8 +32,10 @@ export function Sidebar() {
 
         {/* Cuenta info */}
         <div className="px-5 pb-4 border-b border-white/15 shrink-0">
-          <p className="text-[11px] uppercase tracking-wider text-white/60 font-medium">Cuenta</p>
-          <p className="text-sm text-white font-medium truncate">{usuario?.nombre}</p>
+          <p className="text-[11px] uppercase tracking-wider text-white/60 font-medium">{etiquetaRol}</p>
+          <p className="text-sm text-white font-medium truncate">
+            {usuario?.nombreVisible ?? usuario?.nombre}
+          </p>
         </div>
 
         {/* Nav — toma todo el espacio disponible */}

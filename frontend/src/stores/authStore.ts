@@ -1,11 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export type TipoUsuario = 'propietario' | 'inversor' | 'acopio' | 'admin';
+
 export interface UsuarioActual {
   id: string;
   email: string;
   nombre: string;
   cuentaId: string;
+  tipo: TipoUsuario;
+  nombreVisible: string | null;
+  walletAddress: string | null;
 }
 
 interface AuthState {
@@ -14,6 +19,7 @@ interface AuthState {
   usuario: UsuarioActual | null;
   isAuthenticated: boolean;
   setTokens: (access: string, refresh: string, usuario: UsuarioActual) => void;
+  actualizarUsuario: (patch: Partial<UsuarioActual>) => void;
   logout: () => void;
 }
 
@@ -31,6 +37,10 @@ export const useAuthStore = create<AuthState>()(
           usuario,
           isAuthenticated: true,
         }),
+      actualizarUsuario: (patch) =>
+        set((state) =>
+          state.usuario ? { usuario: { ...state.usuario, ...patch } } : state,
+        ),
       logout: () =>
         set({
           accessToken: null,
@@ -50,3 +60,20 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
+
+/**
+ * Ruta canónica de aterrizaje según el tipo de usuario.
+ * Fuente de verdad para el enrutado post-login y para los guards por rol.
+ */
+export function rutaInicialPorTipo(tipo: TipoUsuario): string {
+  switch (tipo) {
+    case 'propietario':
+      return '/';
+    case 'inversor':
+      return '/marketplace';
+    case 'acopio':
+      return '/acopio';
+    case 'admin':
+      return '/admin';
+  }
+}
