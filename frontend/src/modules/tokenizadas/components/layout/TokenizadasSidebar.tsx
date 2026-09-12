@@ -11,23 +11,23 @@ interface NavItem {
 }
 
 const ITEMS: NavItem[] = [
-  { to: '/tk', label: 'Inicio', icon: '◈', contextos: 'todos' },
+  { to: '/', label: 'Inicio', icon: '◈', contextos: 'todos' },
   // Inversor
-  { to: '/tk/invertir', label: 'Marketplace', icon: '⚡', contextos: ['inversor', 'productor', 'admin_plataforma'] },
-  { to: '/tk/portfolio', label: 'Portfolio', icon: '▤', contextos: ['inversor'] },
+  { to: '/invertir', label: 'Marketplace', icon: '⚡', contextos: ['inversor', 'productor', 'admin_plataforma'] },
+  { to: '/portfolio', label: 'Portfolio', icon: '▤', contextos: ['inversor'] },
   // Productor
-  { to: '/tk/campanas', label: 'Mis emisiones', icon: '⛢', contextos: ['productor'] },
-  { to: '/tk/campanas/nueva', label: 'Tokenizar lote', icon: '＋', contextos: ['productor'] },
-  { to: '/tk/campos', label: 'Mis lotes', icon: '⛰', contextos: ['productor'] },
+  { to: '/campanas', label: 'Mis emisiones', icon: '⛢', contextos: ['productor'] },
+  { to: '/campanas/nueva', label: 'Tokenizar lote', icon: '＋', contextos: ['productor'] },
+  { to: '/campos', label: 'Mis lotes', icon: '⛰', contextos: ['productor'] },
   // Acopio
-  { to: '/tk/acopio', label: 'Tablero', icon: '⌂', contextos: ['acopio'] },
-  { to: '/tk/acopio/recepcion', label: 'Recepción', icon: '⤵', contextos: ['acopio'] },
-  { to: '/tk/acopio/posiciones', label: 'Posiciones', icon: '▤', contextos: ['acopio'] },
-  { to: '/tk/acopio/liberaciones', label: 'Liberaciones', icon: '⤴', contextos: ['acopio'] },
+  { to: '/acopio', label: 'Tablero', icon: '⌂', contextos: ['acopio'] },
+  { to: '/acopio/recepcion', label: 'Recepción', icon: '⤵', contextos: ['acopio'] },
+  { to: '/acopio/posiciones', label: 'Posiciones', icon: '▤', contextos: ['acopio'] },
+  { to: '/acopio/liberaciones', label: 'Liberaciones', icon: '⤴', contextos: ['acopio'] },
   // Admin
-  { to: '/tk/admin/revision', label: 'Cola de revisión', icon: '⚑', contextos: ['admin_plataforma'] },
-  { to: '/tk/admin/acopios', label: 'Red de acopios', icon: '☰', contextos: ['admin_plataforma'] },
-  { to: '/tk/admin/conciliacion', label: 'Conciliación', icon: '⊗', contextos: ['admin_plataforma'] },
+  { to: '/revision-emisiones', label: 'Cola de revisión', icon: '⚑', contextos: ['admin_plataforma'] },
+  { to: '/red-acopios', label: 'Red de acopios', icon: '☰', contextos: ['admin_plataforma'] },
+  { to: '/conciliacion', label: 'Conciliación', icon: '⊗', contextos: ['admin_plataforma'] },
 ];
 
 export function TokenizadasSidebar() {
@@ -35,7 +35,7 @@ export function TokenizadasSidebar() {
 
   const items = ITEMS.filter((it) => {
     if (it.contextos === 'todos') return true;
-    if (!contexto) return it.to === '/tk' || it.to === '/tk/invertir';
+    if (!contexto) return it.to === '/' || it.to === '/invertir';
     return it.contextos.includes(contexto);
   });
 
@@ -56,7 +56,7 @@ export function TokenizadasSidebar() {
           <NavLink
             key={it.to}
             to={it.to}
-            end={it.to === '/tk'}
+            end={it.to === '/'}
             className={({ isActive }) => `hv-nav-item ${isActive ? 'is-active' : ''}`}
             style={({ isActive }) => ({
               display: 'flex',
@@ -90,29 +90,15 @@ export function TokenizadasSidebar() {
       </nav>
 
       <div className="p-3" style={{ borderTop: '1px solid var(--hv-border-subtle)' }}>
-        <div
-          className="hv-label-sm"
-          style={{ padding: '0 4px 6px', fontSize: 10 }}
-        >
+        <div className="hv-label-sm" style={{ padding: '0 4px 4px', fontSize: 10 }}>
           Contrato · devnet
         </div>
-        <NavLink
-          to="/"
-          className="hv-nav-item"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '8px 10px',
-            borderRadius: 8,
-            fontSize: 12,
-            color: 'var(--hv-text-muted)',
-            textDecoration: 'none',
-          }}
+        <div
+          className="hv-mono"
+          style={{ padding: '4px 4px 0', fontSize: 10, color: 'var(--hv-text-muted)', letterSpacing: '0.02em', wordBreak: 'break-all' }}
         >
-          <span>←</span>
-          <span>Volver a AgroFácil</span>
-        </NavLink>
+          8pM3…zP1
+        </div>
       </div>
     </aside>
   );

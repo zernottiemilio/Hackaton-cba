@@ -27,7 +27,7 @@ function PageSkeleton({ titulo, descripcion, sprint, emoji = '🧪' }: SkeletonP
           </div>
         )}
         <div className="mt-8">
-          <Link to="/tk" className="text-white/40 hover:text-white/80 text-sm">
+          <Link to="/" className="text-white/40 hover:text-white/80 text-sm">
             ← Volver al inicio
           </Link>
         </div>

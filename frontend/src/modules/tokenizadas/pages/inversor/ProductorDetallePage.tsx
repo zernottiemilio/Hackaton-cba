@@ -49,7 +49,7 @@ export function ProductorDetallePage() {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <Link
-        to="/tk"
+        to="/"
         style={{ color: 'var(--hv-text-muted)', fontSize: 12, display: 'inline-flex', gap: 6, textDecoration: 'none' }}
       >
         ← Volver a inicio
@@ -480,7 +480,7 @@ function CardCampaniaCompacta({ t }: { t: any }) {
   const pctFondeado = t.tokensEmitidos > 0 ? (t.tokensVendidos / t.tokensEmitidos) * 100 : 0;
   return (
     <Link
-      to={`/tk/invertir/${t.id}`}
+      to={`/invertir/${t.id}`}
       style={{
         display: 'block',
         padding: 16,
