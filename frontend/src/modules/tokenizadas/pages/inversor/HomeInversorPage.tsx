@@ -5,6 +5,7 @@ import { tokenizadasApi } from '../../services/tokenizadasService';
 import { productoresApi, type ProductorResumen } from '../../services/productoresService';
 import { useWalletStore, useNombreWallet } from '../../stores/walletStore';
 import { usePreciosLive, useHistoriaPrecios } from '../../hooks/usePreciosLive';
+import { TickerGrande } from '../../components/precios/TickerGrande';
 import { Sparkline } from '../../components/charts/Sparkline';
 import { BarraFondeo } from '../../components/campana/BarraFondeo';
 import { BadgeModo } from '../../components/campana/BadgeModo';
@@ -120,6 +121,31 @@ export function HomeInversorPage() {
           )}
         </div>
       </section>
+
+      {/* Pizarra Rosario en vivo */}
+      {ticks.length > 0 && (
+        <section>
+          <div className="flex items-baseline justify-between mb-4">
+            <div>
+              <h2 style={{ fontSize: 22, fontWeight: 600, color: 'var(--hv-text)', letterSpacing: '-0.02em' }}>
+                Pizarra Rosario
+              </h2>
+              <p className="hv-label-sm" style={{ marginTop: 4 }}>
+                Precios reales · granos.ar (Consiagro / BCR)
+              </p>
+            </div>
+            <span className="hv-chip hv-chip-green" style={{ fontSize: 11 }}>
+              <span className="hv-dot" style={{ background: 'var(--hv-green)' }} />
+              en vivo
+            </span>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {ticks.map((t) => (
+              <TickerGrande key={t.cultivo} cultivo={t.cultivo} usdTn={t.usdTn} cambio={t.cambio24hPct} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Oportunidades del día */}
       <section>
