@@ -101,6 +101,14 @@ export interface Tokenizacion {
 
   precioLiquidacionUsdTn: number | null;
   fechaLiquidacion: string | null;
+  /**
+   * Mínimo de toneladas vendidas para que el productor pueda liberar fondos
+   * (min_tons on-chain). Lo agrega el backend en VAL-11; hasta entonces el
+   * programa usa 1 y el campo puede venir ausente.
+   */
+  toneladasMinimas?: number | null;
+  /** Signature de release_funds. La persiste el backend en VAL-12. */
+  txSignatureLiberacion?: string | null;
 
   createdAt: string;
   campania: CampaniaTokenizada;
@@ -155,6 +163,13 @@ export interface ConfirmacionCompra {
   tokens: number;
   precioCompraUsd: number;
   montoTotalUsdc: number;
+}
+
+/** Respuesta de `POST /tokenizadas/:id/liberar-fondos` (release_funds). */
+export interface LiberarFondosResult {
+  txSignature: string;
+  /** USDC que salió del vault hacia la wallet del productor. */
+  montoUsd: number;
 }
 
 export interface ReclamoResult {

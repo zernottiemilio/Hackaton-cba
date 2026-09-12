@@ -36,15 +36,6 @@ function PageSkeleton({ titulo, descripcion, sprint, emoji = '🧪' }: SkeletonP
   );
 }
 
-// Productor
-export const MisCampanasProductorPage = () => (
-  <PageSkeleton
-    titulo="Mis campañas"
-    descripcion="Listado de tus campañas tokenizadas con estado, fondeo, inversores y avance."
-    sprint="Sprint 3"
-    emoji="🗂️"
-  />
-);
 
 // Acopio
 export const AcopioDashboardPage = () => (
