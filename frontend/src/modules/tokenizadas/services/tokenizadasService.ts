@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/apiClient';
 import type {
   Tokenizacion,
   PublicarDemoResult,
+  ProductorPublico,
   Reserva,
   ConfirmacionCompra,
   ReclamoResult,
@@ -187,6 +188,22 @@ export const tokenizadasApi = {
   async marketplace(filtros: FiltrosMarketplace = {}): Promise<Tokenizacion[]> {
     const { data } = await apiClient.get('/tokenizadas/marketplace', { params: filtros });
     return normalizarLista(data);
+  },
+
+  /** Reputación pública de los productores. Alimenta la columna "Productor" del marketplace. */
+  async listarProductores(): Promise<ProductorPublico[]> {
+    const { data } = await apiClient.get('/tokenizadas/productores');
+    return (data as ProductorPublico[]).map((p) => ({
+      ...p,
+      rating: Number(p.rating),
+      metricas: {
+        campaniasActivas: Number(p.metricas?.campaniasActivas ?? 0),
+        campaniasLiquidadas: Number(p.metricas?.campaniasLiquidadas ?? 0),
+        liquidadasPositivas: Number(p.metricas?.liquidadasPositivas ?? 0),
+        toneladasBajoAdmin: Number(p.metricas?.toneladasBajoAdmin ?? 0),
+        usdRecaudadoTotal: Number(p.metricas?.usdRecaudadoTotal ?? 0),
+      },
+    }));
   },
 
   async detalleMarketplace(id: string): Promise<Tokenizacion> {

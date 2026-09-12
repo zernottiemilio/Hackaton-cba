@@ -74,11 +74,11 @@ export default defineConfig({
       ],
 
       manifest: {
-        name: 'AgroFácil',
-        short_name: 'AgroFácil',
-        description: 'Costo, margen y punto de equilibrio por lote, en USD y qq/ha.',
-        theme_color: '#047C00',
-        background_color: '#F4F7F4',
+        name: 'Harvest.fi',
+        short_name: 'Harvest.fi',
+        description: 'La cosecha, líquida. Tokenización de cosecha argentina sobre Solana.',
+        theme_color: '#16A32C',
+        background_color: '#0B0F0D',
         display: 'standalone',
         orientation: 'any',
         scope: '/',

@@ -52,6 +52,24 @@ export interface ProductorResumen {
   createdAt?: string;
 }
 
+/** Ficha pública del productor (`GET /tokenizadas/productores`): rating y track record. */
+export interface ProductorPublico {
+  id: string;
+  nombre: string;
+  createdAt: string;
+  /** 1 a 5, lo calcula el backend con liquidaciones, garantías y antigüedad. */
+  rating: number;
+  metricas: {
+    campaniasActivas: number;
+    campaniasLiquidadas: number;
+    liquidadasPositivas: number;
+    toneladasBajoAdmin: number;
+    usdRecaudadoTotal: number;
+  };
+  cultivos: string[];
+  provincia: string | null;
+}
+
 export interface CampaniaTokenizada {
   id: string;
   nombre: string;
