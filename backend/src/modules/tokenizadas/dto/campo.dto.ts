@@ -20,7 +20,13 @@ export const CrearCampoSchema = z.object({
   /** Polígono GeoJSON del lote. */
   geometria: geoJsonPolygon,
   tenencia: z.enum(['propio', 'arrendado', 'mixto']).default('propio'),
-  acopioHabitualId: z.string().uuid().optional(),
+  acopioHabitualId: z
+    .string()
+    .regex(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      'Formato UUID inválido',
+    )
+    .optional(),
   fotos: z.array(z.string().url().or(z.string().startsWith('/uploads/'))).default([]),
   latitud: z.number().min(-90).max(90).optional(),
   longitud: z.number().min(-180).max(180).optional(),

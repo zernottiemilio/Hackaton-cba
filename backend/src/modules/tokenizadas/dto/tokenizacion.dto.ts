@@ -1,6 +1,18 @@
 import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
 
+/**
+ * Validador de UUID permisivo: aceptamos cualquier UUID con el formato
+ * 8-4-4-4-12 hex, sin exigir un bit de versión específico. El `.uuid()`
+ * estricto de Zod rechaza los IDs del seed (`00000000-1000-0000-...`)
+ * porque no cumplen el pattern de versión de UUIDv4.
+ */
+const uuidLike = () =>
+  z.string().regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    'Formato UUID inválido',
+  );
+
 const modoTokenizacion = z.enum(['porcentual', 'fijo']);
 const fuentePrecio = z.enum(['pizarra_rosario', 'matba_futuro', 'manual']);
 const estadoCampanaToken = z.enum([
@@ -18,12 +30,12 @@ const estadoCampanaToken = z.enum([
 /** Payload del wizard de tokenización (pasos 1 + 2 + 3 + 4). */
 export const CrearTokenizacionSchema = z.object({
   // Campania: puede referenciar una existente o crear una nueva inline.
-  campaniaId: z.string().uuid().optional(),
+  campaniaId: uuidLike().optional(),
   campaniaNueva: z
     .object({
       nombre: z.string().min(3),
-      establecimientoId: z.string().uuid(),
-      cultivoId: z.string().uuid(),
+      establecimientoId: uuidLike(),
+      cultivoId: uuidLike(),
       cicloAgricola: z.string().min(4), // "2026/27"
       hectareasAfectadas: z.number().positive(),
       fechaSiembraEstimada: z.string().datetime().or(z.string().date()),
@@ -90,20 +102,20 @@ export class RevisarTokenizacionDto extends createZodDto(RevisarTokenizacionSche
 
 /** Compra de tokens por parte del inversor. */
 export const CrearReservaSchema = z.object({
-  tokenizacionId: z.string().uuid(),
+  tokenizacionId: uuidLike(),
   cantidad: z.number().positive(),
   inversorWallet: z.string().min(32).max(64),
 });
 export class CrearReservaDto extends createZodDto(CrearReservaSchema) {}
 
 export const ConfirmarCompraSchema = z.object({
-  reservaId: z.string().uuid(),
+  reservaId: uuidLike(),
 });
 export class ConfirmarCompraDto extends createZodDto(ConfirmarCompraSchema) {}
 
 /** Reclamo de USDC al liquidar la campaña. */
 export const ReclamarSchema = z.object({
-  tenenciaId: z.string().uuid(),
+  tenenciaId: uuidLike(),
   inversorWallet: z.string().min(32).max(64),
 });
 export class ReclamarDto extends createZodDto(ReclamarSchema) {}
