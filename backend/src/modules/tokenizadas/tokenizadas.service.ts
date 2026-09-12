@@ -218,8 +218,13 @@ export class TokenizadasService {
   // ─── Inversor: marketplace ─────────────────────────────────────
 
   async listarMarketplace(filtros: ListarMarketplaceDto) {
+    // Solo campañas donde todavía se puede invertir: el programa rechaza
+    // `invest` después de sale_end, así que una "abierta" con la venta cerrada
+    // solo sirve para que el inversor vea un error.
     const where: any = {
       campania: { estadoToken: 'abierta' },
+      activo: true,
+      fondeoHasta: { gt: new Date() },
     };
 
     if (filtros.modo) where.modo = filtros.modo;
