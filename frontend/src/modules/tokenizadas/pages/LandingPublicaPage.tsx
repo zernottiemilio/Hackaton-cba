@@ -95,7 +95,7 @@ export function LandingPublicaPage() {
               </svg>
             </Link>
             <Link
-              to="/invertir"
+              to="/login"
               className="hv-cta-ghost"
               style={{
                 textDecoration: 'none',
