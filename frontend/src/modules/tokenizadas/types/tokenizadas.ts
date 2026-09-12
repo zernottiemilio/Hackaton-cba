@@ -100,7 +100,13 @@ export interface Tokenizacion {
   motivoRechazo: string | null;
 
   precioLiquidacionUsdTn: number | null;
-  fechaLiquidacion: string | null;
+  /**
+   * Fecha objetivo de liquidación (settlement_date on-chain). Antes de esta
+   * fecha el programa rechaza settle. Null = el backend usó fondeoHasta + 90d.
+   */
+  fechaLiquidacionEstimada: string | null;
+  /** Timestamp real del settle. Null hasta que el admin liquida. */
+  liquidadaEn: string | null;
   /**
    * Mínimo de toneladas vendidas para que el productor pueda liberar fondos
    * (min_tons on-chain). Lo agrega el backend en VAL-11; hasta entonces el

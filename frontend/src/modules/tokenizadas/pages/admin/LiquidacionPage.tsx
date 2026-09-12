@@ -158,6 +158,15 @@ export function LiquidacionPage() {
   );
 }
 
+/**
+ * settlement_date efectiva. Espeja la regla del backend (`publicarCampana`):
+ * la fecha que fijó el productor o, si no la fijó, fondeoHasta + 90 días.
+ */
+function fechaSettlement(t: Tokenizacion): Date {
+  if (t.fechaLiquidacionEstimada) return new Date(t.fechaLiquidacionEstimada);
+  return new Date(new Date(t.fondeoHasta).getTime() + 90 * 24 * 60 * 60 * 1000);
+}
+
 /** Mismo cálculo que el programa: deposit / tons_sold. El polvo de redondeo queda en el vault. */
 function calcularPayout(entregadas: number, precio: number, vendidas: number): number {
   if (vendidas <= 0) return 0;
@@ -203,7 +212,7 @@ function ItemCola({ t, activo, onClick }: { t: Tokenizacion; activo: boolean; on
         <div>
           <div className="hv-label-sm" style={{ fontSize: 9 }}>Liquida</div>
           <div className="hv-mono" style={{ fontSize: 13, fontWeight: 600, color: 'var(--hv-text)' }}>
-            {t.fechaLiquidacion ? diasRestantes(t.fechaLiquidacion) : 'cuando quieras'}
+            {diasRestantes(fechaSettlement(t))}
           </div>
         </div>
       </div>
@@ -277,9 +286,9 @@ function DetalleLiquidacion({
     const id = setInterval(() => setAhora(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
-  const fechaLiq = t.fechaLiquidacion ? new Date(t.fechaLiquidacion).getTime() : null;
-  const todaviaNo = fechaLiq !== null && fechaLiq > ahora;
-  const segundosFaltan = fechaLiq !== null ? Math.max(0, Math.ceil((fechaLiq - ahora) / 1000)) : 0;
+  const fechaLiq = fechaSettlement(t).getTime();
+  const todaviaNo = fechaLiq > ahora;
+  const segundosFaltan = Math.max(0, Math.ceil((fechaLiq - ahora) / 1000));
 
   const entregadasOk = form.entregadas >= 1 && form.entregadas <= vendidas && Number.isInteger(form.entregadas);
   const precioOk = form.precio > 0;
@@ -322,7 +331,7 @@ function DetalleLiquidacion({
         <Metrica label="Vendidas" value={toneladas(vendidas, 0)} />
         <Metrica label="Precio del token" value={usd(precioToken, 2)} />
         <Metrica label="Los inversores pusieron" value={usdCompacto(invertido)} />
-        <Metrica label="Fecha de liquidación" value={t.fechaLiquidacion ? fecha(t.fechaLiquidacion) : 'sin fecha'} />
+        <Metrica label="Fecha de liquidación" value={fecha(fechaSettlement(t))} />
       </div>
 
       <div className="hv-label" style={{ fontSize: 10, marginBottom: 8 }}>Escenarios rápidos</div>
@@ -438,7 +447,7 @@ function DetalleLiquidacion({
         </button>
         <span style={{ color: 'var(--hv-text-muted)', fontSize: 11 }}>
           {todaviaNo
-            ? `El programa rechaza settle antes de ${fecha(t.fechaLiquidacion!)}. El reloj corre on-chain, no acá.`
+            ? `El programa rechaza settle antes de ${fecha(fechaSettlement(t))}. El reloj corre on-chain, no acá.`
             : !entregadasOk
             ? `Las toneladas entregadas van de 1 a ${vendidas}, enteras.`
             : !precioOk
