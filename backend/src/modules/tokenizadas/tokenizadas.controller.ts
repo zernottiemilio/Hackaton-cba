@@ -133,6 +133,17 @@ export class TokenizadasController {
     return this.service.detalleCampanaMarketplace(id);
   }
 
+  /**
+   * Estado on-chain de una tokenización (público). El panel on-chain de la
+   * ficha y del portfolio consume este endpoint cada 10s. Contrato en
+   * HARVEST.md (VAL-18).
+   */
+  @Public()
+  @Get(':id/on-chain')
+  estadoOnChain(@Param('id') id: string) {
+    return this.service.obtenerEstadoOnChain(id);
+  }
+
   /** Reservar tokens (paso 1 del sheet de compra, TTL 10 min). */
   @RolPlataforma('inversor')
   @Post('reservas')

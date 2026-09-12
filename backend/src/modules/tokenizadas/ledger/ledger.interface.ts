@@ -66,6 +66,41 @@ export interface DisponibilidadResult {
   tokensDisponibles: number;
 }
 
+/**
+ * Estado on-chain de una tokenización, listo para pintar en la UI.
+ * Contrato acordado en HARVEST.md (VAL-18). El shape es idéntico al de
+ * la cuenta `Campaign` del programa AgroToken; los `explorer.*` son URLs
+ * completas listas para abrir, o null si el address no existe todavía.
+ */
+export interface EstadoOnChainResult {
+  onChain: boolean;
+  /// Estado on-chain: 'draft' antes de publicar; después mirror del status
+  /// de la cuenta Campaign (Open, Funded, Settled, Refunded).
+  status: 'draft' | 'open' | 'funded' | 'settled' | 'refunded';
+  tonsOffered: number;
+  tonsSold: number;
+  minTons: number;
+  pricePerTonUsd: number;
+  /// Fecha en que se puede liquidar (fondeoHasta + margen). ISO string.
+  settlementDate: string | null;
+  tonsDelivered: number | null;
+  settlementPriceUsd: number | null;
+  payoutPerTokenUsd: number | null;
+  vaultBalanceUsd: number;
+  addresses: {
+    campaign: string | null;
+    tokenMint: string | null;
+    vault: string | null;
+    producer: string | null;
+    acopio: string | null;
+  };
+  explorer: {
+    campaign: string | null;
+    tokenMint: string | null;
+    vault: string | null;
+  };
+}
+
 export abstract class LedgerService {
   /** Simula el flujo de "conectar wallet Phantom". Devuelve una wallet mock persistida. */
   abstract conectarWallet(usuarioId: string): Promise<WalletConectada>;
@@ -84,4 +119,7 @@ export abstract class LedgerService {
 
   /** Disponibilidad actual de tokens para una tokenización. */
   abstract obtenerDisponibilidad(tokenizacionId: string): Promise<DisponibilidadResult>;
+
+  /** Estado on-chain listo para pintar (con URLs al explorer). Público. */
+  abstract obtenerEstadoOnChain(tokenizacionId: string): Promise<EstadoOnChainResult>;
 }

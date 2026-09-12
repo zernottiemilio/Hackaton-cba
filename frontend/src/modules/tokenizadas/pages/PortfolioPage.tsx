@@ -1,13 +1,17 @@
+import { Fragment, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronDown } from 'lucide-react';
 import { tokenizadasApi } from '../services/tokenizadasService';
 import { usd, usdCompacto, porcentaje, toneladas, diasRestantes, abreviarTx } from '../utils/format';
 import { EstadoCampanaBadge } from '../components/campana/EstadoCampanaBadge';
 import { BadgeModo } from '../components/campana/BadgeModo';
+import { PanelOnChain } from '../components/campana/PanelOnChain';
 import { useWalletStore } from '../stores/walletStore';
 import { Link } from 'react-router-dom';
 
 export function PortfolioPage() {
   const conectada = useWalletStore((s) => s.conectada);
+  const [expandida, setExpandida] = useState<string | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ['tk', 'portfolio'],
     queryFn: () => tokenizadasApi.portfolio(),
@@ -79,6 +83,7 @@ export function PortfolioPage() {
             <table className="w-full text-sm">
               <thead className="bg-black/30 text-white/40 text-[10px] font-semibold uppercase tracking-wider">
                 <tr>
+                  <th className="w-8 px-2 py-3" aria-label="Expandir" />
                   <th className="text-left px-5 py-3">Campaña</th>
                   <th className="text-left px-3 py-3">Modo</th>
                   <th className="text-right px-3 py-3">Tokens</th>
@@ -95,53 +100,72 @@ export function PortfolioPage() {
                   const valorActual = t.tokens * t.tokenizacion.precioTokenUsd;
                   const variacion = valorActual - t.montoTotalUsd;
                   const variacionPct = t.montoTotalUsd > 0 ? (variacion / t.montoTotalUsd) * 100 : 0;
+                  const abierta = expandida === t.id;
                   return (
-                    <tr key={t.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-5 py-3">
-                        <Link
-                          to={`/invertir/${t.tokenizacionId}`}
-                          className="text-white hover:text-emerald-400 font-medium"
-                        >
-                          {t.tokenizacion.campania.establecimiento?.nombre ?? t.tokenizacion.campania.nombre}
-                        </Link>
-                        <div className="text-white/40 text-[11px] mt-0.5">
-                          {t.tokenizacion.campania.cultivo?.nombre} ·{' '}
-                          {t.tokenizacion.campania.establecimiento?.partido}, {t.tokenizacion.campania.establecimiento?.provincia}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3">
-                        <BadgeModo modo={t.tokenizacion.modo} />
-                      </td>
-                      <td className="px-3 py-3 text-right tabular-nums text-white/90">
-                        {toneladas(t.tokens, 1)}
-                      </td>
-                      <td className="px-3 py-3 text-right tabular-nums text-white/70">{usd(t.precioCompraUsd, 2)}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-white font-medium">
-                        {usd(valorActual, 0)}
-                      </td>
-                      <td className={`px-3 py-3 text-right tabular-nums font-medium ${variacion >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {porcentaje(variacionPct, 2)}
-                      </td>
-                      <td className="px-3 py-3">
-                        {t.tokenizacion.campania.estadoToken && (
-                          <EstadoCampanaBadge estado={t.tokenizacion.campania.estadoToken} />
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-white/60 text-xs">
-                        {t.tokenizacion.campania.fechaCosechaEstimada
-                          ? diasRestantes(t.tokenizacion.campania.fechaCosechaEstimada)
-                          : '—'}
-                      </td>
-                      <td className="px-5 py-3">
-                        {t.txSignatureCompra ? (
-                          <span className="font-mono text-[11px] text-white/40" title={t.txSignatureCompra}>
-                            {abreviarTx(t.txSignatureCompra)}
-                          </span>
-                        ) : (
-                          <span className="text-white/30">—</span>
-                        )}
-                      </td>
-                    </tr>
+                    <Fragment key={t.id}>
+                      <tr
+                        className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                        onClick={() => setExpandida(abierta ? null : t.id)}
+                      >
+                        <td className="px-2 py-3 text-white/40">
+                          <ChevronDown
+                            className={`h-4 w-4 transition-transform ${abierta ? 'rotate-180' : ''}`}
+                          />
+                        </td>
+                        <td className="px-5 py-3">
+                          <Link
+                            to={`/invertir/${t.tokenizacionId}`}
+                            className="text-white hover:text-emerald-400 font-medium"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {t.tokenizacion.campania.establecimiento?.nombre ?? t.tokenizacion.campania.nombre}
+                          </Link>
+                          <div className="text-white/40 text-[11px] mt-0.5">
+                            {t.tokenizacion.campania.cultivo?.nombre} ·{' '}
+                            {t.tokenizacion.campania.establecimiento?.partido}, {t.tokenizacion.campania.establecimiento?.provincia}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3">
+                          <BadgeModo modo={t.tokenizacion.modo} />
+                        </td>
+                        <td className="px-3 py-3 text-right tabular-nums text-white/90">
+                          {toneladas(t.tokens, 1)}
+                        </td>
+                        <td className="px-3 py-3 text-right tabular-nums text-white/70">{usd(t.precioCompraUsd, 2)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-white font-medium">
+                          {usd(valorActual, 0)}
+                        </td>
+                        <td className={`px-3 py-3 text-right tabular-nums font-medium ${variacion >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {porcentaje(variacionPct, 2)}
+                        </td>
+                        <td className="px-3 py-3">
+                          {t.tokenizacion.campania.estadoToken && (
+                            <EstadoCampanaBadge estado={t.tokenizacion.campania.estadoToken} />
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-white/60 text-xs">
+                          {t.tokenizacion.campania.fechaCosechaEstimada
+                            ? diasRestantes(t.tokenizacion.campania.fechaCosechaEstimada)
+                            : '—'}
+                        </td>
+                        <td className="px-5 py-3">
+                          {t.txSignatureCompra ? (
+                            <span className="font-mono text-[11px] text-white/40" title={t.txSignatureCompra}>
+                              {abreviarTx(t.txSignatureCompra)}
+                            </span>
+                          ) : (
+                            <span className="text-white/30">—</span>
+                          )}
+                        </td>
+                      </tr>
+                      {abierta && (
+                        <tr>
+                          <td colSpan={10} className="px-5 pb-5 pt-1 bg-black/30">
+                            <PanelOnChain tokenizacionId={t.tokenizacionId} compacto />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>

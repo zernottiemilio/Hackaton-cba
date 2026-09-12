@@ -8,6 +8,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import {
   ConfirmarCompraResult,
   DisponibilidadResult,
+  EstadoOnChainResult,
   LedgerService,
   PublicarCampanaInput,
   PublicarCampanaResult,
@@ -363,6 +364,153 @@ export class SolanaLedgerService extends LedgerService {
       tokensQuemados,
       usdcRecibido: usdcRecibido.toNumber(),
     };
+  }
+
+  async obtenerEstadoOnChain(tokenizacionId: string): Promise<EstadoOnChainResult> {
+    const t = await this.prisma.tokenizacionCampana.findUnique({
+      where: { id: tokenizacionId },
+      include: { productor: true, campania: true },
+    });
+    if (!t) throw new NotFoundException('Tokenización no encontrada');
+
+    const cluster = this.detectarCluster();
+    const producerWallet = t.productor.walletAddress;
+
+    // Sin mint address todavía → todavía no se publicó.
+    if (!t.mintAddress || !producerWallet) {
+      return {
+        onChain: false,
+        status: 'draft',
+        tonsOffered: t.toneladasOfrecidas.toNumber(),
+        tonsSold: t.tokensVendidos.toNumber(),
+        minTons: 1,
+        pricePerTonUsd: t.precioTokenUsd.toNumber(),
+        settlementDate: null,
+        tonsDelivered: null,
+        settlementPriceUsd: t.precioLiquidacionUsdTn?.toNumber() ?? null,
+        payoutPerTokenUsd: null,
+        vaultBalanceUsd: 0,
+        addresses: {
+          campaign: null,
+          tokenMint: null,
+          vault: null,
+          producer: producerWallet,
+          acopio: this.custodian.feePayer?.publicKey.toBase58() ?? null,
+        },
+        explorer: { campaign: null, tokenMint: null, vault: null },
+      };
+    }
+
+    const producerPubkey = new PublicKey(producerWallet);
+    const { le } = this.campaignIdFromUuid(t.id);
+    const [campaignPda] = this.anchor.campaignPda(producerPubkey, le);
+    const campaignAddress = campaignPda.toBase58();
+
+    // Estos son los defaults si no podemos leer on-chain (BD como fallback).
+    let status: EstadoOnChainResult['status'] = 'open';
+    let tonsSold = t.tokensVendidos.toNumber();
+    let tonsDelivered: number | null = null;
+    let settlementPriceUsd: number | null = t.precioLiquidacionUsdTn?.toNumber() ?? null;
+    let payoutPerTokenUsd: number | null = null;
+    let settlementDateMs: number | null = null;
+    let minTons = 1;
+
+    try {
+      const program = this.anchor.programAs(this.custodian.feePayer);
+      const account = await program.account.campaign.fetch(campaignPda);
+
+      tonsSold = Number((account.tonsSold as BN).toString());
+      minTons = Number((account.minTons as BN).toString()) || 1;
+
+      const acctStatus = account.status as Record<string, unknown>;
+      if ('refunded' in acctStatus) status = 'refunded';
+      else if ('settled' in acctStatus) status = 'settled';
+      else if ('funded' in acctStatus) status = 'funded';
+      else status = 'open';
+
+      const settlementDateBn = account.settlementDate as BN | undefined;
+      if (settlementDateBn) settlementDateMs = Number(settlementDateBn.toString()) * 1000;
+
+      const tonsDeliveredBn = account.tonsDelivered as BN | undefined;
+      if (tonsDeliveredBn) tonsDelivered = Number(tonsDeliveredBn.toString()) || null;
+
+      const settlementPriceBn = account.settlementPrice as BN | undefined;
+      if (settlementPriceBn) {
+        const micro = Number(settlementPriceBn.toString());
+        if (micro > 0) settlementPriceUsd = micro / 1_000_000;
+      }
+
+      const payoutBn = account.payoutPerToken as BN | undefined;
+      if (payoutBn) {
+        const micro = Number(payoutBn.toString());
+        if (micro > 0) payoutPerTokenUsd = micro / 1_000_000;
+      }
+    } catch (err) {
+      this.logger.warn(`No pude leer campaign PDA (${campaignAddress}): ${(err as Error).message}`);
+    }
+
+    // Payout se cae al settlement price cuando 1 token = 1 tonelada
+    // (el programa lo calcula así con división entera de micro-USDC).
+    if (payoutPerTokenUsd === null && status === 'settled' && settlementPriceUsd) {
+      payoutPerTokenUsd = settlementPriceUsd;
+    }
+
+    // Balance del vault: lo leemos directo del ATA.
+    let vaultBalanceUsd = 0;
+    try {
+      const vaultAta = new PublicKey(t.vaultAddress!);
+      const bal = await this.conn.connection.getTokenAccountBalance(vaultAta);
+      vaultBalanceUsd = bal.value.uiAmount ?? 0;
+    } catch (err) {
+      this.logger.warn(`No pude leer vault balance (${t.vaultAddress}): ${(err as Error).message}`);
+    }
+
+    return {
+      onChain: true,
+      status,
+      tonsOffered: t.toneladasOfrecidas.toNumber(),
+      tonsSold,
+      minTons,
+      pricePerTonUsd: t.precioTokenUsd.toNumber(),
+      settlementDate: settlementDateMs ? new Date(settlementDateMs).toISOString() : null,
+      tonsDelivered,
+      settlementPriceUsd,
+      payoutPerTokenUsd,
+      vaultBalanceUsd,
+      addresses: {
+        campaign: campaignAddress,
+        tokenMint: t.mintAddress,
+        vault: t.vaultAddress,
+        producer: producerWallet,
+        acopio: this.custodian.feePayer?.publicKey.toBase58() ?? null,
+      },
+      explorer: {
+        campaign: this.explorerUrl(campaignAddress, cluster),
+        tokenMint: this.explorerUrl(t.mintAddress, cluster),
+        vault: this.explorerUrl(t.vaultAddress, cluster),
+      },
+    };
+  }
+
+  /** Deriva el cluster del RPC endpoint. */
+  private detectarCluster(): 'mainnet-beta' | 'devnet' | 'testnet' | 'custom' {
+    const url = this.conn.connection?.rpcEndpoint ?? '';
+    if (url.includes('devnet')) return 'devnet';
+    if (url.includes('testnet')) return 'testnet';
+    if (url.includes('mainnet')) return 'mainnet-beta';
+    return 'custom';
+  }
+
+  /** URL al Solana Explorer para el cluster activo. Null si address está vacío. */
+  private explorerUrl(address: string | null, cluster: 'mainnet-beta' | 'devnet' | 'testnet' | 'custom'): string | null {
+    if (!address) return null;
+    const base = `https://explorer.solana.com/address/${address}`;
+    if (cluster === 'mainnet-beta') return base;
+    if (cluster === 'custom') {
+      const rpc = encodeURIComponent(this.conn.connection?.rpcEndpoint ?? '');
+      return `${base}?cluster=custom&customUrl=${rpc}`;
+    }
+    return `${base}?cluster=${cluster}`;
   }
 
   async obtenerDisponibilidad(tokenizacionId: string): Promise<DisponibilidadResult> {

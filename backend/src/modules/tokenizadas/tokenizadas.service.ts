@@ -255,6 +255,15 @@ export class TokenizadasService {
     });
   }
 
+  /**
+   * Estado on-chain listo para pintar. Endpoint público — el jurado tiene que
+   * poder verificar cada número clickeando al explorer.
+   * Contrato definido en HARVEST.md (VAL-18).
+   */
+  async obtenerEstadoOnChain(tokenizacionId: string) {
+    return this.ledger.obtenerEstadoOnChain(tokenizacionId);
+  }
+
   async detalleCampanaMarketplace(tokenizacionId: string) {
     const t = await this.prisma.tokenizacionCampana.findUnique({
       where: { id: tokenizacionId },
