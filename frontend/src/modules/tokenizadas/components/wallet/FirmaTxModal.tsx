@@ -1,53 +1,77 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { usd } from '../../utils/format';
+import { usd, abreviarTx } from '../../utils/format';
 import { useWalletStore } from '../../stores/walletStore';
+import { explorerTxUrl, etiquetaRed } from '../../utils/explorer';
 
 export interface DetalleFirma {
   titulo: string;
   descripcion: string;
-  costoSol?: number;
   usdcAMover?: number;
   items?: { label: string; value: string }[];
+  /**
+   * `false` cuando la acción NO emite transacción (por ejemplo enviar a
+   * revisión, que es solo un cambio de estado en la base). El modal se
+   * comporta como una confirmación común, sin comisión ni explorer.
+   * Default `true`.
+   */
+  onChain?: boolean;
+}
+
+export interface ResultadoFirma {
+  /** Signature real devuelta por el backend. Undefined si la acción no fue on-chain. */
+  txSignature?: string;
 }
 
 interface Props {
   open: boolean;
   detalle: DetalleFirma;
-  onAprobar: () => Promise<void>;
-  onRechazar: () => void;
+  /**
+   * Ejecuta la acción contra la API. El backend firma con la wallet custodial
+   * del usuario y devuelve la signature. El modal la muestra con link al explorer.
+   */
+  onAprobar: () => Promise<ResultadoFirma | void>;
+  onCerrar: () => void;
 }
 
-/**
- * Modal que simula el popup de firma de Phantom. Se abre cuando el usuario
- * dispara una acción on-chain (publicar campaña, comprar tokens, reclamar).
- * Muestra los detalles de la transacción y pide aprobación.
- *
- * Cuando entre @solana/wallet-adapter, esto se reemplaza por la ventana
- * nativa de Phantom.
- */
-export function FirmaTxModal({ open, detalle, onAprobar, onRechazar }: Props) {
-  const [estado, setEstado] = useState<'esperando' | 'firmando' | 'confirmando' | 'confirmada' | 'error'>('esperando');
-  const conectada = useWalletStore((s) => s.conectada);
+type Estado = 'esperando' | 'enviando' | 'confirmada' | 'error';
 
-  // Reset al abrir
+/**
+ * Confirmación de una acción que el backend firma por el usuario.
+ * Estados reales: esperando → enviando (mientras corre la mutación) →
+ * confirmada (con la signature) o error (con el mensaje del backend).
+ */
+export function FirmaTxModal({ open, detalle, onAprobar, onCerrar }: Props) {
+  const [estado, setEstado] = useState<Estado>('esperando');
+  const [signature, setSignature] = useState<string | null>(null);
+  const [mensajeError, setMensajeError] = useState<string | null>(null);
+  const conectada = useWalletStore((s) => s.conectada);
+  const refrescar = useWalletStore((s) => s.refrescar);
+  const onChain = detalle.onChain ?? true;
+
   useEffect(() => {
-    if (open) setEstado('esperando');
+    if (open) {
+      setEstado('esperando');
+      setSignature(null);
+      setMensajeError(null);
+    }
   }, [open]);
 
   const handleAprobar = async () => {
-    setEstado('firmando');
+    setEstado('enviando');
     try {
-      await new Promise((r) => setTimeout(r, 600)); // "confirmando firma"
-      setEstado('confirmando');
-      await onAprobar();
+      const r = await onAprobar();
+      setSignature(r?.txSignature ?? null);
       setEstado('confirmada');
-      await new Promise((r) => setTimeout(r, 900));
-      onRechazar(); // usa el mismo para cerrar
-    } catch {
+      if (onChain) void refrescar();
+    } catch (e) {
+      setMensajeError(extraerMensaje(e));
       setEstado('error');
     }
   };
+
+  const red = conectada?.network ?? 'mock';
+  const linkTx = signature ? explorerTxUrl(signature, red) : null;
 
   return (
     <AnimatePresence>
@@ -64,21 +88,23 @@ export function FirmaTxModal({ open, detalle, onAprobar, onRechazar }: Props) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ type: 'spring', duration: 0.3 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] w-full max-w-sm"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] w-full max-w-sm px-4"
           >
             <div className="bg-[#0F1216] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
-              {/* Header con marca de Phantom */}
-              <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5 bg-gradient-to-r from-purple-600/10 to-indigo-600/10">
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-lg">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5 bg-gradient-to-r from-emerald-600/10 to-teal-600/10">
+                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-lg">
                   ⬢
                 </div>
                 <div className="flex-1">
-                  <div className="text-white font-semibold text-sm leading-tight">Aprobá la transacción</div>
-                  <div className="text-white/40 text-[10px] mt-0.5">AgroFácil · Solana devnet mock</div>
+                  <div className="text-white font-semibold text-sm leading-tight">
+                    {onChain ? 'Aprobá la transacción' : 'Confirmá la acción'}
+                  </div>
+                  <div className="text-white/40 text-[10px] mt-0.5">
+                    {onChain ? `Harvest · ${etiquetaRed(red)}` : 'Harvest · sin transacción on-chain'}
+                  </div>
                 </div>
               </div>
 
-              {/* Body */}
               <div className="p-5">
                 {estado === 'esperando' && (
                   <>
@@ -96,78 +122,122 @@ export function FirmaTxModal({ open, detalle, onAprobar, onRechazar }: Props) {
                       </div>
                     )}
 
-                    <div className="bg-black/40 rounded-lg p-3 mb-4 border border-white/5">
-                      <div className="flex justify-between items-baseline text-xs">
-                        <span className="text-white/40">Comisión de red</span>
-                        <span className="text-white tabular-nums">{(detalle.costoSol ?? 0.000005).toFixed(6)} SOL</span>
-                      </div>
-                      {detalle.usdcAMover !== undefined && detalle.usdcAMover > 0 && (
-                        <div className="flex justify-between items-baseline text-xs mt-1.5 pt-1.5 border-t border-white/5">
-                          <span className="text-white/40">Transferencia USDC</span>
-                          <span className="text-emerald-400 tabular-nums font-medium">{usd(detalle.usdcAMover, 2)}</span>
+                    {onChain && (
+                      <div className="bg-black/40 rounded-lg p-3 mb-4 border border-white/5">
+                        <div className="flex justify-between items-baseline text-xs">
+                          <span className="text-white/40">Firma</span>
+                          <span className="text-white/70">Wallet custodial · comisión la paga la plataforma</span>
                         </div>
-                      )}
-                    </div>
+                        {detalle.usdcAMover !== undefined && detalle.usdcAMover > 0 && (
+                          <div className="flex justify-between items-baseline text-xs mt-1.5 pt-1.5 border-t border-white/5">
+                            <span className="text-white/40">Transferencia USDC</span>
+                            <span className="text-emerald-400 tabular-nums font-medium">{usd(detalle.usdcAMover, 2)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                    <div className="text-white/30 text-[10px] font-mono mb-4 break-all">
-                      Wallet: {conectada?.address}
-                    </div>
+                    {onChain && conectada && (
+                      <div className="text-white/30 text-[10px] font-mono mb-4 break-all">
+                        Wallet: {conectada.address}
+                      </div>
+                    )}
 
                     <div className="flex gap-2">
                       <button
-                        onClick={onRechazar}
+                        onClick={onCerrar}
                         className="flex-1 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 text-sm font-medium transition-colors"
                       >
-                        Rechazar
+                        Cancelar
                       </button>
                       <button
                         onClick={handleAprobar}
-                        className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold transition-all shadow-lg shadow-purple-900/40"
+                        className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-semibold transition-all shadow-lg shadow-emerald-900/40"
                       >
-                        Aprobar
+                        {onChain ? 'Aprobar' : 'Confirmar'}
                       </button>
                     </div>
                   </>
                 )}
 
-                {(estado === 'firmando' || estado === 'confirmando') && (
+                {estado === 'enviando' && (
                   <div className="flex flex-col items-center py-6">
-                    <div className="h-14 w-14 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin mb-4" />
+                    <div className="h-14 w-14 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin mb-4" />
                     <div className="text-white font-medium text-sm">
-                      {estado === 'firmando' ? 'Firmando...' : 'Confirmando en la red...'}
+                      {onChain ? 'Firmando y confirmando en la red…' : 'Guardando…'}
                     </div>
                     <div className="text-white/40 text-xs mt-1.5">
-                      {estado === 'firmando' ? 'Aprobación de wallet' : 'Esperando confirmación de Solana'}
+                      {onChain ? 'Solana devnet suele tardar unos segundos' : 'Un momento'}
                     </div>
                   </div>
                 )}
 
                 {estado === 'confirmada' && (
-                  <div className="flex flex-col items-center py-6">
+                  <div className="flex flex-col items-center py-4">
                     <div className="h-14 w-14 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center mb-4">
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                         <path d="M20 6L9 17l-5-5" stroke="rgb(52 211 153)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
-                    <div className="text-white font-medium text-sm">Transacción confirmada</div>
-                    <div className="text-white/40 text-xs mt-1.5">Todo listo</div>
+                    <div className="text-white font-medium text-sm">
+                      {onChain ? 'Transacción confirmada' : 'Listo'}
+                    </div>
+                    {signature && (
+                      <div className="mt-3 w-full bg-black/40 rounded-lg p-3 border border-white/5 text-center">
+                        <div className="text-white/40 text-[10px] mb-1">Signature</div>
+                        <div className="text-white/80 text-xs font-mono">{abreviarTx(signature)}</div>
+                        {linkTx ? (
+                          <a
+                            href={linkTx}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-block mt-2 text-emerald-400 text-xs font-semibold hover:underline"
+                          >
+                            Ver en Solana Explorer ↗
+                          </a>
+                        ) : (
+                          <div className="text-white/30 text-[10px] mt-2">Simulación: sin registro on-chain</div>
+                        )}
+                      </div>
+                    )}
+                    <button
+                      onClick={onCerrar}
+                      className="mt-4 w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/15 text-white/90 text-sm font-medium transition-colors"
+                    >
+                      Cerrar
+                    </button>
                   </div>
                 )}
 
                 {estado === 'error' && (
-                  <div className="flex flex-col items-center py-6">
+                  <div className="flex flex-col items-center py-4">
                     <div className="h-14 w-14 rounded-full bg-rose-500/20 border border-rose-500 flex items-center justify-center mb-4">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                         <path d="M18 6L6 18M6 6l12 12" stroke="rgb(251 113 133)" strokeWidth="3" strokeLinecap="round" />
                       </svg>
                     </div>
-                    <div className="text-white font-medium text-sm">Falló la transacción</div>
-                    <button
-                      onClick={onRechazar}
-                      className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-white/80 text-sm"
-                    >
-                      Cerrar
-                    </button>
+                    <div className="text-white font-medium text-sm">
+                      {onChain ? 'Falló la transacción' : 'No se pudo completar'}
+                    </div>
+                    {mensajeError && (
+                      <div className="text-rose-300/80 text-xs mt-2 text-center leading-relaxed break-words max-w-full">
+                        {mensajeError}
+                      </div>
+                    )}
+                    <div className="flex gap-2 mt-4 w-full">
+                      <button
+                        onClick={onCerrar}
+                        className="flex-1 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 text-sm font-medium"
+                      >
+                        Cerrar
+                      </button>
+                      <button
+                        onClick={handleAprobar}
+                        className="flex-1 py-2.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold"
+                      >
+                        Reintentar
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -177,4 +247,14 @@ export function FirmaTxModal({ open, detalle, onAprobar, onRechazar }: Props) {
       )}
     </AnimatePresence>
   );
+}
+
+function extraerMensaje(e: unknown): string {
+  if (typeof e === 'object' && e !== null && 'response' in e) {
+    const r = (e as { response?: { data?: { message?: string | string[] } } }).response;
+    const m = r?.data?.message;
+    if (Array.isArray(m)) return m.join('. ');
+    if (typeof m === 'string') return m;
+  }
+  return e instanceof Error ? e.message : 'Error desconocido';
 }

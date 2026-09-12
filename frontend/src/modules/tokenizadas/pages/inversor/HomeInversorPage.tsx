@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { tokenizadasApi } from '../../services/tokenizadasService';
 import { productoresApi, type ProductorResumen } from '../../services/productoresService';
-import { useWalletStore, nombreWalletActiva } from '../../stores/walletStore';
+import { useWalletStore, useNombreWallet } from '../../stores/walletStore';
 import { usePreciosLive, useHistoriaPrecios } from '../../hooks/usePreciosLive';
 import { Sparkline } from '../../components/charts/Sparkline';
 import { BarraFondeo } from '../../components/campana/BarraFondeo';
@@ -20,7 +20,8 @@ import type { Cultivo } from '../../services/mockPreciosService';
  *  3. Grid de productores con rating para descubrimiento por reputación
  */
 export function HomeInversorPage() {
-  const { conectada, walletDemoId } = useWalletStore();
+  const conectada = useWalletStore((s) => s.conectada);
+  const nombreCompleto = useNombreWallet();
   const ticks = usePreciosLive();
 
   const { data: emisiones = [] } = useQuery({
@@ -45,7 +46,7 @@ export function HomeInversorPage() {
     })
     .sort((a, b) => a.spreadPct - b.spreadPct); // más negativo = mejor oportunidad
 
-  const nombre = nombreWalletActiva(walletDemoId).split(' ')[0] || 'inversor';
+  const nombre = nombreCompleto.split(' ')[0] || 'inversor';
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">

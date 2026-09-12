@@ -80,7 +80,6 @@ export function NuevaCampanaPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const conectada = useWalletStore((s) => s.conectada);
-  const registrarTx = useWalletStore((s) => s.registrarTx);
 
   const { data: campos = [] } = useQuery({
     queryKey: ['tk', 'campos'],
@@ -159,22 +158,17 @@ export function NuevaCampanaPage() {
 
   const handleEnviarARevision = () => setModalFirma(true);
 
+  // Enviar a revisión NO es una transacción on-chain: es un cambio de estado
+  // en la base. La publicación en Solana (create_campaign) la firma el backend
+  // cuando el admin aprueba. Por eso acá no se registra ninguna signature.
   const confirmarEnvio = async () => {
-    try {
-      const t = await crearMut.mutateAsync();
-      await enviarRevision(t.id);
-      registrarTx({
-        signature: `SIG${Math.random().toString(36).slice(2, 10)}`,
-        tipo: 'publicar',
-        descripcion: `Envío a revisión: ${cultivoElegido?.nombre} · ${form.cicloAgricola}`,
-        timestamp: Date.now(),
-      });
-      qc.invalidateQueries({ queryKey: ['tk'] });
-      toast.success('Emisión enviada a revisión');
-      navigate('/campanas');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error al enviar');
-    }
+    const t = await crearMut.mutateAsync();
+    await enviarRevision(t.id);
+    qc.invalidateQueries({ queryKey: ['tk'] });
+    toast.success('Emisión enviada a revisión', {
+      description: 'Un admin la aprueba y recién ahí se publica en Solana.',
+    });
+    navigate('/campanas');
   };
 
   if (!conectada) {
@@ -442,9 +436,8 @@ export function NuevaCampanaPage() {
         open={modalFirma}
         detalle={{
           titulo: 'Enviar emisión a revisión',
-          descripcion: 'Se registra la emisión on-chain. Un admin la revisa antes de que aparezca en el marketplace.',
-          usdcAMover: 0,
-          costoSol: 0.0125,
+          descripcion: 'Un admin la revisa. Cuando la aprueba, se publica en Solana y aparece en el marketplace.',
+          onChain: false,
           items: [
             { label: 'Cultivo', value: cultivoElegido?.nombre ?? '' },
             { label: 'Ciclo', value: form.cicloAgricola },
@@ -454,7 +447,7 @@ export function NuevaCampanaPage() {
           ],
         }}
         onAprobar={confirmarEnvio}
-        onRechazar={() => setModalFirma(false)}
+        onCerrar={() => setModalFirma(false)}
       />
     </div>
   );

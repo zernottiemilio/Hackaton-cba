@@ -1,17 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useWalletStore, nombreWalletActiva } from '../../stores/walletStore';
+import { useWalletStore, useNombreWallet } from '../../stores/walletStore';
 import { abreviarAddress, usd } from '../../utils/format';
+import { etiquetaRed, explorerAddressUrl } from '../../utils/explorer';
 import { WalletModal } from './WalletModal';
 
 /**
- * Chip compacto para el topbar. Estética Harvest.fi:
- * verde acento + inset shadow + fuente monospaced para el hash.
+ * Chip compacto para el topbar. Muestra la wallet custodial del usuario
+ * logueado con balances reales. Al montar con wallet conectada, refresca
+ * balances (pueden haber cambiado por una tx en otra pantalla).
  */
 export function WalletButton() {
   const [modalOpen, setModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const { conectada, walletDemoId, desconectar } = useWalletStore();
+  const { conectada, desconectar, refrescar } = useWalletStore();
+  const nombre = useNombreWallet();
+
+  useEffect(() => {
+    if (conectada) void refrescar();
+    // Solo al montar: refrescar lee el store por su cuenta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!conectada) {
     return (
@@ -32,6 +41,8 @@ export function WalletButton() {
       </>
     );
   }
+
+  const linkExplorer = explorerAddressUrl(conectada.address, conectada.network);
 
   return (
     <div className="relative">
@@ -58,7 +69,7 @@ export function WalletButton() {
         </span>
         <div className="flex flex-col items-start leading-none">
           <span style={{ color: 'var(--hv-text)', fontSize: 12, fontWeight: 600 }}>
-            {nombreWalletActiva(walletDemoId)}
+            {nombre}
           </span>
           <span
             className="hv-mono"
@@ -100,11 +111,14 @@ export function WalletButton() {
             }}
           >
             <div className="p-4" style={{ borderBottom: '1px solid var(--hv-border-subtle)' }}>
-              <div className="hv-label-sm" style={{ fontSize: 10, marginBottom: 6 }}>
-                Wallet conectada
+              <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+                <div className="hv-label-sm" style={{ fontSize: 10 }}>Wallet conectada</div>
+                <div className="hv-label-sm" style={{ fontSize: 9, color: 'var(--hv-green-text)' }}>
+                  {etiquetaRed(conectada.network)}
+                </div>
               </div>
               <div style={{ color: 'var(--hv-text)', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
-                {nombreWalletActiva(walletDemoId)}
+                {nombre}
               </div>
               <div
                 className="hv-mono"
@@ -118,11 +132,39 @@ export function WalletButton() {
               >
                 {conectada.address}
               </div>
+              {linkExplorer && (
+                <a
+                  href={linkExplorer}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: 'var(--hv-green-text)', fontSize: 11, fontWeight: 600, textDecoration: 'none', display: 'inline-block', marginTop: 8 }}
+                >
+                  Ver en Solana Explorer ↗
+                </a>
+              )}
             </div>
             <div className="p-4 space-y-2" style={{ borderBottom: '1px solid var(--hv-border-subtle)' }}>
               <BalanceRow label="SOL" value={conectada.balanceSol.toFixed(4)} />
               <BalanceRow label="USDC" value={usd(conectada.balanceUsdc, 2)} accent />
             </div>
+            <button
+              onClick={() => {
+                void refrescar();
+                setMenuOpen(false);
+              }}
+              className="w-full text-left px-4 py-3 transition-colors"
+              style={{
+                color: 'var(--hv-text)',
+                fontSize: 13,
+                fontWeight: 500,
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1px solid var(--hv-border-subtle)',
+                cursor: 'pointer',
+              }}
+            >
+              Actualizar balances
+            </button>
             <button
               onClick={() => {
                 desconectar();

@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WALLETS_DEMO, useWalletStore } from '../../stores/walletStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useWalletStore, useNombreWallet } from '../../stores/walletStore';
 import { abreviarAddress, usd } from '../../utils/format';
+import { etiquetaRed, explorerAddressUrl } from '../../utils/explorer';
 
 interface Props {
   open: boolean;
@@ -9,25 +12,33 @@ interface Props {
 }
 
 /**
- * Modal de conexión de wallet — simula el popup de Phantom.
- * En la demo mostramos las 6 wallets pre-cargadas para poder demostrar
- * cada contexto (productor, inversor, acopio, admin) sin registrarse.
+ * Modal de conexión de la wallet custodial.
  *
- * Cuando entre @solana/wallet-adapter, este modal se reemplaza por
- * el detector nativo de wallets Phantom/Solflare/Backpack.
+ * No elige entre wallets: el usuario logueado tiene UNA wallet que el
+ * backend genera y custodia. "Conectar" la pide al backend (la crea y la
+ * fondea la primera vez) y muestra address real, balances y link al explorer.
  */
 export function WalletModal({ open, onClose }: Props) {
-  const conectar = useWalletStore((s) => s.conectar);
-  const [conectando, setConectando] = useState<string | null>(null);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const nombre = useNombreWallet();
+  const { conectada, conectando, error, conectar } = useWalletStore();
+  const [recienConectada, setRecienConectada] = useState(false);
 
-  const handleConectar = async (walletId: string) => {
-    setConectando(walletId);
-    // Simula la aprobación del usuario en Phantom
-    await new Promise((r) => setTimeout(r, 900));
-    conectar(walletId);
-    setConectando(null);
+  const handleConectar = async () => {
+    try {
+      await conectar();
+      setRecienConectada(true);
+    } catch {
+      /* el error queda en el store y se muestra abajo */
+    }
+  };
+
+  const handleClose = () => {
+    setRecienConectada(false);
     onClose();
   };
+
+  const linkExplorer = conectada ? explorerAddressUrl(conectada.address, conectada.network) : null;
 
   return (
     <AnimatePresence>
@@ -38,14 +49,14 @@ export function WalletModal({ open, onClose }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
-            onClick={onClose}
+            onClick={handleClose}
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.94, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ type: 'spring', duration: 0.35 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md px-4"
           >
             <div
               style={{
@@ -87,12 +98,14 @@ export function WalletModal({ open, onClose }: Props) {
                     </svg>
                   </div>
                   <div>
-                    <h2 style={{ color: 'var(--hv-text)', fontWeight: 600, fontSize: 15 }}>Conectar wallet</h2>
-                    <p className="hv-label-sm" style={{ fontSize: 10, marginTop: 2 }}>Solana · devnet mock</p>
+                    <h2 style={{ color: 'var(--hv-text)', fontWeight: 600, fontSize: 15 }}>Tu wallet en Solana</h2>
+                    <p className="hv-label-sm" style={{ fontSize: 10, marginTop: 2 }}>
+                      {conectada ? etiquetaRed(conectada.network) : 'Custodiada por AgroFácil'}
+                    </p>
                   </div>
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="text-white/40 hover:text-white/80 transition-colors"
                   aria-label="Cerrar"
                 >
@@ -103,68 +116,98 @@ export function WalletModal({ open, onClose }: Props) {
               </div>
 
               {/* Body */}
-              <div className="p-2 max-h-[70vh] overflow-y-auto">
-                <p className="text-white/50 text-xs px-4 pt-2 pb-3 leading-relaxed">
-                  Elegí una wallet demo para explorar la plataforma. Cada una simula un perfil distinto.
-                </p>
-                <div className="space-y-1">
-                  {WALLETS_DEMO.map((w) => {
-                    const isConectando = conectando === w.id;
-                    return (
-                      <button
-                        key={w.id}
-                        onClick={() => handleConectar(w.id)}
-                        disabled={!!conectando}
-                        className={`w-full text-left rounded-xl px-4 py-3 transition-all group ${
-                          isConectando
-                            ? 'bg-emerald-500/10 ring-1 ring-emerald-500/40'
-                            : 'hover:bg-white/5 active:bg-white/10 disabled:opacity-40'
-                        }`}
+              <div className="px-6 py-5">
+                {!isAuthenticated ? (
+                  <div className="text-center py-4">
+                    <p style={{ color: 'var(--hv-text)', fontSize: 14, fontWeight: 500 }}>
+                      Iniciá sesión para usar tu wallet
+                    </p>
+                    <p className="text-white/50 text-xs mt-2 leading-relaxed">
+                      Cada cuenta de AgroFácil tiene una wallet en Solana. No hay que instalar nada.
+                    </p>
+                    <Link to="/login" onClick={handleClose} className="hv-cta inline-block mt-5" style={{ padding: '10px 20px', fontSize: 13 }}>
+                      Ingresar
+                    </Link>
+                  </div>
+                ) : conectada ? (
+                  <div>
+                    {recienConectada && (
+                      <div
+                        className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg"
+                        style={{ background: 'var(--hv-green-soft)', border: '1px solid rgba(43,224,106,0.28)' }}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center text-xl shrink-0">
-                            {w.emoji}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-white text-sm font-medium truncate">{w.nombre}</span>
-                              {isConectando && (
-                                <span className="text-[10px] text-emerald-400 font-medium">Aprobando...</span>
-                              )}
-                            </div>
-                            <div className="text-white/40 text-[11px] mt-0.5 truncate">{w.descripcion}</div>
-                            <div className="flex items-center gap-3 mt-1">
-                              <span className="text-white/30 text-[10px] font-mono">
-                                {abreviarAddress(w.address, 6, 4)}
-                              </span>
-                              <span className="text-white/60 text-[10px] tabular-nums">
-                                {usd(w.balanceUsdc, 0)} <span className="text-white/30">USDC</span>
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-1 shrink-0">
-                            {w.contextos.map((ctx) => (
-                              <span
-                                key={ctx}
-                                className={`text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ${
-                                  ctx === 'productor'
-                                    ? 'bg-emerald-500/15 text-emerald-300'
-                                    : ctx === 'inversor'
-                                    ? 'bg-sky-500/15 text-sky-300'
-                                    : ctx === 'acopio'
-                                    ? 'bg-amber-500/15 text-amber-300'
-                                    : 'bg-purple-500/15 text-purple-300'
-                                }`}
-                              >
-                                {ctx === 'admin_plataforma' ? 'admin' : ctx}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <span style={{ color: 'var(--hv-green-text)', fontSize: 12, fontWeight: 600 }}>✓ Wallet conectada</span>
+                      </div>
+                    )}
+                    <div className="hv-label-sm" style={{ fontSize: 10, marginBottom: 6 }}>Titular</div>
+                    <div style={{ color: 'var(--hv-text)', fontSize: 15, fontWeight: 600, marginBottom: 14 }}>{nombre}</div>
+
+                    <div className="hv-label-sm" style={{ fontSize: 10, marginBottom: 6 }}>Address</div>
+                    <div
+                      className="hv-mono"
+                      style={{
+                        color: 'var(--hv-text-muted)',
+                        fontSize: 11,
+                        wordBreak: 'break-all',
+                        lineHeight: 1.55,
+                        letterSpacing: '0.02em',
+                        marginBottom: 14,
+                      }}
+                    >
+                      {conectada.address}
+                    </div>
+
+                    <div
+                      className="grid grid-cols-2 gap-3 mb-4"
+                    >
+                      <Balance label="USDC" value={usd(conectada.balanceUsdc, 2)} accent />
+                      <Balance label="SOL" value={conectada.balanceSol.toFixed(4)} />
+                    </div>
+
+                    {linkExplorer ? (
+                      <a
+                        href={linkExplorer}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block text-center py-2.5 rounded-lg transition-colors"
+                        style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid var(--hv-border)',
+                          color: 'var(--hv-green-text)',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          textDecoration: 'none',
+                        }}
+                      >
+                        Ver en Solana Explorer ↗
+                      </a>
+                    ) : (
+                      <p className="text-white/40 text-[11px] text-center">
+                        Modo simulación: el backend corre con <span className="hv-mono">LEDGER_IMPL=mock</span>.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-white/70 text-sm leading-relaxed">
+                      Hola {nombre.split(' ')[0] || ''}. Tu wallet la genera y custodia AgroFácil: firmamos las
+                      transacciones por vos y podés verificarlas en Solana Explorer.
+                    </p>
+                    {error && (
+                      <p className="mt-3 text-xs" style={{ color: 'var(--hv-red-text)' }}>
+                        {error}
+                      </p>
+                    )}
+                    <button
+                      onClick={handleConectar}
+                      disabled={conectando}
+                      className="hv-cta w-full mt-5"
+                      style={{ padding: '11px 16px', fontSize: 14 }}
+                    >
+                      {conectando ? 'Conectando…' : 'Conectar mi wallet'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
@@ -172,13 +215,34 @@ export function WalletModal({ open, onClose }: Props) {
                 className="px-6 py-3 flex items-center justify-between hv-label-sm"
                 style={{ borderTop: '1px solid var(--hv-border-subtle)', fontSize: 9 }}
               >
-                <span>Wallet mock · sin tx reales on-chain</span>
-                <span className="hv-mono">harvest.fi v0.1</span>
+                <span>{conectada ? abreviarAddress(conectada.address, 6, 6) : 'Wallet custodial'}</span>
+                <span className="hv-mono">harvest.fi</span>
               </div>
             </div>
           </motion.div>
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+function Balance({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div
+      style={{
+        padding: 12,
+        borderRadius: 10,
+        background: 'var(--hv-bg-input)',
+        border: '1px solid var(--hv-border-subtle)',
+      }}
+    >
+      <div className="hv-label-sm" style={{ fontSize: 9 }}>{label}</div>
+      <div
+        className="hv-mono"
+        style={{ fontSize: 15, fontWeight: 600, marginTop: 4, color: accent ? 'var(--hv-green-text)' : 'var(--hv-text)' }}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
