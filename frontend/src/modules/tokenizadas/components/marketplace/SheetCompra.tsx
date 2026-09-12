@@ -112,6 +112,8 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
     }
   };
 
+  // z-index: el fondo va en 50 y el panel en 60. Con el mismo valor, Safari
+  // pinta el panel (que anima transform) debajo del backdrop-filter del fondo.
   // Portal a <body>: el layout envuelve cada página en un motion.div que anima
   // `y` (transform), y eso convierte a ese div en el contenedor de todo
   // `position: fixed` que tenga adentro. Sin el portal, la sheet quedaba
@@ -125,7 +127,7 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50"
-            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
             onClick={onClose}
           />
           <motion.div
@@ -133,7 +135,7 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 260 }}
-            className="fixed right-0 top-0 bottom-0 w-full max-w-md z-50 overflow-y-auto"
+            className="fixed right-0 top-0 bottom-0 w-full max-w-md z-[60] overflow-y-auto"
             style={{ background: 'var(--hv-bg-panel)', borderLeft: '1px solid var(--hv-border)' }}
           >
             {/* Header */}
