@@ -1,36 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { LoginPage } from '@/pages/auth/LoginPage';
-import { ActivarCuentaPage } from '@/pages/auth/ActivarCuentaPage';
-import { RutaProtegida } from '@/components/layout/RutaProtegida';
-import { RutaSuperAdmin } from '@/components/layout/RutaSuperAdmin';
-import { EstablecimientosPage } from '@/pages/EstablecimientosPage';
-import { LotesPage } from '@/pages/LotesPage';
-import { CampaniasPage } from '@/pages/CampaniasPage';
-import { CampaniaDetallePage } from '@/pages/CampaniaDetallePage';
-import { LoteCampaniaDetallePage } from '@/pages/LoteCampaniaDetallePage';
-import { CultivosPage } from '@/pages/CultivosPage';
-import { InsumosPage } from '@/pages/InsumosPage';
-import { LluviasPage } from '@/pages/LluviasPage';
-import { ClimaPage } from '@/pages/ClimaPage';
-import { AsistentePage } from '@/pages/AsistentePage';
-import { ResumenPage } from '@/pages/ResumenPage';
-import { PropietariosPage } from '@/pages/PropietariosPage';
-import { EstablecimientoDetallePage } from '@/pages/EstablecimientoDetallePage';
-import { LoteDetallePage } from '@/pages/LoteDetallePage';
-import { ReportesPage } from '@/pages/ReportesPage';
-import { ReportePublicoPage } from '@/pages/ReportePublicoPage';
-import { AlertasPage } from '@/pages/AlertasPage';
-import { RankingPage } from '@/pages/RankingPage';
-import { EquipoPage } from '@/pages/EquipoPage';
-import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
-import { AdminMetricasPage } from '@/pages/admin/AdminMetricasPage';
-import { AdminCuentasPage } from '@/pages/admin/AdminCuentasPage';
-import { AdminCuentaDetallePage } from '@/pages/admin/AdminCuentaDetallePage';
-import { AdminUsuariosPage } from '@/pages/admin/AdminUsuariosPage';
-import { AdminInvitacionesPage } from '@/pages/admin/AdminInvitacionesPage';
-import { AdminFacturacionPage } from '@/pages/admin/AdminFacturacionPage';
 
-// ─── Módulo Harvest.fi (Campañas Tokenizadas) — app principal ────
+// ─── Módulo Harvest.fi (única app) ────────────────────────────────
 import { TokenizadasLayout } from '@/modules/tokenizadas/components/layout/TokenizadasLayout';
 import { RutaHarvest } from '@/modules/tokenizadas/components/layout/RutaHarvest';
 import { HomePage as HarvestHomePage } from '@/modules/tokenizadas/pages/HomePage';
@@ -42,6 +13,9 @@ import { NuevoCampoPage } from '@/modules/tokenizadas/pages/productor/NuevoCampo
 import { NuevaCampanaPage } from '@/modules/tokenizadas/pages/productor/NuevaCampanaPage';
 import { RevisionColaPage } from '@/modules/tokenizadas/pages/admin/RevisionColaPage';
 import { ProductorDetallePage } from '@/modules/tokenizadas/pages/inversor/ProductorDetallePage';
+import { AsistenteHarvestPage } from '@/modules/tokenizadas/pages/AsistenteHarvestPage';
+import { ClimaHarvestPage } from '@/modules/tokenizadas/pages/ClimaHarvestPage';
+import { LluviasHarvestPage } from '@/modules/tokenizadas/pages/LluviasHarvestPage';
 import {
   MisCampanasProductorPage,
   AcopioDashboardPage,
@@ -53,30 +27,25 @@ import {
 } from '@/modules/tokenizadas/pages/skeletons';
 
 /**
- * Router de la app. Harvest.fi vive en la raíz `/` como app principal.
+ * Router de Harvest.fi. Todo el MVP AgroFácil fue eliminado — solo queda el
+ * módulo tokenizadas + las 3 herramientas que se reutilizan (Asistente IA,
+ * Clima, Lluvias) portadas al vibe Harvest.
  *
- * Rutas del módulo Harvest bajo el layout `TokenizadasLayout` con guards
- * anidados por rol (via `RutaHarvest`).
- *   - Público (sin auth): `/`, `/invertir`, `/invertir/:id`, `/productor/:id`
- *   - Productor: `/campos*`, `/campanas*`
+ * Rutas por rol:
+ *   - Público: `/`, `/invertir`, `/invertir/:id`, `/productor/:id`
+ *   - Productor: `/campos*`, `/campanas*`, `/asistente`, `/clima`, `/lluvias`
  *   - Inversor: `/portfolio`
  *   - Acopio: `/acopio*`
  *   - Admin: `/revision-emisiones`, `/red-acopios`, `/conciliacion`
- *
- * MVP legacy: `/establecimientos`, `/lotes`, `/campanias`, etc. siguen vivas
- * bajo `RutaProtegida` para no romper URLs viejas.
  */
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
-  { path: '/activar/:token', element: <ActivarCuentaPage /> },
-  { path: '/r/:token', element: <ReportePublicoPage /> },
 
-  // ─── App Harvest.fi ────────────────────────────────────────────────
   {
     path: '/',
     element: <TokenizadasLayout />,
     children: [
-      // Rutas públicas (con o sin sesión)
+      // Rutas públicas
       {
         element: <RutaHarvest publica />,
         children: [
@@ -87,7 +56,7 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // Rutas del rol PRODUCTOR
+      // Herramientas del productor (chat IA, clima, lluvias)
       {
         element: <RutaHarvest roles={['productor']} />,
         children: [
@@ -95,16 +64,23 @@ export const router = createBrowserRouter([
           { path: 'campos/nuevo', element: <NuevoCampoPage /> },
           { path: 'campanas', element: <MisCampanasProductorPage /> },
           { path: 'campanas/nueva', element: <NuevaCampanaPage /> },
+          { path: 'asistente', element: <AsistenteHarvestPage /> },
+          { path: 'clima', element: <ClimaHarvestPage /> },
+          { path: 'lluvias', element: <LluviasHarvestPage /> },
         ],
       },
 
-      // Rutas del rol INVERSOR
+      // Inversor
       {
         element: <RutaHarvest roles={['inversor']} />,
-        children: [{ path: 'portfolio', element: <HarvestPortfolioPage /> }],
+        children: [
+          { path: 'portfolio', element: <HarvestPortfolioPage /> },
+          // El asistente también sirve al inversor
+          { path: 'asistente', element: <AsistenteHarvestPage /> },
+        ],
       },
 
-      // Rutas del rol ACOPIO
+      // Acopio
       {
         element: <RutaHarvest roles={['acopio']} />,
         children: [
@@ -115,7 +91,7 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // Rutas del rol ADMIN
+      // Admin
       {
         element: <RutaHarvest roles={['admin_plataforma']} />,
         children: [
@@ -124,46 +100,6 @@ export const router = createBrowserRouter([
           { path: 'conciliacion', element: <ConciliacionPage /> },
         ],
       },
-    ],
-  },
-
-  // ─── LEGACY MVP AgroFácil ──────────────────────────────────────────
-  // Se irán removiendo en commits siguientes; por ahora quedan como escape
-  // hatch (URLs directas siguen funcionando).
-  {
-    path: '/admin-mvp',
-    element: <RutaSuperAdmin />,
-    children: [
-      { index: true, element: <AdminDashboardPage /> },
-      { path: 'metricas', element: <AdminMetricasPage /> },
-      { path: 'cuentas', element: <AdminCuentasPage /> },
-      { path: 'cuentas/:id', element: <AdminCuentaDetallePage /> },
-      { path: 'usuarios', element: <AdminUsuariosPage /> },
-      { path: 'invitaciones', element: <AdminInvitacionesPage /> },
-      { path: 'facturacion', element: <AdminFacturacionPage /> },
-    ],
-  },
-  {
-    element: <RutaProtegida />,
-    children: [
-      { path: '/establecimientos', element: <EstablecimientosPage /> },
-      { path: '/establecimientos/:id', element: <EstablecimientoDetallePage /> },
-      { path: '/lotes', element: <LotesPage /> },
-      { path: '/lotes/:id', element: <LoteDetallePage /> },
-      { path: '/campanias', element: <CampaniasPage /> },
-      { path: '/campanias/:id', element: <CampaniaDetallePage /> },
-      { path: '/lotes-campania/:id', element: <LoteCampaniaDetallePage /> },
-      { path: '/lluvias', element: <LluviasPage /> },
-      { path: '/clima', element: <ClimaPage /> },
-      { path: '/asistente', element: <AsistentePage /> },
-      { path: '/cultivos', element: <CultivosPage /> },
-      { path: '/insumos', element: <InsumosPage /> },
-      { path: '/resumen', element: <ResumenPage /> },
-      { path: '/ranking', element: <RankingPage /> },
-      { path: '/propietarios', element: <PropietariosPage /> },
-      { path: '/equipo', element: <EquipoPage /> },
-      { path: '/reportes', element: <ReportesPage /> },
-      { path: '/alertas', element: <AlertasPage /> },
     ],
   },
 
