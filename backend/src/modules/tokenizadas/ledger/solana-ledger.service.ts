@@ -12,6 +12,9 @@ import {
   LedgerService,
   PublicarCampanaInput,
   PublicarCampanaResult,
+  LiberarFondosResult,
+  LiquidarInput,
+  LiquidarResult,
   ReclamarInput,
   ReclamarResult,
   ReservaResult,
@@ -283,6 +286,129 @@ export class SolanaLedgerService extends LedgerService {
     };
   }
 
+  /**
+   * release_funds. Firma el productor con su keypair custodial. El programa
+   * valida Open y tons_sold >= min_tons; el monto se lee del saldo real del
+   * vault antes de la tx (si alguien mandó USDC de más, va al productor).
+   */
+  async liberarFondos(tokenizacionId: string): Promise<LiberarFondosResult> {
+    const t = await this.prisma.tokenizacionCampana.findUnique({
+      where: { id: tokenizacionId },
+      include: { productor: true },
+    });
+    if (!t) throw new NotFoundException('Tokenización no encontrada');
+    if (!t.mintAddress || !t.vaultAddress || !t.productor.walletAddress) {
+      throw new BadRequestException('La campaña no está publicada on-chain');
+    }
+    // Idempotencia: si ya se liberó, devolvemos lo guardado.
+    if (t.txSignatureLiberacion) {
+      return { txSignature: t.txSignatureLiberacion, montoUsd: t.montoRecaudadoUsd.toNumber() };
+    }
+
+    const { campaignPda, vaultAta } = this.derivarCuentas(t.id, t.productor.walletAddress, t.vaultAddress);
+    const estado = await this.leerStatus(campaignPda);
+    if (estado !== 'open') {
+      throw new BadRequestException(`La campaña on-chain está en estado ${estado}, no se puede liberar`);
+    }
+
+    const producerKp = await this.custodian.getOrCreateKeypair(t.productorId);
+    // La ATA de USDC del productor la crea ensureFunded al conectar la wallet.
+    // Si por algún motivo no existe, la creamos con saldo 0 para que la CPI no falle.
+    const producerUsdc = await this.custodian.ensureUsdcBalance(producerKp.publicKey, 0n);
+
+    const vaultBalance = await this.conn.connection.getTokenAccountBalance(vaultAta);
+    const montoUsd = vaultBalance.value.uiAmount ?? 0;
+
+    this.logger.log(
+      `release_funds: tokenizacion=${t.id} producer=${producerKp.publicKey.toBase58()} vault=${montoUsd} USDC`,
+    );
+
+    const txSignature = await this.anchor
+      .programAs(producerKp)
+      .methods.releaseFunds()
+      .accountsPartial({
+        producer: producerKp.publicKey,
+        campaign: campaignPda,
+        vault: vaultAta,
+        producerUsdc,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+    await this.conn.confirmTx(txSignature);
+
+    this.logger.log(`Fondos liberados: tokenizacion=${t.id} tx=${txSignature}`);
+    return { txSignature, montoUsd };
+  }
+
+  /**
+   * settle. Firma el acopio, que en la demo es el fee-payer de la plataforma.
+   * Como el fee-payer es la mint authority del USDC de prueba, se acuña el
+   * depósito antes de la CPI: es la simulación de "el acopio pagó el grano".
+   * El payout se lee de la cuenta Campaign después de la tx: es lo que el
+   * programa calculó, no lo que nosotros creemos.
+   */
+  async liquidar(input: LiquidarInput): Promise<LiquidarResult> {
+    const t = await this.prisma.tokenizacionCampana.findUnique({
+      where: { id: input.tokenizacionId },
+      include: { productor: true },
+    });
+    if (!t) throw new NotFoundException('Tokenización no encontrada');
+    if (!t.mintAddress || !t.vaultAddress || !t.productor.walletAddress) {
+      throw new BadRequestException('La campaña no está publicada on-chain');
+    }
+    if (t.txSignatureLiquidacion && t.payoutPorTokenUsd) {
+      return {
+        txSignature: t.txSignatureLiquidacion,
+        payoutPorTokenUsd: t.payoutPorTokenUsd.toNumber(),
+        depositoUsd: new Decimal(t.toneladasEntregadas ?? 0).mul(t.precioLiquidacionUsdTn ?? 0).toNumber(),
+      };
+    }
+
+    const { campaignPda, vaultAta } = this.derivarCuentas(t.id, t.productor.walletAddress, t.vaultAddress);
+    const estado = await this.leerStatus(campaignPda);
+    if (estado !== 'funded') {
+      throw new BadRequestException(
+        `La campaña on-chain está en estado ${estado}. Para liquidar, el productor tiene que liberar los fondos primero`,
+      );
+    }
+
+    const tonsDelivered = new BN(Math.floor(input.toneladasEntregadas));
+    const settlementPriceMicro = new BN(
+      new Decimal(input.precioLiquidacionUsdTn).mul(1_000_000).toDecimalPlaces(0, Decimal.ROUND_FLOOR).toString(),
+    );
+    const depositoMicro = BigInt(tonsDelivered.mul(settlementPriceMicro).toString());
+
+    const acopioKp = this.custodian.feePayer;
+    const acopioUsdc = await this.custodian.ensureUsdcBalance(acopioKp.publicKey, depositoMicro);
+
+    this.logger.log(
+      `settle: tokenizacion=${t.id} tonsDelivered=${tonsDelivered} priceMicro=${settlementPriceMicro} deposito=${depositoMicro}`,
+    );
+
+    const program = this.anchor.programAs(acopioKp);
+    const txSignature = await program.methods
+      .settle(tonsDelivered, settlementPriceMicro)
+      .accountsPartial({
+        acopio: acopioKp.publicKey,
+        campaign: campaignPda,
+        vault: vaultAta,
+        acopioUsdc,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+    await this.conn.confirmTx(txSignature);
+
+    const account = await program.account.campaign.fetch(campaignPda);
+    const payoutMicro = new Decimal((account.payoutPerToken as BN).toString());
+
+    this.logger.log(`Campaña liquidada: tokenizacion=${t.id} payoutMicro=${payoutMicro} tx=${txSignature}`);
+    return {
+      txSignature,
+      payoutPorTokenUsd: payoutMicro.div(1_000_000).toNumber(),
+      depositoUsd: new Decimal(depositoMicro.toString()).div(1_000_000).toNumber(),
+    };
+  }
+
   async reclamar(input: ReclamarInput): Promise<ReclamarResult> {
     const tenencia = await this.prisma.tenenciaToken.findUnique({
       where: { id: input.tenenciaId },
@@ -293,30 +419,27 @@ export class SolanaLedgerService extends LedgerService {
       throw new BadRequestException(`Tenencia en estado ${tenencia.estado}, no reclamable`);
     }
     const t = tenencia.tokenizacion;
-    if (!t.precioLiquidacionUsdTn) {
-      throw new BadRequestException('La campaña todavía no liquidó');
-    }
     if (!t.mintAddress || !t.vaultAddress || !t.productor.walletAddress) {
       throw new BadRequestException('La campaña no está publicada on-chain');
     }
 
-    const producerPubkey = new PublicKey(t.productor.walletAddress);
-    const { le: campaignIdLe } = this.campaignIdFromUuid(t.id);
-    const [campaignPda] = this.anchor.campaignPda(producerPubkey, campaignIdLe);
+    const { campaignPda, vaultAta } = this.derivarCuentas(t.id, t.productor.walletAddress, t.vaultAddress);
     const tokenMintPda = new PublicKey(t.mintAddress);
-    const vaultAta = new PublicKey(t.vaultAddress);
     const usdcMint = this.custodian.usdcMint;
 
-    // Antes de redimir, el programa requiere status = Settled. Si aún no lo
-    // está, hacemos un "auto-flujo" que dispara release_funds + settle usando
-    // wallets custodiales. En prod esto lo haría el keeper + el acopio;
-    // acá lo colapsamos para que el inversor solo tenga que apretar reclamar.
-    await this.ensureCampaignSettled(campaignPda, {
-      producerKpUsuarioId: t.productorId,
-      vaultAta,
-      settlementPriceUsdTn: t.precioLiquidacionUsdTn.toNumber(),
-      tokenizacionId: t.id,
-    });
+    // redeem exige Settled. Ya no se auto-dispara release_funds ni settle:
+    // son pasos propios (liberarFondos / liquidar) que firman el productor y
+    // el acopio de forma visible.
+    const estado = await this.leerStatus(campaignPda);
+    if (estado !== 'settled') {
+      throw new BadRequestException(
+        `La campaña todavía no liquidó (estado on-chain: ${estado}). Cuando el acopio liquide vas a poder cobrar`,
+      );
+    }
+    const payoutPorToken = t.payoutPorTokenUsd ?? t.precioLiquidacionUsdTn;
+    if (!payoutPorToken) {
+      throw new BadRequestException('La campaña no tiene payout registrado');
+    }
 
     const holderKp = await this.custodian.getOrCreateKeypair(tenencia.inversorId);
     const holderTokenAta = this.anchor.ata(tokenMintPda, holderKp.publicKey);
@@ -348,7 +471,7 @@ export class SolanaLedgerService extends LedgerService {
     await this.conn.confirmTx(txSignature);
 
     const tokensQuemados = Number(amount.toString());
-    const usdcRecibido = new Decimal(tokensQuemados).mul(t.precioLiquidacionUsdTn);
+    const usdcRecibido = new Decimal(tokensQuemados).mul(payoutPorToken);
 
     await this.prisma.tenenciaToken.update({
       where: { id: tenencia.id },
@@ -562,88 +685,29 @@ export class SolanaLedgerService extends LedgerService {
     };
   }
 
-  /**
-   * Antes de un redeem, garantiza que la campaña on-chain esté en status
-   * Settled. Si está Open dispara release_funds (firma el productor), si
-   * está Funded dispara settle (firma el acopio = fee-payer).
-   * Idempotente: chequea el status actual antes de cada CPI.
-   */
-  private async ensureCampaignSettled(
-    campaignPda: PublicKey,
-    ctx: {
-      producerKpUsuarioId: string;
-      vaultAta: PublicKey;
-      settlementPriceUsdTn: number;
-      tokenizacionId: string;
-    },
-  ): Promise<void> {
-    const program = this.anchor.programAs(this.custodian.feePayer);
-    let account = await program.account.campaign.fetch(campaignPda);
+  // ─── Helpers ─────────────────────────────────────────────────
 
-    if ('open' in account.status) {
-      // Necesita release_funds primero. Solo funciona si tons_sold >= min_tons.
-      const producerKp = await this.custodian.getOrCreateKeypair(ctx.producerKpUsuarioId);
-      const producerUsdc = this.anchor.ata(this.custodian.usdcMint, producerKp.publicKey);
-
-      // Nos aseguramos que la ATA del productor exista (para recibir USDC).
-      // Si no existe, el token program falla; el mock nunca la crea.
-      // Truco: la mintTo previa a nombre del producer ya la creó, y si no,
-      // la instrucción release_funds falla, pero es más seguro no crearla acá
-      // (el flujo del wallet-custodian ya crea ATA de USDC al conectar).
-
-      this.logger.log(`Auto release_funds: campaign=${campaignPda.toBase58()}`);
-      const releaseTx = await this.anchor
-        .programAs(producerKp)
-        .methods.releaseFunds()
-        .accountsPartial({
-          producer: producerKp.publicKey,
-          campaign: campaignPda,
-          vault: ctx.vaultAta,
-          producerUsdc,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .rpc();
-      await this.conn.confirmTx(releaseTx);
-      account = await program.account.campaign.fetch(campaignPda);
-    }
-
-    if ('funded' in account.status) {
-      // Settle firmado por el acopio (fee-payer). tons_delivered = tons_sold
-      // (entrega completa por default para la demo). settlement_price viene
-      // de precioLiquidacionUsdTn (USD/tn) → micro-USDC/tn.
-      const acopioKp = this.custodian.feePayer;
-      const acopioUsdc = this.anchor.ata(this.custodian.usdcMint, acopioKp.publicKey);
-      const tonsSold = account.tonsSold as BN;
-      const settlementPriceMicro = new BN(
-        new Decimal(ctx.settlementPriceUsdTn).mul(1_000_000).toDecimalPlaces(0, Decimal.ROUND_FLOOR).toString(),
-      );
-
-      this.logger.log(
-        `Auto settle: campaign=${campaignPda.toBase58()} tonsDelivered=${tonsSold} priceMicro=${settlementPriceMicro}`,
-      );
-
-      // settle valida now >= settlement_date. Si aún no llegó, error TooEarly.
-      // Para el hackathon la fecha de fondeo_hasta + 90 días suele estar en el
-      // futuro; documentamos que la primera vez que el productor liquida hay
-      // que backdate-ar precio_liquidacion_usd_tn cuando sale_end ya pasó o
-      // usar wallets nuevas con settlement_date corto.
-      const settleTx = await this.anchor
-        .programAs(acopioKp)
-        .methods.settle(tonsSold, settlementPriceMicro)
-        .accountsPartial({
-          acopio: acopioKp.publicKey,
-          campaign: campaignPda,
-          vault: ctx.vaultAta,
-          acopioUsdc,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .rpc();
-      await this.conn.confirmTx(settleTx);
-    }
-    // Si ya está Settled, no hacemos nada.
+  /** Deriva la PDA de la campaña y el vault a partir de lo persistido. */
+  private derivarCuentas(
+    tokenizacionId: string,
+    productorWallet: string,
+    vaultAddress: string,
+  ): { campaignPda: PublicKey; vaultAta: PublicKey } {
+    const producerPubkey = new PublicKey(productorWallet);
+    const { le } = this.campaignIdFromUuid(tokenizacionId);
+    const [campaignPda] = this.anchor.campaignPda(producerPubkey, le);
+    return { campaignPda, vaultAta: new PublicKey(vaultAddress) };
   }
 
-  // ─── Helpers ─────────────────────────────────────────────────
+  /** Estado on-chain de la campaña. Anchor serializa el enum como `{ open: {} }`. */
+  private async leerStatus(campaignPda: PublicKey): Promise<'draft' | 'open' | 'funded' | 'settled' | 'failed'> {
+    const program = this.anchor.programAs(this.custodian.feePayer);
+    const account = await program.account.campaign.fetch(campaignPda);
+    const status = account.status as Record<string, unknown>;
+    const clave = Object.keys(status)[0] as 'draft' | 'open' | 'funded' | 'settled' | 'failed' | undefined;
+    if (!clave) throw new BadRequestException('No pude leer el estado on-chain de la campaña');
+    return clave;
+  }
 
   /**
    * Deriva `campaign_id` (u64) del uuid de la tokenización.

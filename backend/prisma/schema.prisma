@@ -1027,8 +1027,21 @@ model TokenizacionCampana {
   rechazadaEn             DateTime? @map("rechazada_en")
   motivoRechazo           String?   @map("motivo_rechazo") @db.Text
 
+  // ─── Liberación de fondos (release_funds) ─────────────────────
+  /// Firma de release_funds: el vault se vació hacia la wallet del productor.
+  txSignatureLiberacion   String?   @map("tx_signature_liberacion")
+  fondosLiberadosEn       DateTime? @map("fondos_liberados_en")
+
   // ─── Liquidación (post-settle) ────────────────────────────────
+  /// Precio por tonelada que pagó el acopio (settlement_price).
   precioLiquidacionUsdTn  Decimal?  @map("precio_liquidacion_usd_tn") @db.Decimal(14, 4)
+  /// Toneladas que efectivamente entregó el productor (tons_delivered). Puede
+  /// ser menor a tokensVendidos: sequía. La pérdida se reparte pro rata.
+  toneladasEntregadas     Decimal?  @map("toneladas_entregadas") @db.Decimal(12, 4)
+  /// USDC que cobra cada token al redimir (payout_per_token). Lo fija el
+  /// programa con división entera en micro-USDC; se guarda tal cual.
+  payoutPorTokenUsd       Decimal?  @map("payout_por_token_usd") @db.Decimal(14, 6)
+  txSignatureLiquidacion  String?   @map("tx_signature_liquidacion")
   /// Timestamp del `settle` on-chain. Se llena al ejecutar la liquidación.
   liquidadaEn             DateTime? @map("liquidada_en")
 
