@@ -15,6 +15,33 @@ import type { Tokenizacion } from '../../types/tokenizadas';
 import { normalizarCultivo, type Cultivo } from '../../services/mockPreciosService';
 
 /**
+ * Elige el font-size del balance USDC en función de cuántos caracteres
+ * ocupa el número formateado. La card tiene 480px de ancho fijo con 48px
+ * de padding horizontal (432px útiles). "US$ 1.430.175,20" son 16 chars.
+ *
+ * A ~0.55em por char en la fuente hv-mono, entra:
+ *   - 10 chars ("US$ 999,00") → 42px cómodos.
+ *   - 14 chars ("US$ 99.999,00") → 36px.
+ *   - 17 chars ("US$ 999.999,00") → 30px.
+ *   - 19 chars ("US$ 9.999.999,00") → 26px.
+ * Nunca cortamos: el balance es el dato central de la card.
+ */
+function fitBalanceFontSize(monto: number): number {
+  const chars = new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(monto).length;
+  if (chars <= 10) return 42;
+  if (chars <= 12) return 40;
+  if (chars <= 14) return 36;
+  if (chars <= 16) return 32;
+  if (chars <= 18) return 28;
+  return 24;
+}
+
+/**
  * Home del inversor — la vista que se muestra cuando el contexto activo es
  * `inversor`. Prioriza:
  *  1. Balance USDC disponible visible arriba (con qué comprar)
@@ -54,7 +81,7 @@ export function HomeInversorPage() {
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header inversor: saludo + balance grande */}
       <section
-        className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-stretch"
+        className="grid grid-cols-1 lg:grid-cols-[1fr_480px] gap-6 items-stretch"
       >
         <div>
           <div className="hv-label" style={{ fontSize: 10 }}>Vista inversor · Solana devnet</div>
@@ -97,22 +124,19 @@ export function HomeInversorPage() {
           </div>
           {conectada ? (
             <>
+              {/* Font-size dinámico según el largo del número. Nunca cortamos:
+                  el balance completo (US$ 1.430.175,20) tiene que ser legible
+                  siempre — es el dato más importante de la card. */}
               <div
                 className="hv-mono"
                 style={{
-                  // clamp: se achica automáticamente si el número no entra.
-                  // 24px mínimo (balance de 8 dígitos entra hasta ~340px),
-                  // 42px ideal en desktop, escala con el ancho del viewport.
-                  fontSize: 'clamp(24px, 5vw, 42px)',
+                  fontSize: fitBalanceFontSize(conectada.balanceUsdc),
                   fontWeight: 600,
                   color: 'var(--hv-text)',
                   letterSpacing: '-0.03em',
                   lineHeight: 1,
                   whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
                 }}
-                title={usd(conectada.balanceUsdc, 2)}
               >
                 {usd(conectada.balanceUsdc, 2)}
               </div>
