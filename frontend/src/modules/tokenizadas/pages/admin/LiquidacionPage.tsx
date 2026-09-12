@@ -8,6 +8,7 @@ import { EstadoCampanaBadge } from '../../components/campana/EstadoCampanaBadge'
 import { FirmaTxModal } from '../../components/wallet/FirmaTxModal';
 import { useWalletStore, useContextoActivo } from '../../stores/walletStore';
 import { explorerTxUrl } from '../../utils/explorer';
+import { LinksOnChain } from '../../components/campana/LinksOnChain';
 import { usd, usdCompacto, usdTn, toneladas, fecha, diasRestantes, porcentaje, abreviarTx } from '../../utils/format';
 import type { Tokenizacion } from '../../types/tokenizadas';
 
@@ -322,6 +323,7 @@ function DetalleLiquidacion({
           <p style={{ color: 'var(--hv-text-muted)', fontSize: 12, marginTop: 4 }}>
             {t.campania.cultivo?.nombre} · {t.campania.cicloAgricola} · productor {t.productor?.nombre}
           </p>
+          <LinksOnChain mintAddress={t.mintAddress} vaultAddress={t.vaultAddress} txSignaturePublicacion={t.txSignaturePublicacion} />
         </div>
         <Link to={`/invertir/${t.id}`} style={{ color: 'var(--hv-green-text)', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
           Ver ficha →

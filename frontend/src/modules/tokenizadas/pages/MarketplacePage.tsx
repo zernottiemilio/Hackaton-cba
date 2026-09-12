@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { tokenizadasApi, type FiltrosMarketplace } from '../services/tokenizadasService';
 import { ModalCosecha } from '../components/marketplace/ModalCosecha';
 import { BadgeModo } from '../components/campana/BadgeModo';
+import { LinksOnChain } from '../components/campana/LinksOnChain';
 import { BarraFondeo } from '../components/campana/BarraFondeo';
 import { Sparkline } from '../components/charts/Sparkline';
 import { useHistoriaPrecios, usePreciosLive } from '../hooks/usePreciosLive';
@@ -317,6 +318,7 @@ function FilaCosecha({
         <div className="hv-label-sm" style={{ fontSize: 10, marginTop: 3 }}>
           {t.campania.cultivo?.nombre} · {partido}, {provincia}
         </div>
+        <LinksOnChain compacto mintAddress={t.mintAddress} vaultAddress={t.vaultAddress} txSignaturePublicacion={t.txSignaturePublicacion} />
       </td>
 
       <td style={{ padding: '14px' }}>

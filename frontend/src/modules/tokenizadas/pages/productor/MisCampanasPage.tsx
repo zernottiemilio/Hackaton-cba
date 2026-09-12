@@ -7,6 +7,7 @@ import { BadgeModo } from '../../components/campana/BadgeModo';
 import { EstadoCampanaBadge } from '../../components/campana/EstadoCampanaBadge';
 import { BarraFondeo } from '../../components/campana/BarraFondeo';
 import { BotonCobrarSiembra } from '../../components/campana/BotonCobrarSiembra';
+import { LinksOnChain } from '../../components/campana/LinksOnChain';
 import { usd, usdCompacto, toneladas, fecha } from '../../utils/format';
 import type { Tokenizacion } from '../../types/tokenizadas';
 
@@ -131,6 +132,7 @@ function FilaEmision({ t, destacada = false }: { t: Tokenizacion; destacada?: bo
           {t.campania.cultivo?.nombre} · {superficie.toFixed(0)} ha · {t.campania.cicloAgricola ?? ''}
           {t.fondeoHasta ? ` · cierra ${fecha(t.fondeoHasta)}` : ''}
         </div>
+        <LinksOnChain mintAddress={t.mintAddress} vaultAddress={t.vaultAddress} txSignaturePublicacion={t.txSignaturePublicacion} />
         <div className="mt-3 max-w-md">
           <BarraFondeo vendidos={Number(t.tokensVendidos)} emitidos={Number(t.tokensEmitidos)} compacta />
           <div className="flex justify-between mt-1">
