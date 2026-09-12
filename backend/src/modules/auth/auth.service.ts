@@ -114,6 +114,8 @@ export class AuthService {
       email: proxy.usuario.email,
       nombre: proxy.usuario.nombre,
       rolGlobal: proxy.usuario.rolGlobal, // ej. 'ingeniero' → no entra a /admin
+      rolPlataforma: null, // impersonación no hereda rol Harvest
+      walletAddress: null, // impersonación no hereda wallet
       cuentaId: cuenta.id,
       rolEnCuentaActiva: proxy.rol,
       modulosPermitidos: proxy.modulosPermitidos,
@@ -295,6 +297,8 @@ export class AuthService {
       email: usuario.email,
       nombre: usuario.nombre,
       rolGlobal: usuario.rolGlobal,
+      rolPlataforma: usuario.rolPlataforma,
+      walletAddress: usuario.walletAddress,
       cuentaId: activa.cuentaId,
       rolEnCuentaActiva: activa.rol,
       modulosPermitidos: activa.modulosPermitidos,
