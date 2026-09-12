@@ -89,10 +89,11 @@ Los valores los genera el frente Chain (VAL-8) y se pasan por canal privado. Mie
 ## Trampas conocidas
 
 - **Micro-USDC.** 250 USDC = `250_000_000`. Token de campaña con decimals 0: 1 token = 1 tonelada entera. Nunca `f64`; división entera, el polvo queda en el vault.
-- **`settlementDate`.** Hoy `publicarCampana()` la fija en `fondeoHasta + 90 días` y `minTons = 1`. Sin VAL-11 no se puede liquidar en vivo.
-- **Wallet mock en el front.** `stores/walletStore.ts` tiene `WALLETS_DEMO` hardcodeadas y `FirmaTxModal.tsx` simula con `setTimeout`. `NuevaCampanaPage.tsx` y `RevisionColaPage.tsx` fabrican signatures con `SIG${Math.random()}`. Todo eso se reemplaza (VAL-15).
-- **Este código nunca corrió contra devnet.** El programa está escrito y testeado en localnet, el ledger está escrito, pero nadie los conectó de verdad. VAL-13 es donde aparecen los bugs.
-- **Railway.** El seed corre en cada start. `SUPERADMIN_PASSWORD` en env reescribe el password en cada deploy.
+- **`settlementDate` (VAL-11).** Al crear la tokenización se manda `fechaLiquidacionEstimada` (ISO) y `toneladasMinimas`. Si no se manda fecha, el backend usa `fondeoHasta + 90 días`. Para liquidar en vivo en la demo: `fechaLiquidacionEstimada = now + 60s`.
+- **Renames de columnas rompen el seed.** `prisma/seed.ts` corre en cada arranque de Railway y ts-node lo compila al vuelo: un campo que ya no existe en el schema tira el backend abajo antes de levantar (pasó con `fechaLiquidacion` → `liquidadaEn`). Cualquier cambio en `TokenizacionCampana` tiene que tocar el seed. Verificar sin DB: `npx prisma generate && npx tsc --noEmit --esModuleInterop --skipLibCheck --target es2020 --module commonjs prisma/seed.ts`.
+- **Seed con `LEDGER_IMPL=solana`.** No crea campañas `abierta`/`fondeada`/`liquidada` (tendrían mint y vault inventados que rompen `invest`, `reclamar` y `on-chain`), desactiva las que quedaron de corridas en mock, y NUNCA borra tenencias (son compras reales). La campaña de la demo se crea en vivo. Usuarios demo: `juan@productor.demo`, `carlos@inversor.demo`, `admin@tokenizadas.demo`, password `agrofacil123`.
+- **Este código recién empieza a correr contra devnet.** VAL-13 es donde aparecen los bugs del flujo real.
+- **Railway.** `SUPERADMIN_PASSWORD` en env reescribe el password en cada deploy.
 - **Tests de backend.** `tsc -p tsconfig.json` falla en 3 archivos de test preexistentes (`calculos.service.spec.ts`, `test/app.e2e-spec.ts`). Verificar con `tsc -p tsconfig.build.json`, que es lo que buildea Railway.
 
 ## Reparto y tareas (Linear, equipo "Valentino Lopez")

@@ -197,6 +197,14 @@ const POLIGONOS = {
 };
 
 async function seedTokenizadas(): Promise<void> {
+  /**
+   * Con LEDGER_IMPL=solana el seed cambia de comportamiento: no inventa
+   * campañas on-chain ni borra tenencias (son compras reales en devnet).
+   * Ver HARVEST.md, "Trampas conocidas".
+   */
+  const ledgerReal = process.env.LEDGER_IMPL === 'solana';
+  if (ledgerReal) console.log('  · LEDGER_IMPL=solana: seed en modo conservador (sin campañas on-chain falsas, sin borrar tenencias)');
+
   // ─── Cultivos (obtener referencias) ─────────────────────────
   const soja = await prisma.cultivo.findUnique({ where: { nombre: 'soja' } });
   const maiz = await prisma.cultivo.findUnique({ where: { nombre: 'maíz' } });
@@ -519,6 +527,16 @@ async function seedTokenizadas(): Promise<void> {
     fechaLiquidacion?: Date;
     tenencias?: { inversorId: string; walletAddress: string; tokens: number }[];
   }) => {
+    // Con el ledger real, una campaña "abierta" o posterior tiene que existir
+    // en Solana: mint y vault son PDAs de verdad. Las del seed tienen
+    // direcciones inventadas y romperían invest/reclamar/on-chain. Solo se
+    // siembran las que todavía no tocaron la chain.
+    const esOnChain = !['borrador', 'en_revision', 'rechazada'].includes(params.estado);
+    if (ledgerReal && esOnChain) {
+      console.log(`  · salto "${params.nombre}" (${params.estado}): con LEDGER_IMPL=solana se crea en vivo`);
+      return;
+    }
+
     const campania = await prisma.campania.upsert({
       where: { id: params.id },
       update: {},
@@ -612,8 +630,31 @@ async function seedTokenizadas(): Promise<void> {
   const en = (dias: number) => new Date(hoy.getTime() + dias * 24 * 3600 * 1000);
   const hace = (dias: number) => new Date(hoy.getTime() - dias * 24 * 3600 * 1000);
 
-  // Limpiar tenencias previas para no duplicar (idempotencia)
-  await prisma.tenenciaToken.deleteMany({});
+  if (ledgerReal) {
+    // Ledger real: NUNCA borrar tenencias, son compras reales en devnet y el
+    // seed corre en cada arranque de Railway. Lo único que se limpia son las
+    // campañas falsas que quedaron de corridas en modo mock (mint "MINT…").
+    const falsas = await prisma.tokenizacionCampana.findMany({
+      where: { mintAddress: { startsWith: 'MINT' } },
+      select: { id: true, campaniaId: true },
+    });
+    if (falsas.length > 0) {
+      const ids = falsas.map((f) => f.id);
+      await prisma.$transaction([
+        prisma.tenenciaToken.deleteMany({ where: { tokenizacionId: { in: ids } } }),
+        prisma.reservaToken.deleteMany({ where: { tokenizacionId: { in: ids } } }),
+        prisma.tokenizacionCampana.updateMany({ where: { id: { in: ids } }, data: { activo: false } }),
+        prisma.campania.updateMany({
+          where: { id: { in: falsas.map((f) => f.campaniaId) } },
+          data: { estadoToken: 'cancelada' },
+        }),
+      ]);
+      console.log(`  · ${falsas.length} campañas con mint inventado desactivadas (venían del modo mock)`);
+    }
+  } else {
+    // Mock: limpiar tenencias previas para no duplicar (idempotencia)
+    await prisma.tenenciaToken.deleteMany({});
+  }
 
   // 1. Borrador — el productor la está armando
   await crearCampana({
