@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { useAuthStore } from '@/stores/authStore';
 import { tokenizadasApi } from '../services/tokenizadasService';
 import type { ContextoTokenizacion, WalletInfo } from '../types/tokenizadas';
@@ -38,7 +38,7 @@ interface WalletState {
   registrarTx: (tx: TxEntry) => void;
 }
 
-/** Lo único que va a localStorage. `conectando` y `error` son efímeros. */
+/** Lo único que se persiste (en sessionStorage). `conectando` y `error` son efímeros. */
 type WalletPersistido = Pick<WalletState, 'conectada' | 'historialTx'>;
 
 /**
@@ -113,6 +113,11 @@ export const useWalletStore = create<WalletState>()(
     }),
     {
       name: 'agrofacil-wallet',
+      // sessionStorage — aislado por pestaña para poder demoquear multi-sesión
+      // (Carlos + Juan + Sofía en distintas tabs al mismo tiempo). En cuanto
+      // el authStore también vive en sessionStorage, esto es necesario para
+      // que la wallet no se cruce entre sesiones.
+      storage: createJSONStorage(() => sessionStorage),
       // v1 persistía WALLETS_DEMO (address falsa, network 'mock'). Al subir a v2
       // se descarta todo lo viejo: la wallet real se pide de nuevo al backend.
       version: 2,

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export type RolGlobal = 'superadmin' | 'ingeniero' | 'propietario';
 export type RolEnCuenta = 'ingeniero' | 'propietario' | 'operador';
@@ -101,19 +101,25 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           sesionPrevia: null,
         });
-        // Al cerrar sesión también limpiamos la wallet mock del módulo Harvest.
-        // Sin esto, el walletStore queda persistido en localStorage con el
-        // último rol conectado, y la UI se ve "logueada" aunque no lo esté.
+        // Al cerrar sesión también limpiamos la wallet del módulo Harvest.
+        // Sin esto, el walletStore queda persistido con el último rol
+        // conectado, y la UI se ve "logueada" aunque no lo esté.
+        // Ambos storages por si quedó basura de la migración desde localStorage.
         try {
-          const raw = localStorage.getItem('agrofacil-wallet');
-          if (raw) localStorage.removeItem('agrofacil-wallet');
+          sessionStorage.removeItem('agrofacil-wallet');
+          localStorage.removeItem('agrofacil-wallet');
         } catch {
-          /* localStorage bloqueado en algunos navegadores en modo privado */
+          /* storage bloqueado en algunos navegadores en modo privado */
         }
       },
     }),
     {
       name: 'agrofacil-auth',
+      // sessionStorage → aislado por pestaña, sobrevive al F5 pero no al
+      // cierre de la tab. Permite tener a Carlos logueado en una pestaña,
+      // Juan en otra y Sofía en una tercera al mismo tiempo. localStorage
+      // rompía multi-sesión (todas las tabs veían el mismo usuario).
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
