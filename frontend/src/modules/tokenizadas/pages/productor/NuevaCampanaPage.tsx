@@ -11,7 +11,7 @@ import { PasoGarantias } from '../../components/campana/PasoGarantias';
 import { hectareas, toneladas, usd, usdCompacto } from '../../utils/format';
 import { useWalletStore } from '../../stores/walletStore';
 import type { ModoTokenizacion, FuentePrecio } from '../../types/tokenizadas';
-import type { Cultivo } from '../../services/mockPreciosService';
+import { normalizarCultivo } from '../../services/mockPreciosService';
 import { FirmaTxModal } from '../../components/wallet/FirmaTxModal';
 
 const PASOS = ['La campaña', 'Cuánto tokenizar', 'Cotización', 'Garantías'];
@@ -128,7 +128,7 @@ export function NuevaCampanaPage() {
   const toneladasOfrecidas =
     form.modo === 'porcentual' ? (produccionEstimadaTn * form.valorModo) / 100 : form.valorModo;
 
-  const cultivoNombre = (cultivoElegido?.nombre?.toLowerCase() ?? 'soja') as Cultivo;
+  const cultivoNombre = normalizarCultivo(cultivoElegido?.nombre);
 
   const upd = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
 

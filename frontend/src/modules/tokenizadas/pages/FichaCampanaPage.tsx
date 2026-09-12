@@ -12,7 +12,7 @@ import { SeccionNdvi } from '../components/campana/SeccionNdvi';
 import { SeccionSimuladorRetorno } from '../components/campana/SeccionSimuladorRetorno';
 import { Sparkline } from '../components/charts/Sparkline';
 import { useHistoriaPrecios, usePrecioLive } from '../hooks/usePreciosLive';
-import type { Cultivo } from '../services/mockPreciosService';
+import { normalizarCultivo, type Cultivo } from '../services/mockPreciosService';
 import { PanelCompra } from '../components/marketplace/PanelCompra';
 
 export function FichaCampanaPage() {
@@ -27,7 +27,7 @@ export function FichaCampanaPage() {
     return <div className="text-white/40 text-sm">Cargando campaña...</div>;
   }
 
-  const cultivoNombre = (t.campania.cultivo?.nombre?.toLowerCase() ?? 'soja') as Cultivo;
+  const cultivoNombre = normalizarCultivo(t.campania.cultivo?.nombre);
   const pctFondeado = t.tokensEmitidos > 0 ? (t.tokensVendidos / t.tokensEmitidos) * 100 : 0;
   const superficie = Number(t.campania.hectareasAfectadas ?? 0);
   const partido = t.campania.establecimiento?.partido ?? '—';

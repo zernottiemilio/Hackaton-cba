@@ -10,7 +10,7 @@ import { BarraFondeo } from '../../components/campana/BarraFondeo';
 import { BadgeModo } from '../../components/campana/BadgeModo';
 import { usd, usdCompacto, toneladas, diasRestantes } from '../../utils/format';
 import type { Tokenizacion } from '../../types/tokenizadas';
-import type { Cultivo } from '../../services/mockPreciosService';
+import { normalizarCultivo, type Cultivo } from '../../services/mockPreciosService';
 
 /**
  * Home del inversor — la vista que se muestra cuando el contexto activo es
@@ -38,7 +38,7 @@ export function HomeInversorPage() {
   // y el spread real actualizado en cada tick.
   const oportunidades = emisiones
     .map((e) => {
-      const cultivoNombre = (e.campania.cultivo?.nombre?.toLowerCase() ?? 'soja') as Cultivo;
+      const cultivoNombre = normalizarCultivo(e.campania.cultivo?.nombre);
       const tick = ticks.find((t) => t.cultivo === cultivoNombre);
       const pizarraLive = tick?.usdTn ?? e.precioReferenciaUsdTn;
       const spreadPct = ((e.precioTokenUsd - pizarraLive) / pizarraLive) * 100;
