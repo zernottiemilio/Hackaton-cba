@@ -32,6 +32,7 @@ import { AdminFacturacionPage } from '@/pages/admin/AdminFacturacionPage';
 
 // ─── Módulo Harvest.fi (Campañas Tokenizadas) — app principal ────
 import { TokenizadasLayout } from '@/modules/tokenizadas/components/layout/TokenizadasLayout';
+import { RutaHarvest } from '@/modules/tokenizadas/components/layout/RutaHarvest';
 import { HomePage as HarvestHomePage } from '@/modules/tokenizadas/pages/HomePage';
 import { MarketplacePage as HarvestMarketplacePage } from '@/modules/tokenizadas/pages/MarketplacePage';
 import { FichaCampanaPage as HarvestFichaCampanaPage } from '@/modules/tokenizadas/pages/FichaCampanaPage';
@@ -52,50 +53,83 @@ import {
 } from '@/modules/tokenizadas/pages/skeletons';
 
 /**
- * Router de la app. Harvest.fi es la app principal en la raíz `/`.
+ * Router de la app. Harvest.fi vive en la raíz `/` como app principal.
  *
- * El MVP AgroFácil quedó en sus rutas propias (`/establecimientos`, `/lotes`,
- * etc.) accesible sólo si se escribe la URL directa. Se irá removiendo en
- * commits siguientes.
+ * Rutas del módulo Harvest bajo el layout `TokenizadasLayout` con guards
+ * anidados por rol (via `RutaHarvest`).
+ *   - Público (sin auth): `/`, `/invertir`, `/invertir/:id`, `/productor/:id`
+ *   - Productor: `/campos*`, `/campanas*`
+ *   - Inversor: `/portfolio`
+ *   - Acopio: `/acopio*`
+ *   - Admin: `/revision-emisiones`, `/red-acopios`, `/conciliacion`
  *
- * Orden importante:
- *   1. Rutas públicas (login, activar, reporte público)
- *   2. Módulo Harvest en `/*` — GANA por especificidad y orden
- *   3. Admin del MVP en `/admin-mvp` (renombrado para no chocar con Harvest)
- *   4. Rutas MVP protegidas en sus paths históricos
- *   5. Fallback `*` a la raíz
+ * MVP legacy: `/establecimientos`, `/lotes`, `/campanias`, etc. siguen vivas
+ * bajo `RutaProtegida` para no romper URLs viejas.
  */
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/activar/:token', element: <ActivarCuentaPage /> },
   { path: '/r/:token', element: <ReportePublicoPage /> },
 
-  // ─── Módulo Harvest.fi (app principal, público, se opera con wallet mock) ────
+  // ─── App Harvest.fi ────────────────────────────────────────────────
   {
     path: '/',
     element: <TokenizadasLayout />,
     children: [
-      { index: true, element: <HarvestHomePage /> },
-      { path: 'invertir', element: <HarvestMarketplacePage /> },
-      { path: 'invertir/:id', element: <HarvestFichaCampanaPage /> },
-      { path: 'portfolio', element: <HarvestPortfolioPage /> },
-      { path: 'productor/:id', element: <ProductorDetallePage /> },
-      { path: 'campos', element: <CamposListPage /> },
-      { path: 'campos/nuevo', element: <NuevoCampoPage /> },
-      { path: 'campanas', element: <MisCampanasProductorPage /> },
-      { path: 'campanas/nueva', element: <NuevaCampanaPage /> },
-      { path: 'acopio', element: <AcopioDashboardPage /> },
-      { path: 'acopio/recepcion', element: <RecepcionPage /> },
-      { path: 'acopio/posiciones', element: <PosicionesPage /> },
-      { path: 'acopio/liberaciones', element: <LiberacionesPage /> },
-      // Rutas de admin renombradas para no chocar con /admin del MVP legacy.
-      { path: 'revision-emisiones', element: <RevisionColaPage /> },
-      { path: 'red-acopios', element: <AdminAcopiosPage /> },
-      { path: 'conciliacion', element: <ConciliacionPage /> },
+      // Rutas públicas (con o sin sesión)
+      {
+        element: <RutaHarvest publica />,
+        children: [
+          { index: true, element: <HarvestHomePage /> },
+          { path: 'invertir', element: <HarvestMarketplacePage /> },
+          { path: 'invertir/:id', element: <HarvestFichaCampanaPage /> },
+          { path: 'productor/:id', element: <ProductorDetallePage /> },
+        ],
+      },
+
+      // Rutas del rol PRODUCTOR
+      {
+        element: <RutaHarvest roles={['productor']} />,
+        children: [
+          { path: 'campos', element: <CamposListPage /> },
+          { path: 'campos/nuevo', element: <NuevoCampoPage /> },
+          { path: 'campanas', element: <MisCampanasProductorPage /> },
+          { path: 'campanas/nueva', element: <NuevaCampanaPage /> },
+        ],
+      },
+
+      // Rutas del rol INVERSOR
+      {
+        element: <RutaHarvest roles={['inversor']} />,
+        children: [{ path: 'portfolio', element: <HarvestPortfolioPage /> }],
+      },
+
+      // Rutas del rol ACOPIO
+      {
+        element: <RutaHarvest roles={['acopio']} />,
+        children: [
+          { path: 'acopio', element: <AcopioDashboardPage /> },
+          { path: 'acopio/recepcion', element: <RecepcionPage /> },
+          { path: 'acopio/posiciones', element: <PosicionesPage /> },
+          { path: 'acopio/liberaciones', element: <LiberacionesPage /> },
+        ],
+      },
+
+      // Rutas del rol ADMIN
+      {
+        element: <RutaHarvest roles={['admin_plataforma']} />,
+        children: [
+          { path: 'revision-emisiones', element: <RevisionColaPage /> },
+          { path: 'red-acopios', element: <AdminAcopiosPage /> },
+          { path: 'conciliacion', element: <ConciliacionPage /> },
+        ],
+      },
     ],
   },
 
-  // ─── LEGACY: Admin del MVP AgroFácil — accesible manualmente en /admin-mvp ────
+  // ─── LEGACY MVP AgroFácil ──────────────────────────────────────────
+  // Se irán removiendo en commits siguientes; por ahora quedan como escape
+  // hatch (URLs directas siguen funcionando).
   {
     path: '/admin-mvp',
     element: <RutaSuperAdmin />,
@@ -109,8 +143,6 @@ export const router = createBrowserRouter([
       { path: 'facturacion', element: <AdminFacturacionPage /> },
     ],
   },
-
-  // ─── LEGACY: Módulo MVP AgroFácil — quedan las rutas propias por si hay que revisar ────
   {
     element: <RutaProtegida />,
     children: [

@@ -382,7 +382,7 @@ async function seedTokenizadas(): Promise<void> {
   });
 
   // Admin plataforma
-  await prisma.usuario.upsert({
+  const adminHarvest = await prisma.usuario.upsert({
     where: { email: 'admin@tokenizadas.demo' },
     update: {
       walletAddress: WALLETS.admin1,
@@ -399,6 +399,28 @@ async function seedTokenizadas(): Promise<void> {
       contextosTokenizacion: ['admin_plataforma'],
     },
   });
+
+  // ─── Membresías: cada usuario Harvest necesita membresía en la cuenta demo
+  //     para que el login pase la validación del MVP. Rol en la cuenta: propietario
+  //     (dueño de datos) para productores; ingeniero para el resto. ────────────
+  const acopioMartinUser = await prisma.usuario.findUniqueOrThrow({
+    where: { email: 'acopio@sanmartin.demo' },
+  });
+  const harvestUsers = [
+    { usuarioId: productorJuan.id, rol: 'propietario' as const },
+    { usuarioId: productorInversorMaria.id, rol: 'propietario' as const },
+    { usuarioId: inversorCarlos.id, rol: 'ingeniero' as const },
+    { usuarioId: inversorSofia.id, rol: 'ingeniero' as const },
+    { usuarioId: acopioMartinUser.id, rol: 'operador' as const },
+    { usuarioId: adminHarvest.id, rol: 'ingeniero' as const },
+  ];
+  for (const { usuarioId, rol } of harvestUsers) {
+    await prisma.usuarioCuenta.upsert({
+      where: { usuarioId_cuentaId: { usuarioId, cuentaId: cuentaDemo.id } },
+      update: { activo: true, rol },
+      create: { usuarioId, cuentaId: cuentaDemo.id, rol, activo: true },
+    });
+  }
 
   // ─── Establecimientos con geometría ─────────────────────────
   const campoEscondida = await prisma.establecimiento.upsert({

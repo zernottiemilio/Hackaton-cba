@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 
 export type RolGlobal = 'superadmin' | 'ingeniero' | 'propietario';
 export type RolEnCuenta = 'ingeniero' | 'propietario' | 'operador';
+export type RolPlataforma = 'productor' | 'inversor' | 'acopio' | 'admin_plataforma';
 
 export interface MembresiaResumen {
   cuentaId: string;
@@ -15,6 +16,11 @@ export interface UsuarioActual {
   email: string;
   nombre: string;
   rolGlobal: RolGlobal;
+  /** Rol único del usuario en Harvest.fi. Decide qué shell/rutas ve al hacer
+   *  login. Null para usuarios legacy del MVP sin haber elegido rol Harvest. */
+  rolPlataforma: RolPlataforma | null;
+  /** Wallet Solana asociada al usuario (mock por ahora). */
+  walletAddress: string | null;
   cuentaId: string;
   rolEnCuentaActiva: RolEnCuenta;
   /** Módulos explícitos. Vacío = usa los defaults del rol. */

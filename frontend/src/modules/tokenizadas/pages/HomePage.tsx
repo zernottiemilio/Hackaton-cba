@@ -9,16 +9,17 @@ import { usd, porcentaje, usdCompacto } from '../utils/format';
 import { useWalletStore } from '../stores/walletStore';
 import { HarvestLogo } from '../components/brand/HarvestLogo';
 import { HomeInversorPage } from './inversor/HomeInversorPage';
+import { useAuthStore } from '@/stores/authStore';
 import type { Cultivo } from '../services/mockPreciosService';
 
 export function HomePage() {
+  const usuarioAuth = useAuthStore((s) => s.usuario);
   const conectada = useWalletStore((s) => s.conectada);
-  const contexto = useWalletStore((s) => s.contextoActivo);
   const ticks = usePreciosLive();
 
-  // Vista especializada del inversor con oportunidades del día,
-  // balance destacado y grid de productores con rating.
-  if (contexto === 'inversor' && conectada) {
+  // Vista según rol del usuario autenticado.
+  // El wallet mock ya no decide el shell — es solo para firmar tx on-chain.
+  if (usuarioAuth?.rolPlataforma === 'inversor') {
     return <HomeInversorPage />;
   }
 

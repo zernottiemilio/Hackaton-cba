@@ -1,42 +1,43 @@
 import { NavLink } from 'react-router-dom';
-import { useWalletStore } from '../../stores/walletStore';
-import type { ContextoTokenizacion } from '../../types/tokenizadas';
+import { useAuthStore, type RolPlataforma } from '@/stores/authStore';
 import { HarvestLogo } from '../brand/HarvestLogo';
 
 interface NavItem {
   to: string;
   label: string;
   icon: string;
-  contextos: ContextoTokenizacion[] | 'todos';
+  /** Roles que ven este ítem. `'todos'` = siempre visible (incluso sin auth). */
+  roles: RolPlataforma[] | 'todos';
 }
 
 const ITEMS: NavItem[] = [
-  { to: '/', label: 'Inicio', icon: '◈', contextos: 'todos' },
-  // Inversor
-  { to: '/invertir', label: 'Marketplace', icon: '⚡', contextos: ['inversor', 'productor', 'admin_plataforma'] },
-  { to: '/portfolio', label: 'Portfolio', icon: '▤', contextos: ['inversor'] },
+  { to: '/', label: 'Inicio', icon: '◈', roles: 'todos' },
+  // Público / inversor
+  { to: '/invertir', label: 'Marketplace', icon: '⚡', roles: 'todos' },
+  { to: '/portfolio', label: 'Portfolio', icon: '▤', roles: ['inversor'] },
   // Productor
-  { to: '/campanas', label: 'Mis emisiones', icon: '⛢', contextos: ['productor'] },
-  { to: '/campanas/nueva', label: 'Tokenizar lote', icon: '＋', contextos: ['productor'] },
-  { to: '/campos', label: 'Mis lotes', icon: '⛰', contextos: ['productor'] },
+  { to: '/campanas', label: 'Mis emisiones', icon: '⛢', roles: ['productor'] },
+  { to: '/campanas/nueva', label: 'Tokenizar lote', icon: '＋', roles: ['productor'] },
+  { to: '/campos', label: 'Mis lotes', icon: '⛰', roles: ['productor'] },
   // Acopio
-  { to: '/acopio', label: 'Tablero', icon: '⌂', contextos: ['acopio'] },
-  { to: '/acopio/recepcion', label: 'Recepción', icon: '⤵', contextos: ['acopio'] },
-  { to: '/acopio/posiciones', label: 'Posiciones', icon: '▤', contextos: ['acopio'] },
-  { to: '/acopio/liberaciones', label: 'Liberaciones', icon: '⤴', contextos: ['acopio'] },
+  { to: '/acopio', label: 'Tablero', icon: '⌂', roles: ['acopio'] },
+  { to: '/acopio/recepcion', label: 'Recepción', icon: '⤵', roles: ['acopio'] },
+  { to: '/acopio/posiciones', label: 'Posiciones', icon: '▤', roles: ['acopio'] },
+  { to: '/acopio/liberaciones', label: 'Liberaciones', icon: '⤴', roles: ['acopio'] },
   // Admin
-  { to: '/revision-emisiones', label: 'Cola de revisión', icon: '⚑', contextos: ['admin_plataforma'] },
-  { to: '/red-acopios', label: 'Red de acopios', icon: '☰', contextos: ['admin_plataforma'] },
-  { to: '/conciliacion', label: 'Conciliación', icon: '⊗', contextos: ['admin_plataforma'] },
+  { to: '/revision-emisiones', label: 'Cola de revisión', icon: '⚑', roles: ['admin_plataforma'] },
+  { to: '/red-acopios', label: 'Red de acopios', icon: '☰', roles: ['admin_plataforma'] },
+  { to: '/conciliacion', label: 'Conciliación', icon: '⊗', roles: ['admin_plataforma'] },
 ];
 
 export function TokenizadasSidebar() {
-  const contexto = useWalletStore((s) => s.contextoActivo);
+  const usuario = useAuthStore((s) => s.usuario);
+  const rol = usuario?.rolPlataforma ?? null;
 
   const items = ITEMS.filter((it) => {
-    if (it.contextos === 'todos') return true;
-    if (!contexto) return it.to === '/' || it.to === '/invertir';
-    return it.contextos.includes(contexto);
+    if (it.roles === 'todos') return true;
+    if (!rol) return false; // sin sesión → solo se ven los "todos"
+    return it.roles.includes(rol);
   });
 
   return (
