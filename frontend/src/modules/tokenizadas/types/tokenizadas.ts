@@ -35,6 +35,9 @@ export interface CampoResumen {
   provincia: string | null;
   superficieTotalHa: number | null;
   geometria: any | null;
+  /** Coordenadas del establecimiento. Fallback del mapa cuando falta la geometría. */
+  latitud?: number | string | null;
+  longitud?: number | string | null;
   fotos: string[];
 }
 
