@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/apiClient';
-import type { TipoUsuario, UsuarioActual } from '@/stores/authStore';
+import type { RolPlataforma, UsuarioActual } from '@/stores/authStore';
 
 export interface AuthResponse {
   accessToken: string;
@@ -8,13 +8,13 @@ export interface AuthResponse {
 }
 
 export interface RegistroInput {
-  tipo: Extract<TipoUsuario, 'propietario' | 'inversor'>;
+  /** Rol Harvest elegido en el registro (productor / inversor). Los demás roles
+   *  se crean por seed o desde admin, nunca desde el registro público. */
+  rolPlataforma?: Extract<RolPlataforma, 'productor' | 'inversor'>;
   email: string;
   password: string;
   nombre: string;
-  /** Nombre visible en la plataforma (ficha, marketplace). Opcional. */
-  nombreVisible?: string;
-  /** Solo requerido para propietarios. Para inversor se defaultea al nombre del usuario. */
+  /** Solo requerido para productores. Para inversor se defaultea al nombre. */
   nombreCuenta?: string;
   emailContacto?: string;
   telefono?: string;

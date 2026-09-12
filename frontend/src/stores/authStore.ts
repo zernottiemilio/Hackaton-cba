@@ -1,16 +1,31 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type TipoUsuario = 'propietario' | 'inversor' | 'acopio' | 'admin';
+/** Rol único en la plataforma Harvest.fi. `null` = usuario legacy del MVP
+ *  que todavía no eligió (mostrarle onboarding o mandarlo al inicio del MVP). */
+export type RolPlataforma = 'productor' | 'inversor' | 'acopio' | 'admin_plataforma';
+export type RolGlobal = 'superadmin' | 'ingeniero' | 'propietario';
+export type RolEnCuenta = 'ingeniero' | 'propietario' | 'operador';
+
+export interface MembresiaResumen {
+  cuentaId: string;
+  cuentaNombre: string;
+  rol: RolEnCuenta;
+}
 
 export interface UsuarioActual {
   id: string;
   email: string;
   nombre: string;
-  cuentaId: string;
-  tipo: TipoUsuario;
-  nombreVisible: string | null;
+  rolGlobal: RolGlobal;
+  rolPlataforma: RolPlataforma | null;
   walletAddress: string | null;
+  cuentaId: string;
+  rolEnCuentaActiva: RolEnCuenta;
+  modulosPermitidos: string[];
+  membresias: MembresiaResumen[];
+  impersonating?: boolean;
+  impersonatingCuentaNombre?: string;
 }
 
 interface AuthState {
@@ -62,18 +77,20 @@ export const useAuthStore = create<AuthState>()(
 );
 
 /**
- * Ruta canónica de aterrizaje según el tipo de usuario.
- * Fuente de verdad para el enrutado post-login y para los guards por rol.
+ * Ruta canónica de aterrizaje según el rol Harvest.
+ * Si el usuario no eligió rol (legacy MVP), cae al inicio del MVP.
  */
-export function rutaInicialPorTipo(tipo: TipoUsuario): string {
-  switch (tipo) {
-    case 'propietario':
+export function rutaInicialPorRol(rolPlataforma: RolPlataforma | null): string {
+  switch (rolPlataforma) {
+    case 'productor':
       return '/';
     case 'inversor':
       return '/marketplace';
     case 'acopio':
       return '/acopio';
-    case 'admin':
+    case 'admin_plataforma':
       return '/admin';
+    default:
+      return '/';
   }
 }

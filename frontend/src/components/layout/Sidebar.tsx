@@ -1,17 +1,17 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogOut, Search } from 'lucide-react';
-import { navItemsPorTipo } from '@/constants/navigation';
+import { navItemsPorRol } from '@/constants/navigation';
 import { LogoLockup } from './Logo';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore, type RolPlataforma } from '@/stores/authStore';
 import { useCommandPalette } from '@/stores/commandPaletteStore';
 import { cn } from '@/lib/utils';
 
-const ETIQUETA_ROL: Record<string, string> = {
-  propietario: 'Productor',
+const ETIQUETA_ROL: Record<RolPlataforma, string> = {
+  productor: 'Productor',
   inversor: 'Inversor',
   acopio: 'Acopio',
-  admin: 'Administrador',
+  admin_plataforma: 'Administrador',
 };
 
 export function Sidebar() {
@@ -19,8 +19,8 @@ export function Sidebar() {
   const logout = useAuthStore((s) => s.logout);
   const openPalette = useCommandPalette((s) => s.setOpen);
 
-  const navItems = usuario ? navItemsPorTipo(usuario.tipo) : [];
-  const etiquetaRol = usuario ? ETIQUETA_ROL[usuario.tipo] : '';
+  const navItems = usuario ? navItemsPorRol(usuario.rolPlataforma) : [];
+  const etiquetaRol = usuario?.rolPlataforma ? ETIQUETA_ROL[usuario.rolPlataforma] : 'Cuenta';
 
   return (
     <aside className="hidden lg:flex w-64 shrink-0 h-screen sticky top-0 flex-col p-4">
@@ -33,9 +33,7 @@ export function Sidebar() {
         {/* Cuenta info */}
         <div className="px-5 pb-4 border-b border-white/15 shrink-0">
           <p className="text-[11px] uppercase tracking-wider text-white/60 font-medium">{etiquetaRol}</p>
-          <p className="text-sm text-white font-medium truncate">
-            {usuario?.nombreVisible ?? usuario?.nombre}
-          </p>
+          <p className="text-sm text-white font-medium truncate">{usuario?.nombre}</p>
         </div>
 
         {/* Nav — toma todo el espacio disponible */}

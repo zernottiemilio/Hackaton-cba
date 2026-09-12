@@ -1,22 +1,29 @@
 import { useEffect } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { rutaInicialPorTipo, useAuthStore, type TipoUsuario } from '@/stores/authStore';
+import { rutaInicialPorRol, useAuthStore, type RolPlataforma } from '@/stores/authStore';
 import { AppLayout } from './AppLayout';
 
 interface RutaProtegidaProps {
   /**
-   * Si se pasan tipos, solo esos roles pueden entrar. El resto se redirige a
-   * su ruta inicial con un aviso. Si no se pasa nada, cualquier autenticado entra.
+   * Si se pasan roles, solo esos pueden entrar. El resto se redirige a su
+   * ruta inicial con un aviso. Si no se pasa nada, cualquier autenticado entra.
+   *
+   * `'sin-rol'` matchea usuarios con `rolPlataforma === null` (legacy MVP).
    */
-  tipos?: TipoUsuario[];
+  roles?: Array<RolPlataforma | 'sin-rol'>;
 }
 
-export function RutaProtegida({ tipos }: RutaProtegidaProps = {}) {
+export function RutaProtegida({ roles }: RutaProtegidaProps = {}) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const usuario = useAuthStore((s) => s.usuario);
 
-  const rolPermitido = !tipos || (usuario ? tipos.includes(usuario.tipo) : false);
+  const rolPermitido = (() => {
+    if (!roles) return true;
+    if (!usuario) return false;
+    if (usuario.rolPlataforma === null) return roles.includes('sin-rol');
+    return roles.includes(usuario.rolPlataforma);
+  })();
 
   useEffect(() => {
     if (isAuthenticated && usuario && !rolPermitido) {
@@ -25,17 +32,12 @@ export function RutaProtegida({ tipos }: RutaProtegidaProps = {}) {
   }, [isAuthenticated, usuario, rolPermitido]);
 
   if (!isAuthenticated || !usuario) return <Navigate to="/login" replace />;
-  if (!rolPermitido) return <Navigate to={rutaInicialPorTipo(usuario.tipo)} replace />;
+  if (!rolPermitido) return <Navigate to={rutaInicialPorRol(usuario.rolPlataforma)} replace />;
 
-  // Si hay children route (Outlet), lo renderiza el AppLayout dentro.
-  // El AppLayout ya usa <Outlet /> internamente.
   return <AppLayout />;
 }
 
-/**
- * Alias semántico para rutas que declaran explícitamente sus roles.
- * Equivalente a `<RutaProtegida tipos={[...]} />`.
- */
-export function RutaPorRol(props: { tipos: TipoUsuario[] }) {
-  return <RutaProtegida tipos={props.tipos} />;
+/** Alias semántico para rutas que declaran explícitamente sus roles. */
+export function RutaPorRol(props: { roles: Array<RolPlataforma | 'sin-rol'> }) {
+  return <RutaProtegida roles={props.roles} />;
 }

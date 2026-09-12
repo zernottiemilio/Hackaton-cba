@@ -3,7 +3,7 @@ import { LoginPage } from '@/pages/auth/LoginPage';
 import { RegistroPage } from '@/pages/auth/RegistroPage';
 import { RutaProtegida } from '@/components/layout/RutaProtegida';
 
-// ─── Propietario (dominio agronómico + emisiones) ────────────
+// ─── Productor (dominio agronómico + emisiones) ──────────────
 import { InicioPage } from '@/pages/InicioPage';
 import { EstablecimientosPage } from '@/pages/EstablecimientosPage';
 import { LotesPage } from '@/pages/LotesPage';
@@ -27,16 +27,16 @@ import { PortfolioInversorPage } from '@/pages/portfolio/PortfolioInversorPage';
 // ─── Acopio ─────────────────────────────────────────────────
 import { AcopioPanelPage } from '@/pages/acopio/AcopioPanelPage';
 
-// ─── Admin ──────────────────────────────────────────────────
+// ─── Admin plataforma ───────────────────────────────────────
 import { AdminPanelPage } from '@/pages/admin/AdminPanelPage';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/registro', element: <RegistroPage /> },
 
-  // Rutas del propietario (y admin, que también puede entrar por soporte)
+  // Productor (y admin, que puede entrar para soporte) + usuarios legacy MVP
   {
-    element: <RutaProtegida tipos={['propietario', 'admin']} />,
+    element: <RutaProtegida roles={['productor', 'admin_plataforma', 'sin-rol']} />,
     children: [
       { path: '/', element: <InicioPage /> },
       { path: '/establecimientos', element: <EstablecimientosPage /> },
@@ -56,29 +56,25 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Rutas del inversor
+  // Inversor
   {
-    element: <RutaProtegida tipos={['inversor']} />,
+    element: <RutaProtegida roles={['inversor']} />,
     children: [
       { path: '/marketplace', element: <MarketplacePage /> },
       { path: '/portfolio', element: <PortfolioInversorPage /> },
     ],
   },
 
-  // Rutas del acopio
+  // Acopio
   {
-    element: <RutaProtegida tipos={['acopio']} />,
-    children: [
-      { path: '/acopio', element: <AcopioPanelPage /> },
-    ],
+    element: <RutaProtegida roles={['acopio']} />,
+    children: [{ path: '/acopio', element: <AcopioPanelPage /> }],
   },
 
-  // Rutas del admin
+  // Admin plataforma
   {
-    element: <RutaProtegida tipos={['admin']} />,
-    children: [
-      { path: '/admin', element: <AdminPanelPage /> },
-    ],
+    element: <RutaProtegida roles={['admin_plataforma']} />,
+    children: [{ path: '/admin', element: <AdminPanelPage /> }],
   },
 
   { path: '*', element: <Navigate to="/" replace /> },

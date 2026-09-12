@@ -13,10 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LogoLockup } from '@/components/layout/Logo';
 import { authService } from '@/services/authService';
-import { useAuthStore, rutaInicialPorTipo } from '@/stores/authStore';
+import { useAuthStore, rutaInicialPorRol } from '@/stores/authStore';
 import { extraerMensajeError } from '@/lib/apiClient';
 
-type Tipo = 'propietario' | 'inversor';
+type Tipo = 'productor' | 'inversor';
 
 const schemaBase = z.object({
   nombre: z.string().trim().min(2, 'Nombre requerido'),
@@ -51,21 +51,21 @@ export function RegistroPage() {
   const mutation = useMutation({
     mutationFn: (data: FormData) =>
       authService.registro({
-        tipo: tipo!,
+        rolPlataforma: tipo!,
         nombre: data.nombre,
         email: data.email,
         password: data.password,
-        nombreCuenta: tipo === 'propietario' ? data.nombreCuenta : undefined,
+        nombreCuenta: tipo === 'productor' ? data.nombreCuenta : undefined,
       }),
     onSuccess: (res) => {
       setTokens(res.accessToken, res.refreshToken, res.usuario);
       toast.success(`Cuenta creada. Bienvenido, ${res.usuario.nombre}`);
-      navigate(rutaInicialPorTipo(res.usuario.tipo), { replace: true });
+      navigate(rutaInicialPorRol(res.usuario.rolPlataforma), { replace: true });
     },
     onError: (err) => toast.error(extraerMensajeError(err)),
   });
 
-  if (isAuthenticated && usuario) return <Navigate to={rutaInicialPorTipo(usuario.tipo)} replace />;
+  if (isAuthenticated && usuario) return <Navigate to={rutaInicialPorRol(usuario.rolPlataforma)} replace />;
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4">
@@ -97,7 +97,7 @@ export function RegistroPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={() => setTipo('propietario')}
+                  onClick={() => setTipo('productor')}
                   className="group text-left p-5 rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -143,7 +143,7 @@ export function RegistroPage() {
               </button>
 
               <div className="mb-5 p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center gap-2">
-                {tipo === 'propietario' ? (
+                {tipo === 'productor' ? (
                   <Sprout className="h-4 w-4 text-primary shrink-0" />
                 ) : (
                   <TrendingUp className="h-4 w-4 text-primary shrink-0" />
@@ -151,7 +151,7 @@ export function RegistroPage() {
                 <p className="text-sm">
                   Te registrás como{' '}
                   <span className="font-semibold">
-                    {tipo === 'propietario' ? 'propietario de campo' : 'inversor'}
+                    {tipo === 'productor' ? 'productor de campo' : 'inversor'}
                   </span>
                 </p>
               </div>
@@ -159,13 +159,13 @@ export function RegistroPage() {
               <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="nombre">
-                    {tipo === 'propietario' ? 'Tu nombre' : 'Tu nombre completo'}
+                    {tipo === 'productor' ? 'Tu nombre' : 'Tu nombre completo'}
                   </Label>
                   <Input id="nombre" autoComplete="name" placeholder="Juan Pérez" {...register('nombre')} />
                   {errors.nombre && <p className="text-sm text-destructive">{errors.nombre.message}</p>}
                 </div>
 
-                {tipo === 'propietario' && (
+                {tipo === 'productor' && (
                   <div className="space-y-2">
                     <Label htmlFor="nombreCuenta">Nombre del campo o empresa</Label>
                     <Input

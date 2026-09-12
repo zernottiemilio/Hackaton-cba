@@ -157,11 +157,13 @@ export class AuthService {
     const existente = await this.prisma.usuario.findUnique({ where: { email: emailLower } });
     if (existente) throw new ConflictException('Ya existe un usuario con ese email');
 
+    const nombreCuenta = dto.nombreCuenta ?? dto.nombre; // inversor → cuenta 1:1 con su nombre
+
     const passwordHash = await this.generarHash(dto.password);
     const { usuarioId, cuentaId } = await this.prisma.$transaction(async (tx) => {
       const cuenta = await tx.cuenta.create({
         data: {
-          nombre: dto.nombreCuenta,
+          nombre: nombreCuenta,
           emailContacto: dto.emailContacto,
           telefono: dto.telefono,
         },
@@ -173,6 +175,7 @@ export class AuthService {
           passwordHash,
           nombre: dto.nombre,
           rolGlobal: 'ingeniero',
+          ...(dto.rolPlataforma && { rolPlataforma: dto.rolPlataforma }),
         },
       });
       await tx.usuarioCuenta.create({

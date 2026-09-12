@@ -14,16 +14,31 @@ export const refreshSchema = z.object({
 
 export class RefreshDto extends createZodDto(refreshSchema) {}
 
-export const registroSchema = z.object({
-  // Cuenta
-  nombreCuenta: z.string().trim().min(1, 'Nombre de la cuenta requerido'),
-  emailContacto: z.string().email('Email de contacto inválido').toLowerCase().trim().optional(),
-  telefono: z.string().trim().optional(),
-  // Usuario inicial
-  email: z.string().email('Email inválido').toLowerCase().trim(),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-  nombre: z.string().trim().min(1, 'Nombre del usuario requerido'),
-});
+/** Roles que se pueden auto-asignar desde el registro público.
+ *  `acopio` y `admin_plataforma` se crean por seed / desde admin, nunca desde
+ *  el registro público. */
+export const rolPlataformaPublicoSchema = z.enum(['productor', 'inversor']);
+export type RolPlataformaPublico = z.infer<typeof rolPlataformaPublicoSchema>;
+
+export const registroSchema = z
+  .object({
+    // Rol elegido en el registro (productor / inversor). Si viene, se
+    // asigna a Usuario.rolPlataforma. Si no, queda null y el usuario elige
+    // después (comportamiento legacy).
+    rolPlataforma: rolPlataformaPublicoSchema.optional(),
+    // Cuenta — opcional para inversor (defaultea al nombre del usuario).
+    nombreCuenta: z.string().trim().min(1).optional(),
+    emailContacto: z.string().email('Email de contacto inválido').toLowerCase().trim().optional(),
+    telefono: z.string().trim().optional(),
+    // Usuario inicial
+    email: z.string().email('Email inválido').toLowerCase().trim(),
+    password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+    nombre: z.string().trim().min(1, 'Nombre del usuario requerido'),
+  })
+  .refine((d) => d.rolPlataforma === 'inversor' || (d.nombreCuenta && d.nombreCuenta.length > 0), {
+    message: 'Nombre de la cuenta requerido para productores',
+    path: ['nombreCuenta'],
+  });
 export class RegistroDto extends createZodDto(registroSchema) {}
 
 export const actualizarPerfilSchema = z.object({

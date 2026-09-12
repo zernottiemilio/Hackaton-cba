@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LogoLockup } from '@/components/layout/Logo';
 import { authService } from '@/services/authService';
-import { useAuthStore, rutaInicialPorTipo } from '@/stores/authStore';
+import { useAuthStore, rutaInicialPorRol } from '@/stores/authStore';
 import { extraerMensajeError } from '@/lib/apiClient';
 
 const schema = z.object({
@@ -40,13 +40,13 @@ export function LoginPage() {
     mutationFn: (data: FormData) => authService.login(data.email, data.password),
     onSuccess: (res) => {
       setTokens(res.accessToken, res.refreshToken, res.usuario);
-      toast.success(`Bienvenido, ${res.usuario.nombreVisible ?? res.usuario.nombre}`);
-      navigate(rutaInicialPorTipo(res.usuario.tipo), { replace: true });
+      toast.success(`Bienvenido, ${res.usuario.nombre}`);
+      navigate(rutaInicialPorRol(res.usuario.rolPlataforma), { replace: true });
     },
     onError: (err) => toast.error(extraerMensajeError(err)),
   });
 
-  if (isAuthenticated && usuario) return <Navigate to={rutaInicialPorTipo(usuario.tipo)} replace />;
+  if (isAuthenticated && usuario) return <Navigate to={rutaInicialPorRol(usuario.rolPlataforma)} replace />;
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4">
@@ -80,7 +80,7 @@ export function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="juan@agrofacil.dev"
+                placeholder="juan@productor.demo"
                 {...register('email')}
               />
               {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
@@ -108,9 +108,16 @@ export function LoginPage() {
                 Registrate
               </Link>
             </p>
-            <p className="pt-2 border-t border-border/60">
-              Demos <code className="bg-muted/70 px-1 rounded">agrofacil123</code>:{' '}
-              <code className="bg-muted/70 px-1 rounded">juan@agrofacil.dev</code> · <code className="bg-muted/70 px-1 rounded">maria@agrofacil.dev</code>
+            <p className="pt-2 border-t border-border/60 leading-relaxed">
+              Demo · pwd <code className="bg-muted/70 px-1 rounded">agrofacil123</code>
+              <br />
+              <code className="bg-muted/70 px-1 rounded">juan@productor.demo</code>
+              {' · '}
+              <code className="bg-muted/70 px-1 rounded">carlos@inversor.demo</code>
+              <br />
+              <code className="bg-muted/70 px-1 rounded">acopio@sanmartin.demo</code>
+              {' · '}
+              <code className="bg-muted/70 px-1 rounded">admin@tokenizadas.demo</code>
             </p>
           </div>
         </div>

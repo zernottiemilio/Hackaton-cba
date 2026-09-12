@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Drawer } from 'vaul';
 import { NavLink } from 'react-router-dom';
 import { LogOut, Menu } from 'lucide-react';
-import { navItemsPorTipo } from '@/constants/navigation';
+import { navItemsPorRol } from '@/constants/navigation';
 import { LogoLockup } from './Logo';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,7 @@ export function MobileDrawer() {
   const [open, setOpen] = useState(false);
   const usuario = useAuthStore((s) => s.usuario);
   const logout = useAuthStore((s) => s.logout);
-  const navItems = usuario ? navItemsPorTipo(usuario.tipo) : [];
+  const navItems = usuario ? navItemsPorRol(usuario.rolPlataforma) : [];
 
   return (
     <Drawer.Root open={open} onOpenChange={setOpen}>
