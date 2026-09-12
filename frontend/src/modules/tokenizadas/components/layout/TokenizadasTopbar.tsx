@@ -1,8 +1,9 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { WalletButton } from '../wallet/WalletButton';
 import { useAuthStore } from '@/stores/authStore';
 import { useWalletStore } from '../../stores/walletStore';
 import { etiquetaRed } from '../../utils/explorer';
+import { MenuPerfil } from './MenuPerfil';
 
 /**
  * Topbar del shell Harvest.
@@ -80,7 +81,7 @@ export function TokenizadasTopbar() {
 
         {isAuthenticated ? (
           <>
-            <UsuarioChip />
+            <MenuPerfil />
             <WalletButton />
           </>
         ) : (
@@ -111,73 +112,6 @@ function BotonIngresar() {
       </svg>
       Ingresar
     </Link>
-  );
-}
-
-function UsuarioChip() {
-  const usuario = useAuthStore((s) => s.usuario);
-  const logout = useAuthStore((s) => s.logout);
-  const navigate = useNavigate();
-
-  if (!usuario) return null;
-
-  const inicial = usuario.nombre[0]?.toUpperCase() ?? '?';
-
-  return (
-    <button
-      onClick={() => {
-        if (confirm(`¿Cerrar sesión de ${usuario.nombre}?`)) {
-          logout();
-          navigate('/login', { replace: true });
-        }
-      }}
-      className="flex items-center gap-2.5 transition-all"
-      style={{
-        padding: '6px 10px 6px 6px',
-        borderRadius: 10,
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid var(--hv-border)',
-        boxShadow: 'var(--hv-inset-top)',
-        cursor: 'pointer',
-      }}
-      title="Click para cerrar sesión"
-    >
-      <span
-        style={{
-          width: 26,
-          height: 26,
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--hv-green-deep), var(--hv-green-mid))',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--hv-bg-token)',
-          fontWeight: 700,
-          fontSize: 12,
-        }}
-      >
-        {inicial}
-      </span>
-      <div className="flex flex-col items-start leading-none">
-        <span style={{ color: 'var(--hv-text)', fontSize: 12, fontWeight: 600 }}>
-          {usuario.nombre.split(' ')[0]}
-        </span>
-        {usuario.rolPlataforma && (
-          <span
-            className="hv-mono"
-            style={{
-              fontSize: 9,
-              color: 'var(--hv-text-muted)',
-              marginTop: 2,
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-            }}
-          >
-            {nombreRol(usuario.rolPlataforma).toLowerCase()}
-          </span>
-        )}
-      </div>
-    </button>
   );
 }
 
