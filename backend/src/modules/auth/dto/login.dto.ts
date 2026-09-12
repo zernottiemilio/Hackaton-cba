@@ -37,3 +37,9 @@ export const cambiarPasswordSchema = z.object({
   passwordNueva: z.string().min(6, 'La nueva contraseña debe tener al menos 6 caracteres'),
 });
 export class CambiarPasswordDto extends createZodDto(cambiarPasswordSchema) {}
+
+export const activarSchema = z.object({
+  token: z.string().min(10, 'Token inválido'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+});
+export class ActivarDto extends createZodDto(activarSchema) {}

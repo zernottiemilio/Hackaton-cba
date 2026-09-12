@@ -12,7 +12,12 @@ import {
   Query,
 } from '@nestjs/common';
 import { LotesService } from './lotes.service';
-import { ActualizarLoteDto, CrearLoteDto, listarLotesSchema } from './lotes.dto';
+import {
+  ActualizarLoteDto,
+  CrearLoteDto,
+  DividirLoteDto,
+  listarLotesSchema,
+} from './lotes.dto';
 import { Usuario } from '../../common/decorators/usuario.decorator';
 import type { UsuarioActual } from '../../common/types/usuario-actual';
 
@@ -49,5 +54,15 @@ export class LotesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   eliminar(@Usuario() user: UsuarioActual, @Param('id', ParseUUIDPipe) id: string) {
     return this.service.eliminar(user.cuentaId, id);
+  }
+
+  @Post(':id/dividir')
+  @HttpCode(HttpStatus.CREATED)
+  dividir(
+    @Usuario() user: UsuarioActual,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DividirLoteDto,
+  ) {
+    return this.service.dividir(user.cuentaId, id, dto);
   }
 }
