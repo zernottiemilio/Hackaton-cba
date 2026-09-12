@@ -5,6 +5,21 @@
    Se cargan solo dentro de `.tk-scope` para no impactar al resto del MVP.
    ========================================================================== */
 
+/* Cuando el módulo tokenizadas está montado, el <html> lleva la clase
+   `.tk-mounted`. Con eso pintamos el body oscuro y neutralizamos scrollbars
+   verdes del MVP para que no asomen por gaps/overflow. */
+html.tk-mounted,
+html.tk-mounted body {
+  background: #06060a !important;
+}
+html.tk-mounted ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 3px !important;
+}
+html.tk-mounted ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
 .tk-scope {
   /* ---- Brand ------------------------------------------------------------ */
   --hv-green:            #2BE06A;   /* verde principal, acento CTA */

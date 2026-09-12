@@ -7,10 +7,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // Inyecta el SW + asks for update via prompt en lugar de auto-update silencioso.
-      // Toast "Hay una nueva versión" lo levantamos desde main.tsx con registerSW.
-      registerType: 'prompt',
-      injectRegister: false,
+      // autoUpdate: actualiza el SW en cada carga sin pedirle nada al usuario.
+      // Se cambió de 'prompt' → 'autoUpdate' porque el toast requería acción del
+      // usuario y bloqueaba ver deploys nuevos hasta que aceptara. Para una demo
+      // de hackaton necesitamos que cada push llegue instantáneo.
+      registerType: 'autoUpdate',
+      injectRegister: 'auto',
 
       // El SW cachea HTML/JS/CSS/imágenes durante el build (precaching) y además
       // configuramos runtime caching para fuentes externas y API GET.

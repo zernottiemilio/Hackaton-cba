@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TokenizadasSidebar } from './TokenizadasSidebar';
@@ -10,9 +11,20 @@ import '../../styles/harvest-tokens.css';
  * Dark-first sobre fondo #06060a con acento verde #2BE06A.
  * Fuentes: Golos Text (display + UI) + JetBrains Mono (labels + números).
  * Los tokens visuales viven en `styles/harvest-tokens.css`.
+ *
+ * El layout marca `<html>` con la clase `tk-mounted` mientras esté montado
+ * para que el fondo del body (heredado del MVP) no se cuele por debajo del
+ * shell dark. Al desmontar (usuario vuelve a `/`), se limpia.
  */
 export function TokenizadasLayout() {
   const location = useLocation();
+
+  useEffect(() => {
+    document.documentElement.classList.add('tk-mounted');
+    return () => {
+      document.documentElement.classList.remove('tk-mounted');
+    };
+  }, []);
 
   return (
     <div className="min-h-screen tk-scope">
