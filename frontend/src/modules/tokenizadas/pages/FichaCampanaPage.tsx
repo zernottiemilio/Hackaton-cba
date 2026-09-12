@@ -6,6 +6,10 @@ import { BadgeModo } from '../components/campana/BadgeModo';
 import { EstadoCampanaBadge } from '../components/campana/EstadoCampanaBadge';
 import { BarraFondeo } from '../components/campana/BarraFondeo';
 import { PanelOnChain } from '../components/campana/PanelOnChain';
+import { SeccionClima } from '../components/campana/SeccionClima';
+import { SeccionSuelo } from '../components/campana/SeccionSuelo';
+import { SeccionNdvi } from '../components/campana/SeccionNdvi';
+import { SeccionSimuladorRetorno } from '../components/campana/SeccionSimuladorRetorno';
 import { Sparkline } from '../components/charts/Sparkline';
 import { useHistoriaPrecios, usePrecioLive } from '../hooks/usePreciosLive';
 import type { Cultivo } from '../services/mockPreciosService';
@@ -112,17 +116,17 @@ export function FichaCampanaPage() {
           {/* Gráfico de pizarra + serie precio token */}
           <SeccionPrecioPizarra cultivo={cultivoNombre} precioReferencia={t.precioReferenciaUsdTn} precioToken={t.precioTokenUsd} />
 
-          {/* Clima (mock) */}
-          <SeccionMock titulo="Clima" descripcion="Precipitación mensual del ciclo actual vs promedio histórico." emoji="☁️" />
+          {/* Clima */}
+          <SeccionClima tokenizacionId={t.id} />
 
-          {/* Suelo (mock) */}
-          <SeccionMock titulo="Suelo" descripcion="Textura, materia orgánica, pH y capacidad de retención hídrica." emoji="⛰️" />
+          {/* Suelo */}
+          <SeccionSuelo tokenizacionId={t.id} />
 
-          {/* NDVI (mock) */}
-          <SeccionMock titulo="Trayectoria del cultivo (NDVI)" descripcion="Curva del lote vs curva típica del cultivo." emoji="🌱" />
+          {/* NDVI */}
+          <SeccionNdvi tokenizacionId={t.id} />
 
-          {/* Simulador */}
-          <SeccionMock titulo="Simulador de retorno" descripcion="Slider de precio de soja a cosecha para simular escenarios." emoji="📊" />
+          {/* Simulador de retorno */}
+          <SeccionSimuladorRetorno t={t} />
 
           {/* Garantías */}
           <div className="bg-[#0F1216] border border-white/5 rounded-2xl p-5">
@@ -210,25 +214,6 @@ function SeccionPrecioPizarra({ cultivo, precioReferencia, precioToken }: { cult
             {porcentaje(spread, 1)}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function SeccionMock({ titulo, descripcion, emoji }: { titulo: string; descripcion: string; emoji: string }) {
-  return (
-    <div className="bg-[#0F1216] border border-white/5 rounded-2xl p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="text-white font-semibold text-sm flex items-center gap-2">
-            <span>{emoji}</span>
-            {titulo}
-          </h3>
-          <p className="text-white/40 text-xs mt-1">{descripcion}</p>
-        </div>
-        <span className="text-[10px] text-amber-400 font-medium uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
-          Próximamente
-        </span>
       </div>
     </div>
   );
