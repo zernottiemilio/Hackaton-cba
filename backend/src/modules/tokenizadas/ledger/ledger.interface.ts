@@ -59,6 +59,30 @@ export interface ReclamarResult {
   usdcRecibido: number;
 }
 
+/** release_funds: el vault se vacía hacia la wallet del productor. */
+export interface LiberarFondosResult {
+  txSignature: string;
+  /** USDC que salió del vault. Se lee del saldo real del vault, no se calcula. */
+  montoUsd: number;
+}
+
+/** settle: el acopio deposita lo que pagó por el grano entregado. */
+export interface LiquidarInput {
+  tokenizacionId: string;
+  /** tons_delivered. Puede ser menor a lo vendido (sequía). Entero. */
+  toneladasEntregadas: number;
+  /** settlement_price en USD por tonelada. */
+  precioLiquidacionUsdTn: number;
+}
+
+export interface LiquidarResult {
+  txSignature: string;
+  /** payout_per_token en USD: deposito / tokensVendidos, división entera en micro-USDC. */
+  payoutPorTokenUsd: number;
+  /** USDC que entraron al vault: toneladasEntregadas × precio. */
+  depositoUsd: number;
+}
+
 export interface DisponibilidadResult {
   tokensEmitidos: number;
   tokensVendidos: number;
@@ -79,7 +103,19 @@ export abstract class LedgerService {
   /** Confirma la reserva: transfiere USDC del inversor al vault y le entrega los tokens. */
   abstract confirmarCompra(reservaId: string): Promise<ConfirmarCompraResult>;
 
-  /** Al liquidar la campaña: quema los tokens del inversor y le transfiere USDC del vault. */
+  /**
+   * release_funds. Firma el productor. Solo con la campaña Open y
+   * tons_sold >= min_tons. Vacía el vault completo hacia el productor.
+   */
+  abstract liberarFondos(tokenizacionId: string): Promise<LiberarFondosResult>;
+
+  /**
+   * settle. Firma el acopio (fee-payer de la plataforma). Solo con la campaña
+   * Funded y now >= settlement_date. Deposita en el vault y fija payout_per_token.
+   */
+  abstract liquidar(input: LiquidarInput): Promise<LiquidarResult>;
+
+  /** redeem. Solo con la campaña Settled: quema los tokens del inversor y le transfiere USDC del vault. */
   abstract reclamar(input: ReclamarInput): Promise<ReclamarResult>;
 
   /** Disponibilidad actual de tokens para una tokenización. */

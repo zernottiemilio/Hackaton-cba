@@ -65,7 +65,7 @@ Nuevos, acordados entre back y front (tareas VAL-12 y VAL-18):
 | POST | `:id/liquidar` | admin_plataforma | `{ toneladasEntregadas, precioLiquidacionUsdTn }` → `{ txSignature, payoutPorTokenUsd, depositoUsd }`. Persiste `toneladasEntregadas`, `precioLiquidacionUsdTn`, `payoutPorTokenUsd`, `txSignatureLiquidacion`. Estado → `liquidada` |
 | GET | `:id/on-chain` | público | `{ onChain, status, tonsOffered, tonsSold, minTons, pricePerTonUsd, settlementDate, tonsDelivered, settlementPriceUsd, payoutPerTokenUsd, vaultBalanceUsd, addresses: { campaign, tokenMint, vault, producer, acopio }, explorer: { campaign, tokenMint, vault } }` |
 
-`reclamar` pasa a hacer solo `redeem`. Hoy dispara `release_funds` y `settle` escondidos en `ensureCampaignSettled()`; eso se saca.
+`reclamar` hace solo `redeem` y exige estado on-chain `Settled` (VAL-12). El auto-disparo de `release_funds` y `settle` que vivía en `ensureCampaignSettled()` se eliminó: son pasos propios que firman el productor y el acopio de forma visible. En la demo, el "acopio" es el fee-payer y, como es la mint authority del USDC de prueba, se acuña el depósito antes de `settle`.
 
 ## Envs del backend
 

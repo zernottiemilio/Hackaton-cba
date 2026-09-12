@@ -102,6 +102,15 @@ export const ReclamarSchema = z.object({
 });
 export class ReclamarDto extends createZodDto(ReclamarSchema) {}
 
+/** Liquidación (settle) por parte del ADMIN en nombre del acopio. */
+export const LiquidarTokenizacionSchema = z.object({
+  /** tons_delivered: entero, 1 token = 1 tonelada. Puede ser menor a lo vendido. */
+  toneladasEntregadas: z.number().int().positive(),
+  /** settlement_price en USD por tonelada. */
+  precioLiquidacionUsdTn: z.number().positive(),
+});
+export class LiquidarTokenizacionDto extends createZodDto(LiquidarTokenizacionSchema) {}
+
 /** Filtros del marketplace de campañas abiertas. */
 export const ListarMarketplaceSchema = z.object({
   cultivo: z.string().optional(),

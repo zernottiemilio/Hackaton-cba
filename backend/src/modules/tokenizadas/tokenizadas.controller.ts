@@ -9,6 +9,7 @@ import {
   ConfirmarCompraDto,
   ReclamarDto,
   ListarMarketplaceDto,
+  LiquidarTokenizacionDto,
 } from './dto/tokenizacion.dto';
 import { CrearCampoDto, ActualizarCampoDto } from './dto/campo.dto';
 import { Usuario } from '../../common/decorators/usuario.decorator';
@@ -117,6 +118,13 @@ export class TokenizadasController {
     return this.service.listarDelProductor(user.id);
   }
 
+  /** Cobrar la siembra: release_funds, el vault se vacía hacia el productor. */
+  @RolPlataforma('productor')
+  @Post(':id/liberar-fondos')
+  liberarFondos(@Param('id') id: string, @Usuario() user: UsuarioActual) {
+    return this.service.liberarFondos(id, user.id);
+  }
+
   // ─── Inversor ──────────────────────────────────────────────────
 
   /** Marketplace de campañas ABIERTAS. Público (no requiere auth). */
@@ -179,5 +187,23 @@ export class TokenizadasController {
     @Body() dto: RevisarTokenizacionDto,
   ) {
     return this.service.revisar(id, user.id, dto);
+  }
+
+  /** Campañas fondeadas (pendientes de liquidar) y liquidadas (historial). */
+  @RolPlataforma('admin_plataforma')
+  @Get('admin/liquidacion')
+  colaLiquidacion() {
+    return this.service.listarParaLiquidar();
+  }
+
+  /** Liquidar: settle firmado por el acopio (fee-payer). Fija el payout por token. */
+  @RolPlataforma('admin_plataforma')
+  @Post(':id/liquidar')
+  liquidar(
+    @Param('id') id: string,
+    @Usuario() user: UsuarioActual,
+    @Body() dto: LiquidarTokenizacionDto,
+  ) {
+    return this.service.liquidar(id, user.id, dto);
   }
 }

@@ -2,7 +2,12 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException,
 import Decimal from 'decimal.js';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LedgerService } from './ledger/ledger.interface';
-import { CrearTokenizacionDto, RevisarTokenizacionDto, ListarMarketplaceDto } from './dto/tokenizacion.dto';
+import {
+  CrearTokenizacionDto,
+  RevisarTokenizacionDto,
+  ListarMarketplaceDto,
+  LiquidarTokenizacionDto,
+} from './dto/tokenizacion.dto';
 
 /**
  * Orquesta el flujo de tokenización: creación → revisión ADMIN → publicación
@@ -321,6 +326,114 @@ export class TokenizadasService {
 
   async reclamar(tenenciaId: string, inversorWallet: string) {
     return this.ledger.reclamar({ tenenciaId, inversorWallet });
+  }
+
+  // ─── Productor: liberar fondos (release_funds) ─────────────────
+
+  /**
+   * Paso 4 de la demo. El productor cobra lo recaudado: el vault se vacía
+   * hacia su wallet. Solo el dueño, solo con la campaña abierta. El mínimo de
+   * toneladas lo valida el programa (MinNotReached).
+   */
+  async liberarFondos(tokenizacionId: string, productorId: string) {
+    const t = await this.prisma.tokenizacionCampana.findUnique({
+      where: { id: tokenizacionId },
+      include: { campania: true },
+    });
+    if (!t) throw new NotFoundException('Tokenización no encontrada');
+    if (t.productorId !== productorId) throw new ForbiddenException('No sos el productor de esta campaña');
+    if (t.campania.estadoToken !== 'abierta') {
+      throw new BadRequestException(`No se pueden liberar fondos en estado ${t.campania.estadoToken}`);
+    }
+    if (t.tokensVendidos.lte(0)) {
+      throw new BadRequestException('Todavía no se vendió ninguna tonelada');
+    }
+
+    const res = await this.ledger.liberarFondos(tokenizacionId);
+
+    await this.prisma.$transaction([
+      this.prisma.tokenizacionCampana.update({
+        where: { id: tokenizacionId },
+        data: { txSignatureLiberacion: res.txSignature, fondosLiberadosEn: new Date() },
+      }),
+      this.prisma.campania.update({
+        where: { id: t.campaniaId },
+        data: { estadoToken: 'fondeada' },
+      }),
+    ]);
+
+    this.logger.log(`Fondos liberados: tokenizacion=${tokenizacionId} monto=${res.montoUsd} tx=${res.txSignature}`);
+    return res;
+  }
+
+  // ─── Admin: liquidar (settle) ──────────────────────────────────
+
+  /** Campañas fondeadas (pendientes de liquidar) y liquidadas (historial). */
+  async listarParaLiquidar() {
+    return this.prisma.tokenizacionCampana.findMany({
+      where: { campania: { estadoToken: { in: ['fondeada', 'liquidada'] } }, activo: true },
+      include: {
+        campania: { include: { establecimiento: true, cultivo: true } },
+        productor: { select: { id: true, nombre: true, email: true, walletAddress: true } },
+        tenencias: { select: { id: true, tokens: true, walletAddress: true, estado: true } },
+      },
+      orderBy: [{ liquidadaEn: 'asc' }, { fondosLiberadosEn: 'asc' }],
+    });
+  }
+
+  /**
+   * Paso 5 de la demo. El admin, en nombre del acopio, declara cuántas
+   * toneladas se entregaron y a qué precio. El programa fija el payout por
+   * token. Entregar menos de lo vendido reparte la merma pro rata (sequía).
+   */
+  async liquidar(tokenizacionId: string, adminId: string, dto: LiquidarTokenizacionDto) {
+    const t = await this.prisma.tokenizacionCampana.findUnique({
+      where: { id: tokenizacionId },
+      include: { campania: true },
+    });
+    if (!t) throw new NotFoundException('Tokenización no encontrada');
+    if (t.campania.estadoToken !== 'fondeada') {
+      throw new BadRequestException(
+        `Solo se liquida una campaña fondeada. Estado actual: ${t.campania.estadoToken}`,
+      );
+    }
+    const vendidas = t.tokensVendidos.toDecimalPlaces(0, Decimal.ROUND_FLOOR).toNumber();
+    if (dto.toneladasEntregadas > vendidas) {
+      throw new BadRequestException(`No se pueden entregar más toneladas (${dto.toneladasEntregadas}) que las vendidas (${vendidas})`);
+    }
+    if (t.fechaLiquidacion && t.fechaLiquidacion.getTime() > Date.now()) {
+      throw new BadRequestException(
+        `La liquidación está programada para ${t.fechaLiquidacion.toISOString()}. El programa rechaza settle antes de esa fecha`,
+      );
+    }
+
+    const res = await this.ledger.liquidar({
+      tokenizacionId,
+      toneladasEntregadas: dto.toneladasEntregadas,
+      precioLiquidacionUsdTn: dto.precioLiquidacionUsdTn,
+    });
+
+    await this.prisma.$transaction([
+      this.prisma.tokenizacionCampana.update({
+        where: { id: tokenizacionId },
+        data: {
+          toneladasEntregadas: new Decimal(dto.toneladasEntregadas),
+          precioLiquidacionUsdTn: new Decimal(dto.precioLiquidacionUsdTn),
+          payoutPorTokenUsd: new Decimal(res.payoutPorTokenUsd),
+          txSignatureLiquidacion: res.txSignature,
+          liquidadaEn: new Date(),
+        },
+      }),
+      this.prisma.campania.update({
+        where: { id: t.campaniaId },
+        data: { estadoToken: 'liquidada' },
+      }),
+    ]);
+
+    this.logger.log(
+      `Campaña liquidada por admin=${adminId}: tokenizacion=${tokenizacionId} entregadas=${dto.toneladasEntregadas} precio=${dto.precioLiquidacionUsdTn} payout=${res.payoutPorTokenUsd} tx=${res.txSignature}`,
+    );
+    return res;
   }
 
   // ─── Productor: sus campañas tokenizadas ───────────────────────
