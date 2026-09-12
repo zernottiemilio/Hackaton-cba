@@ -13,6 +13,7 @@ import {
 import { CrearCampoDto, ActualizarCampoDto } from './dto/campo.dto';
 import { Usuario } from '../../common/decorators/usuario.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { RolPlataforma } from '../../common/decorators/rol-plataforma.decorator';
 import type { UsuarioActual } from '../../common/types/usuario-actual';
 
 /**
@@ -96,18 +97,21 @@ export class TokenizadasController {
   // ─── Productor ─────────────────────────────────────────────────
 
   /** Crear o actualizar una tokenización (wizard 4 pasos). */
+  @RolPlataforma('productor')
   @Post()
   crear(@Usuario() user: UsuarioActual, @Body() dto: CrearTokenizacionDto) {
     return this.service.crear(user.id, user.cuentaId, dto);
   }
 
   /** Enviar a revisión ADMIN. */
+  @RolPlataforma('productor')
   @Post(':id/enviar-revision')
   enviarARevision(@Param('id') id: string, @Usuario() user: UsuarioActual) {
     return this.service.enviarARevision(id, user.id);
   }
 
   /** Listar las campañas tokenizadas del productor autenticado. */
+  @RolPlataforma('productor')
   @Get('mis-campanas')
   misCampanas(@Usuario() user: UsuarioActual) {
     return this.service.listarDelProductor(user.id);
@@ -130,24 +134,28 @@ export class TokenizadasController {
   }
 
   /** Reservar tokens (paso 1 del sheet de compra, TTL 10 min). */
+  @RolPlataforma('inversor')
   @Post('reservas')
   reservar(@Body() dto: CrearReservaDto) {
     return this.service.crearReserva(dto.tokenizacionId, dto.cantidad, dto.inversorWallet);
   }
 
   /** Confirmar la reserva (paso 2 → transferencia USDC → tenencia). */
+  @RolPlataforma('inversor')
   @Post('reservas/confirmar')
   confirmar(@Body() dto: ConfirmarCompraDto) {
     return this.service.confirmarCompra(dto.reservaId);
   }
 
   /** Portfolio del inversor autenticado. */
+  @RolPlataforma('inversor')
   @Get('portfolio')
   portfolio(@Usuario() user: UsuarioActual) {
     return this.service.portfolio(user.id);
   }
 
   /** Reclamar USDC de una tenencia liquidada (quema + payout atómico). */
+  @RolPlataforma('inversor')
   @Post('reclamar')
   reclamar(@Body() dto: ReclamarDto) {
     return this.service.reclamar(dto.tenenciaId, dto.inversorWallet);
@@ -156,12 +164,14 @@ export class TokenizadasController {
   // ─── Admin ─────────────────────────────────────────────────────
 
   /** Cola de campañas esperando aprobación. */
+  @RolPlataforma('admin_plataforma')
   @Get('admin/revision')
   colaRevision() {
     return this.service.listarEnRevision();
   }
 
   /** Aprobar o rechazar una tokenización. */
+  @RolPlataforma('admin_plataforma')
   @Post('admin/:id/revisar')
   revisar(
     @Param('id') id: string,

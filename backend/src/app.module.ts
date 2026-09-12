@@ -35,6 +35,7 @@ import { FacturacionModule } from './modules/facturacion/facturacion.module';
 import { TokenizadasModule } from './modules/tokenizadas/tokenizadas.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { SuperAdminGuard } from './common/guards/super-admin.guard';
+import { RolPlataformaGuard } from './common/guards/rol-plataforma.guard';
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { SuperAdminGuard } from './common/guards/super-admin.guard';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: SuperAdminGuard },
+    { provide: APP_GUARD, useClass: RolPlataformaGuard },
   ],
 })
 export class AppModule {}

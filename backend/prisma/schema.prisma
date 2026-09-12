@@ -225,10 +225,12 @@ model Usuario {
   /// generada por MockLedgerService al "conectar wallet"; cuando entre el
   /// programa on-chain es la wallet real que Phantom aprueba.
   walletAddress String?  @unique @map("wallet_address")
-  /// Contextos (roles) del módulo tokenizadas que puede tomar este usuario.
-  /// Un mismo usuario puede ser productor E inversor; el shell muestra el
-  /// switch de contexto cuando este array tiene más de un elemento.
-  /// `acopio` es excluyente y `admin_plataforma` también.
+  /// Rol único del usuario en la plataforma. Se elige al momento del registro
+  /// y determina qué shell/rutas ve al hacer login (productor, inversor, admin).
+  /// LEGACY: convive con `contextosTokenizacion` (array) hasta que terminemos
+  /// de migrar el frontend. A partir de este campo se decide el redirect.
+  rolPlataforma RolTokenizacion? @map("rol_plataforma")
+  /// LEGACY: array de contextos. Sigue vivo por compat mientras migramos.
   contextosTokenizacion RolTokenizacion[] @default([]) @map("contextos_tokenizacion")
   /// FK opcional al Acopio al que pertenece este usuario, si es rol `acopio`.
   /// Un usuario acopio tiene visibilidad sobre las plantas y afectaciones
