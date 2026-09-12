@@ -116,6 +116,16 @@ export class TokenizadasController {
     return this.service.crear(user.id, user.cuentaId, dto);
   }
 
+  /**
+   * Campaña demo en un click: crea + envía + aprueba (create_campaign real).
+   * Para el speech; la aprobación queda firmada por el productor.
+   */
+  @RolPlataforma('productor')
+  @Post('demo/publicar')
+  publicarDemo(@Usuario() user: UsuarioActual) {
+    return this.service.publicarDemo(user.id, user.cuentaId);
+  }
+
   /** Enviar a revisión ADMIN. */
   @RolPlataforma('productor')
   @Post(':id/enviar-revision')

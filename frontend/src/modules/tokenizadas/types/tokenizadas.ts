@@ -281,3 +281,15 @@ export interface SeriePrecio {
   fecha: string;
   usd: number;
 }
+
+/** Respuesta de `POST /tokenizadas/demo/publicar`: campaña creada y publicada on-chain en un click. */
+export interface PublicarDemoResult {
+  id: string;
+  nombre: string;
+  toneladasOfrecidas: number;
+  precioTokenUsd: number;
+  toneladasMinimas: number;
+  fondeoHasta: string;
+  fechaLiquidacionEstimada: string;
+  txSignature: string;
+}
