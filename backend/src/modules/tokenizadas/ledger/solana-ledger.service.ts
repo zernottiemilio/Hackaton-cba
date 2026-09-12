@@ -87,17 +87,20 @@ export class SolanaLedgerService extends LedgerService {
     const vaultAta = this.anchor.ata(usdcMint, campaignPda, true);
 
     const tonsOffered = new BN(t.toneladasOfrecidas.toDecimalPlaces(0, Decimal.ROUND_FLOOR).toString());
-    // MVP: sin campo min_tons en BD, usamos 1 (mínimo posible) para no bloquear
-    // release_funds en la demo si no se vende todo. Ajustar cuando la UI del
-    // productor tenga el campo.
-    const minTons = new BN(1);
+    const minTons = new BN(
+      t.toneladasMinimas.toDecimalPlaces(0, Decimal.ROUND_FLOOR).toString(),
+    );
     // precio en micro-USDC (6 decimales).
     const pricePerTon = new BN(
       t.precioTokenUsd.mul(new Decimal(1_000_000)).toDecimalPlaces(0, Decimal.ROUND_FLOOR).toString(),
     );
 
     const saleEnd = new BN(Math.floor(t.fondeoHasta.getTime() / 1000));
-    const settlementDate = new BN(Math.floor(t.fondeoHasta.getTime() / 1000) + 90 * 24 * 60 * 60);
+    // Si el productor no fijó fecha objetivo, fallback a fondeoHasta + 90 días.
+    const settlementSecs = t.fechaLiquidacionEstimada
+      ? Math.floor(t.fechaLiquidacionEstimada.getTime() / 1000)
+      : Math.floor(t.fondeoHasta.getTime() / 1000) + 90 * 24 * 60 * 60;
+    const settlementDate = new BN(settlementSecs);
 
     const crop = this.padBytes(t.campania?.cultivo?.nombre ?? 'generico', 16);
     const season = this.padBytes(

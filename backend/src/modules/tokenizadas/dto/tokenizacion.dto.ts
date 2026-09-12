@@ -47,6 +47,12 @@ export const CrearTokenizacionSchema = z.object({
   // Ventana de fondeo (paso 3)
   fondeoDesde: z.string().datetime().or(z.string().date()),
   fondeoHasta: z.string().datetime().or(z.string().date()),
+  /// Fecha objetivo para settle on-chain. Si no se pasa, publicarCampana()
+  /// usa fondeoHasta + 90 días. Para el ensayo/demo se puede mandar
+  /// `now + 60s` en formato ISO 8601.
+  fechaLiquidacionEstimada: z.string().datetime().optional(),
+  /// Piso de toneladas para que release_funds sea legal. Default 1.
+  toneladasMinimas: z.number().positive().optional(),
 
   // Garantías (paso 4)
   tieneSeguroGranizo: z.boolean().default(false),
