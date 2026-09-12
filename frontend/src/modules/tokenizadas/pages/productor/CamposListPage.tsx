@@ -1,9 +1,14 @@
+import { lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { camposApi } from '../../services/camposService';
 import { hectareas } from '../../utils/format';
 import { useWalletStore } from '../../stores/walletStore';
+
+// Lazy: Leaflet + tiles pesan ~180KB. Se comparte con el chunk del
+// marketplace, es una sola descarga la primera vez que se necesita.
+const MapaCampoPreview = lazy(() => import('../../components/mapa/MapaCampoPreview'));
 
 /**
  * Listado de campos del productor. Cada card muestra una miniatura del
@@ -74,8 +79,14 @@ function CampoCard({ campo }: { campo: any }) {
         className="block bg-[#0F1216] border border-white/5 hover:border-white/15 rounded-2xl overflow-hidden transition-colors"
       >
         <div className="relative h-32 bg-gradient-to-br from-emerald-900/60 via-emerald-800/40 to-lime-900/60 overflow-hidden">
-          <MiniaturaPoligono geometria={campo.geometria} />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <Suspense fallback={<div className="absolute inset-0" />}>
+            <MapaCampoPreview
+              geometria={campo.geometria}
+              latitud={campo.latitud}
+              longitud={campo.longitud}
+            />
+          </Suspense>
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/70 via-black/10 to-black/40" />
           <div className="absolute bottom-3 left-3 right-3">
             <div className="text-white font-semibold text-base leading-tight drop-shadow">{campo.nombre}</div>
             <div className="text-white/70 text-xs mt-0.5 drop-shadow">
@@ -95,62 +106,6 @@ function CampoCard({ campo }: { campo: any }) {
         </div>
       </Link>
     </motion.div>
-  );
-}
-
-/**
- * SVG con el polígono normalizado a 100x60. No usa Leaflet — es una
- * miniatura estática rápida para cards. Perfecta para grillas grandes
- * donde montar 30 mapas Leaflet mataría el navegador.
- */
-function MiniaturaPoligono({ geometria }: { geometria: GeoJSON.Polygon | null }) {
-  if (!geometria || !geometria.coordinates?.[0]?.length) {
-    return (
-      <svg viewBox="0 0 100 60" className="absolute inset-0 w-full h-full opacity-30">
-        <path
-          d="M15,10 L60,8 L85,25 L88,45 L55,55 L20,50 Z"
-          fill="rgba(255,255,255,0.1)"
-          stroke="rgba(255,255,255,0.3)"
-          strokeWidth="0.5"
-        />
-      </svg>
-    );
-  }
-  const coords = geometria.coordinates[0];
-  const lngs = coords.map((c) => c[0]);
-  const lats = coords.map((c) => c[1]);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const spanLng = maxLng - minLng || 1;
-  const spanLat = maxLat - minLat || 1;
-  const pad = 6;
-  const w = 100 - pad * 2;
-  const h = 60 - pad * 2;
-  const scale = Math.min(w / spanLng, h / spanLat);
-  const offX = (100 - spanLng * scale) / 2;
-  const offY = (60 - spanLat * scale) / 2;
-
-  const puntos = coords
-    .map(([lng, lat]) => `${(lng - minLng) * scale + offX},${(maxLat - lat) * scale + offY}`)
-    .join(' ');
-
-  return (
-    <svg viewBox="0 0 100 60" className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-      <defs>
-        <pattern id="grid" width="8" height="8" patternUnits="userSpaceOnUse">
-          <path d="M 8 0 L 0 0 0 8" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="0.3" />
-        </pattern>
-      </defs>
-      <rect width="100" height="60" fill="url(#grid)" />
-      <polygon
-        points={puntos}
-        fill="rgba(22, 199, 132, 0.25)"
-        stroke="rgba(22, 199, 132, 0.9)"
-        strokeWidth="0.8"
-      />
-    </svg>
   );
 }
 
