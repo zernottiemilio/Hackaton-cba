@@ -127,7 +127,10 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50"
-            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+            // Sin backdrop-filter: en Safari el blur del fondo se aplicaba
+            // también sobre el panel (sibling con transform) y la sheet se veía
+            // borrosa y apagada. Un fondo opaco resuelve lo mismo sin el bug.
+            style={{ background: 'rgba(0,0,0,0.78)' }}
             onClick={onClose}
           />
           <motion.div

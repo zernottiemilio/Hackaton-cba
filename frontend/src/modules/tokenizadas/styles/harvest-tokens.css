@@ -253,3 +253,12 @@ html.tk-mounted ::-webkit-scrollbar-thumb:hover {
   background: #0f1216;
   color: #e6e9ec;
 }
+
+/* Leaflet usa z-index 400 en sus panes y 1000 en controles. Sin un contexto
+   de apilamiento propio, esos valores compiten contra overlays de la app
+   (sheet z-50/60, modal z-70/80) y el mapa termina pintado encima de todo.
+   isolation: isolate encierra los z-index de Leaflet dentro del mapa. */
+.tk-scope .leaflet-container {
+  isolation: isolate;
+  z-index: 0;
+}
