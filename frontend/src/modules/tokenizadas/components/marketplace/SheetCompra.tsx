@@ -118,7 +118,11 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
   // `y` (transform), y eso convierte a ese div en el contenedor de todo
   // `position: fixed` que tenga adentro. Sin el portal, la sheet quedaba
   // anclada a la página, debajo del topbar y con el hero del mapa encima.
+  // El wrapper .tk-scope es obligatorio: las variables --hv-* están definidas
+  // en .tk-scope (el layout), y el portal cuelga de <body>, fuera de él. Sin
+  // esto el panel queda con fondo transparente y colores apagados.
   return createPortal(
+    <div className="tk-scope">
     <AnimatePresence>
       {open && (
         <>
@@ -237,7 +241,8 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
           </motion.div>
         </>
       )}
-    </AnimatePresence>,
+    </AnimatePresence>
+    </div>,
     document.body,
   );
 }
