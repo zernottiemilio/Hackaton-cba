@@ -183,14 +183,51 @@ export function NuevaCampanaPage() {
    * venta ya cerró el programa rechaza create_campaign (InvalidDates).
    * Para publicar y comprar sin esperas usar "Publicar campaña demo".
    */
-  const armarDemoEnVivo = () => {
+  const fechasDemo = () => {
     const ahora = Date.now();
-    setForm((f) => ({
-      ...f,
+    return {
       fondeoDesde: aLocalInput(new Date(ahora)),
       fondeoHasta: aLocalInput(new Date(ahora + 5 * 60_000)),
       fechaLiquidacionEstimada: aLocalInput(new Date(ahora + 6 * 60_000)),
-    }));
+    };
+  };
+
+  const armarDemoEnVivo = () => setForm((f) => ({ ...f, ...fechasDemo() }));
+
+  /**
+   * Campaña de prueba: llena el wizard entero con valores razonables y fechas
+   * de demo, y salta al último paso. Queda un solo click (firmar) para tener
+   * una campaña que se puede comprar ya y liquidar a los 6 minutos.
+   */
+  const armarCampanaDePrueba = () => {
+    const campo = campos[0];
+    const cultivo = cultivos.find((c) => normalizarCultivo(c.nombre) === 'soja') ?? cultivos[0];
+    if (!campo || !cultivo) {
+      toast.error('Necesitás al menos un lote y un cultivo cargados');
+      return;
+    }
+    const rinde = promedioZonalTnHa[normalizarCultivo(cultivo.nombre)] ?? 3.5;
+    const sup = Number(campo.superficieTotalHa ?? 0);
+    const produccion = Math.max(100, Math.round(sup * rinde));
+    const anio = new Date().getFullYear();
+    setForm({
+      ...inicial,
+      campoId: campo.id,
+      cultivoId: cultivo.id,
+      produccionEstimadaTn: produccion,
+      fechaSiembra: `${anio}-10-15`,
+      fechaCosecha: `${anio + 1}-04-20`,
+      rindeEstimadoTnHa: rinde,
+      modo: 'fijo',
+      valorModo: Math.min(100, produccion),
+      precioReferenciaUsdTn: 250,
+      descuentoPct: 5,
+      toneladasMinimas: 10,
+      tieneSeguroGranizo: true,
+      ...fechasDemo(),
+    });
+    setPaso(PASOS.length - 1);
+    toast.success('Campaña de prueba armada', { description: 'Venta 5 min · liquidable a los 6. Firmá y aprobá como admin enseguida.' });
   };
 
   const crearMut = useMutation({
@@ -270,9 +307,20 @@ export function NuevaCampanaPage() {
         <h1 style={{ color: 'var(--hv-text)', fontSize: 30, fontWeight: 600, letterSpacing: '-0.025em', marginTop: 6 }}>
           Nueva emisión HRV
         </h1>
-        <p style={{ color: 'var(--hv-text-muted)', fontSize: 13, marginTop: 4 }}>
-          Al finalizar firmás una transacción. Un admin revisa antes de publicarla al marketplace.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3" style={{ marginTop: 4 }}>
+          <p style={{ color: 'var(--hv-text-muted)', fontSize: 13 }}>
+            Al finalizar firmás una transacción. Un admin revisa antes de publicarla al marketplace.
+          </p>
+          <button
+            type="button"
+            onClick={armarCampanaDePrueba}
+            className="hv-cta-ghost"
+            style={{ padding: '8px 14px', fontSize: 12, whiteSpace: 'nowrap' }}
+            title="Llena todo el wizard con fechas de demo: venta 2 min, liquidable a los 3"
+          >
+            ⚡ Crear prueba
+          </button>
+        </div>
       </div>
 
       <div className="mb-8">
@@ -337,25 +385,13 @@ export function NuevaCampanaPage() {
             <Field label="Fecha cosecha estimada">
               <TextInput type="date" value={form.fechaCosecha} onChange={(v) => upd('fechaCosecha', v)} />
             </Field>
-            <Field label="Rinde estimado" className="md:col-span-2">
-              <div className="flex items-center gap-4">
-                <input
-                  type="range"
-                  min={0}
-                  max={Math.max(15, promedioZonal * 1.5)}
-                  step={0.1}
-                  value={form.rindeEstimadoTnHa}
-                  onChange={(e) => upd('rindeEstimadoTnHa', Number(e.target.value))}
-                  style={{ flex: 1, accentColor: 'var(--hv-green)' }}
-                />
-                <NumberInput
-                  value={form.rindeEstimadoTnHa}
-                  onChange={(v) => upd('rindeEstimadoTnHa', v)}
-                  unit="tn/ha"
-                  step={0.1}
-                  width={128}
-                />
-              </div>
+            <Field label="Rinde estimado">
+              <NumberInput
+                value={form.rindeEstimadoTnHa}
+                onChange={(v) => upd('rindeEstimadoTnHa', v)}
+                unit="tn/ha"
+                step={0.1}
+              />
               <div className="flex justify-between mt-2" style={{ fontSize: 11 }}>
                 <span style={{ color: 'var(--hv-text-muted)' }}>
                   Promedio zonal:{' '}
