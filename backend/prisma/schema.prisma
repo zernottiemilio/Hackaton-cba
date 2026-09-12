@@ -995,8 +995,12 @@ model TokenizacionCampana {
   precioPisoUsd           Decimal? @map("precio_piso_usd") @db.Decimal(14, 4)
 
   // ─── Ventana de fondeo ────────────────────────────────────────
-  fondeoDesde             DateTime @map("fondeo_desde") @db.Date
-  fondeoHasta             DateTime @map("fondeo_hasta") @db.Date
+  /// Con hora. `fondeoHasta` es el `sale_end` on-chain: el programa exige
+  /// `now < sale_end < settlement_date` y solo permite invest antes de
+  /// sale_end. Como Date sin hora era siempre medianoche y hacía imposible
+  /// una demo en vivo (crear, vender y liquidar en minutos).
+  fondeoDesde             DateTime @map("fondeo_desde")
+  fondeoHasta             DateTime @map("fondeo_hasta")
   montoObjetivoUsd        Decimal  @map("monto_objetivo_usd") @db.Decimal(14, 2)
   montoRecaudadoUsd       Decimal  @default(0) @map("monto_recaudado_usd") @db.Decimal(14, 2)
 

@@ -34,8 +34,13 @@ export interface CrearTokenizacionPayload {
   descuentoPct: number;
   precioDinamico: boolean;
   precioPisoUsd?: number;
+  /** ISO 8601 con hora. Es el sale_end on-chain. */
   fondeoDesde: string;
   fondeoHasta: string;
+  /** ISO 8601. settlement_date on-chain, tiene que ser posterior a fondeoHasta. Si falta, backend usa fondeoHasta + 90d. */
+  fechaLiquidacionEstimada?: string;
+  /** min_tons on-chain: piso de toneladas vendidas para poder liberar fondos. Default 1. */
+  toneladasMinimas?: number;
   tieneSeguroGranizo: boolean;
   tieneSeguroParametrico: boolean;
   tieneAvalSgr: boolean;
