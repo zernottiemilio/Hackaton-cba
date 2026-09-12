@@ -15,13 +15,16 @@ export function BadgeModo({ modo, size = 'sm' }: { modo: ModoTokenizacion; size?
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full font-semibold uppercase tracking-wider ${cls} ${
-        es
-          ? 'bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30'
-          : 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30'
-      }`}
+      className={`inline-flex items-center gap-1.5 rounded-full font-semibold uppercase ${cls}`}
+      style={{
+        fontFamily: 'var(--hv-font-mono)',
+        letterSpacing: '0.14em',
+        background: es ? 'var(--hv-amber-soft)' : 'var(--hv-green-soft)',
+        color: es ? 'var(--hv-amber-text)' : 'var(--hv-green-text)',
+        border: `1px solid ${es ? 'var(--hv-amber-strong)' : 'rgba(43,224,106,0.28)'}`,
+      }}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'currentColor' }} />
       {es ? 'Porcentual' : 'Fijo'}
     </span>
   );

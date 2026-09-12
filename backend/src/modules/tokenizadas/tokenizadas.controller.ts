@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { TokenizadasService } from './tokenizadas.service';
 import { CamposTokenizadasService } from './campos-tokenizadas.service';
+import { ProductoresService } from './productores.service';
 import {
   CrearTokenizacionDto,
   RevisarTokenizacionDto,
@@ -23,7 +24,24 @@ export class TokenizadasController {
   constructor(
     private readonly service: TokenizadasService,
     private readonly camposService: CamposTokenizadasService,
+    private readonly productoresService: ProductoresService,
   ) {}
+
+  // ─── Productores (público, para vista inversor) ────────────────
+
+  /** Listado de productores activos con rating y métricas. */
+  @Public()
+  @Get('productores')
+  listarProductores() {
+    return this.productoresService.listar();
+  }
+
+  /** Detalle de un productor con todas sus campañas + trazabilidad histórica. */
+  @Public()
+  @Get('productores/:id')
+  detalleProductor(@Param('id') id: string) {
+    return this.productoresService.detalle(id);
+  }
 
   // ─── Catálogos (público, para popular selects del wizard) ──────
 

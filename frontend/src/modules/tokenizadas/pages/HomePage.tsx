@@ -3,11 +3,11 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { tokenizadasApi } from '../services/tokenizadasService';
 import { CardCampana } from '../components/marketplace/CardCampana';
-import { usePreciosLive } from '../hooks/usePreciosLive';
+import { usePreciosLive, useHistoriaPrecios } from '../hooks/usePreciosLive';
 import { Sparkline } from '../components/charts/Sparkline';
-import { useHistoriaPrecios } from '../hooks/usePreciosLive';
 import { usd, porcentaje, usdCompacto } from '../utils/format';
 import { useWalletStore } from '../stores/walletStore';
+import { HarvestLogo } from '../components/brand/HarvestLogo';
 import type { Cultivo } from '../services/mockPreciosService';
 
 export function HomePage() {
@@ -19,51 +19,71 @@ export function HomePage() {
     queryFn: () => tokenizadasApi.marketplace({ orden: 'cierra_pronto' }),
   });
 
-  // Métricas mock del hero (a la izquierda)
-  const tvl = 4_872_340; // Total Value Locked mock
+  // Métricas mock del hero
+  const tvl = 4_872_340;
   const tvlCambio = 12.4;
   const campanasActivas = destacadas?.length ?? 0;
-  const inversores = 127;
+  const holders = 184;
+  const tokensEmitidos = 986_000;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      {/* Hero: título + métricas globales */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+    <div className="max-w-7xl mx-auto space-y-10">
+      {/* Hero */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-8 items-end">
+        <div>
+          <div className="hv-label mb-3">Cosechas tokenizadas · Solana</div>
           <motion.h1
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl lg:text-5xl font-semibold tracking-tight text-white leading-[1.05]"
+            style={{
+              fontSize: 56,
+              fontWeight: 600,
+              letterSpacing: '-0.035em',
+              lineHeight: 1.02,
+              color: 'var(--hv-text)',
+            }}
           >
-            Invertí en el <span className="text-emerald-400">grano</span> antes de que se coseche.
+            La cosecha,{' '}
+            <span style={{ color: 'var(--hv-green)' }}>líquida</span>.
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="mt-4 text-white/60 text-base max-w-2xl leading-relaxed"
+            style={{
+              marginTop: 20,
+              fontSize: 16,
+              lineHeight: 1.55,
+              maxWidth: 620,
+              color: 'var(--hv-text-2)',
+            }}
           >
-            Campañas agropecuarias reales, tokenizadas sobre Solana. El productor
-            recibe capital hoy; vos recibís producción a precio de descuento cuando cosecha.
-            Sin bancos, sin intermediarios.
+            El productor cobra hoy. El inversor cobra al cosechar. Todo asentado on-chain,
+            colateralizado por producción real y validado por acopios habilitados.
           </motion.p>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-wrap gap-3">
             {!conectada ? (
-              <div className="text-white/40 text-sm italic px-4 py-2 border border-white/10 rounded-lg">
-                Conectá tu wallet para operar
+              <div
+                style={{
+                  fontFamily: 'var(--hv-font-mono)',
+                  fontSize: 13,
+                  color: 'var(--hv-text-muted)',
+                  border: '1px dashed var(--hv-border)',
+                  borderRadius: 10,
+                  padding: '12px 18px',
+                }}
+              >
+                Conectá tu wallet para empezar
               </div>
             ) : (
               <>
-                <Link
-                  to="/tk/invertir"
-                  className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-sm font-semibold shadow-lg shadow-emerald-900/40 transition-all"
-                >
-                  Explorar marketplace →
+                <Link to="/tk/invertir" className="hv-cta" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13 5l7 7-7 7M20 12H4" />
+                  </svg>
+                  Explorar marketplace
                 </Link>
-                <Link
-                  to="/tk/portfolio"
-                  className="px-5 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-medium transition-all"
-                >
+                <Link to="/tk/portfolio" className="hv-cta-ghost" style={{ textDecoration: 'none' }}>
                   Mi portfolio
                 </Link>
               </>
@@ -71,23 +91,40 @@ export function HomePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard label="TVL" valor={usdCompacto(tvl)} cambio={tvlCambio} />
-          <StatCard label="Campañas" valor={campanasActivas.toString()} />
-          <StatCard label="Inversores" valor={inversores.toString()} />
-          <StatCard label="Tokens emitidos" valor="8.4K tn" />
+        {/* Card TVL grande estilo hero derecha */}
+        <div className="hv-glass hv-radial" style={{ borderRadius: 20, padding: 24, position: 'relative', overflow: 'hidden' }}>
+          <div className="hv-label mb-2" style={{ fontSize: 10 }}>Valor tokenizado · TVL</div>
+          <div style={{ fontSize: 44, fontWeight: 600, letterSpacing: '-0.035em', color: 'var(--hv-text)', lineHeight: 1 }}>
+            {usdCompacto(tvl)}
+          </div>
+          <div className="flex items-center gap-2 mt-3" style={{ fontSize: 13, color: 'var(--hv-green-text)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 17L12 9l4 4 4-6" />
+            </svg>
+            <span className="hv-mono">{porcentaje(tvlCambio, 1)}</span>
+            <span style={{ color: 'var(--hv-text-muted)' }}>vs. campaña anterior</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mt-6 pt-6" style={{ borderTop: '1px solid var(--hv-border-subtle)' }}>
+            <MiniStat label="Emisiones" valor={campanasActivas.toString()} />
+            <MiniStat label="Holders" valor={holders.toString()} />
+            <MiniStat label="HRV total" valor={`${(tokensEmitidos / 1000).toFixed(0)}K`} />
+          </div>
         </div>
       </section>
 
-      {/* Precios en vivo — grid grande de tickers */}
+      {/* Precios en vivo */}
       <section>
         <div className="flex items-baseline justify-between mb-4">
           <div>
-            <h2 className="text-white text-xl font-semibold">Mercado en vivo</h2>
-            <p className="text-white/40 text-xs mt-0.5">Pizarra de Rosario · Actualiza cada 3–5s</p>
+            <h2 style={{ fontSize: 22, fontWeight: 600, color: 'var(--hv-text)', letterSpacing: '-0.02em' }}>
+              Oráculo público
+            </h2>
+            <p className="hv-label-sm" style={{ marginTop: 4 }}>
+              Pizarra Rosario · actualización on-chain cada 12 s
+            </p>
           </div>
-          <span className="text-emerald-400 text-xs font-medium flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="hv-chip hv-chip-green" style={{ fontSize: 11 }}>
+            <span className="hv-dot" style={{ background: 'var(--hv-green)' }} />
             en vivo
           </span>
         </div>
@@ -102,8 +139,15 @@ export function HomePage() {
       {destacadas && destacadas.length > 0 && (
         <section>
           <div className="flex items-baseline justify-between mb-4">
-            <h2 className="text-white text-xl font-semibold">Campañas que cierran pronto</h2>
-            <Link to="/tk/invertir" className="text-emerald-400 text-xs font-medium hover:underline">
+            <div>
+              <h2 style={{ fontSize: 22, fontWeight: 600, color: 'var(--hv-text)', letterSpacing: '-0.02em' }}>
+                Emisiones abiertas
+              </h2>
+              <p className="hv-label-sm" style={{ marginTop: 4 }}>
+                Cierran pronto · descuento sobre pizarra
+              </p>
+            </div>
+            <Link to="/tk/invertir" style={{ color: 'var(--hv-green-text)', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
               Ver todas →
             </Link>
           </div>
@@ -114,20 +158,56 @@ export function HomePage() {
           </div>
         </section>
       )}
+
+      {/* Footer del hero — marca + tokens visibles */}
+      <section
+        className="hv-glass"
+        style={{
+          borderRadius: 20,
+          padding: 32,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 32,
+          alignItems: 'center',
+        }}
+      >
+        <div>
+          <HarvestLogo variant="lockup-vertical" size={44} tagline />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <ValueRow label="Token" value="HRV" mono />
+          <ValueRow label="Red" value="Solana" />
+          <ValueRow label="Stablecoin" value="USDC" mono />
+          <ValueRow label="Colateral" value="Producción real" />
+        </div>
+      </section>
     </div>
   );
 }
 
-function StatCard({ label, valor, cambio }: { label: string; valor: string; cambio?: number }) {
+function MiniStat({ label, valor }: { label: string; valor: string }) {
   return (
-    <div className="bg-[#0F1216] border border-white/5 rounded-xl p-4">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-1.5">{label}</div>
-      <div className="text-xl font-semibold text-white tabular-nums">{valor}</div>
-      {cambio !== undefined && (
-        <div className={`text-[11px] tabular-nums mt-1 ${cambio >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-          {porcentaje(cambio, 1)} <span className="text-white/30">24h</span>
-        </div>
-      )}
+    <div>
+      <div className="hv-label-sm" style={{ fontSize: 9 }}>{label}</div>
+      <div className="hv-mono" style={{ fontSize: 18, fontWeight: 600, color: 'var(--hv-text)', marginTop: 2 }}>{valor}</div>
+    </div>
+  );
+}
+
+function ValueRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex justify-between items-baseline">
+      <span className="hv-label-sm" style={{ fontSize: 10 }}>{label}</span>
+      <span
+        style={{
+          fontFamily: mono ? 'var(--hv-font-mono)' : 'var(--hv-font-sans)',
+          fontSize: 14,
+          fontWeight: 600,
+          color: 'var(--hv-text)',
+        }}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -135,20 +215,33 @@ function StatCard({ label, valor, cambio }: { label: string; valor: string; camb
 function TickerGrande({ cultivo, usdTn, cambio }: { cultivo: Cultivo; usdTn: number; cambio: number }) {
   const historia = useHistoriaPrecios(cultivo, 40);
   const nombre = { soja: 'Soja', maiz: 'Maíz', trigo: 'Trigo', girasol: 'Girasol' }[cultivo];
-  const emoji = { soja: '🫘', maiz: '🌽', trigo: '🌾', girasol: '🌻' }[cultivo];
+  const up = cambio >= 0;
 
   return (
-    <div className="bg-[#0F1216] border border-white/5 hover:border-white/15 rounded-xl p-4 transition-colors">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{emoji}</span>
-          <span className="text-white font-medium text-sm">{nombre}</span>
-        </div>
-        <span className="text-[10px] text-white/30 font-medium">USD/TN</span>
+    <div
+      className="hv-glass"
+      style={{
+        borderRadius: 16,
+        padding: 20,
+        transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span style={{ color: 'var(--hv-text)', fontWeight: 600, fontSize: 14 }}>{nombre}</span>
+        <span className="hv-label-sm" style={{ fontSize: 10 }}>USD/T</span>
       </div>
-      <div className="text-2xl font-semibold text-white tabular-nums mb-1">{usd(usdTn, 2)}</div>
-      <div className="flex items-center justify-between">
-        <span className={`tabular-nums text-xs font-medium ${cambio >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+      <div className="hv-mono" style={{ fontSize: 26, fontWeight: 600, color: 'var(--hv-text)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+        {usd(usdTn, 2)}
+      </div>
+      <div className="flex items-center justify-between mt-3">
+        <span
+          className="hv-mono"
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: up ? 'var(--hv-green-text)' : 'var(--hv-red-text)',
+          }}
+        >
           {porcentaje(cambio, 2)}
         </span>
         <Sparkline data={historia.map((h) => h.usdTn)} width={80} height={24} />

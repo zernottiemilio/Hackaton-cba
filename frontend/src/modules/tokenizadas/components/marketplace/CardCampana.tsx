@@ -13,12 +13,9 @@ interface Props {
 }
 
 /**
- * Card de campaña en el marketplace. La miniatura es el polígono del lote
- * sobre satélite (por ahora placeholder gradiente hasta que integremos
- * `MiniaturaLote`).
- *
- * Diseño estilo card de Binance: precio grande, sparkline, cambio %,
- * barra de fondeo, badges. Toda la card es clickable.
+ * Card de emisión en el marketplace — estética Harvest.fi.
+ * Header con miniatura del lote, badge de modo y estado de urgencia.
+ * Body con precio HRV, sparkline, barra de fondeo y meta.
  */
 export function CardCampana({ t }: Props) {
   const cultivoNombre = (t.campania.cultivo?.nombre?.toLowerCase() ?? 'soja') as Cultivo;
@@ -34,136 +31,199 @@ export function CardCampana({ t }: Props) {
   const partido = t.campania.establecimiento?.partido ?? '—';
   const superficie = t.campania.hectareasAfectadas ?? 0;
   const cierraPronto = new Date(t.fondeoHasta).getTime() - Date.now() < 48 * 3600 * 1000;
+  const up = cambioReferenciaPct >= 0;
 
   return (
-    <motion.div
-      whileHover={{ y: -3 }}
-      transition={{ duration: 0.15 }}
-      className="group relative"
-    >
+    <motion.div whileHover={{ y: -3 }} transition={{ duration: 0.15 }} className="group">
       <Link
         to={`/tk/invertir/${t.id}`}
-        className="block bg-[#0F1216] border border-white/5 hover:border-white/15 rounded-2xl overflow-hidden transition-colors"
+        style={{
+          display: 'block',
+          background: 'var(--hv-bg-panel)',
+          border: '1px solid var(--hv-border)',
+          borderRadius: 18,
+          overflow: 'hidden',
+          textDecoration: 'none',
+          transition: 'border-color 150ms ease',
+          boxShadow: 'var(--hv-inset-top)',
+        }}
       >
-        {/* Hero: miniatura + badges superpuestos */}
-        <div className="relative h-40 bg-gradient-to-br from-emerald-900/60 via-emerald-800/40 to-lime-900/60 overflow-hidden">
-          {/* Pattern de grilla sutil */}
+        {/* Hero con polígono decorativo */}
+        <div
+          style={{
+            position: 'relative',
+            height: 150,
+            background: 'linear-gradient(135deg, rgba(10,107,18,0.55) 0%, rgba(43,224,106,0.15) 100%)',
+            overflow: 'hidden',
+            borderBottom: '1px solid var(--hv-border-subtle)',
+          }}
+        >
           <div
             className="absolute inset-0 opacity-30"
             style={{
               backgroundImage:
-                'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
+                'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
               backgroundSize: '24px 24px',
             }}
           />
-          {/* Silueta de polígono decorativa */}
-          <svg className="absolute inset-0 w-full h-full opacity-30" viewBox="0 0 100 60" preserveAspectRatio="none">
+          <svg className="absolute inset-0 w-full h-full opacity-40" viewBox="0 0 100 60" preserveAspectRatio="none">
             <path
               d="M15,10 L60,8 L85,25 L88,45 L55,55 L20,50 Z"
-              fill="rgba(255,255,255,0.1)"
-              stroke="rgba(255,255,255,0.3)"
+              fill="rgba(43,224,106,0.12)"
+              stroke="rgba(43,224,106,0.55)"
               strokeWidth="0.5"
+              strokeDasharray="1.5,1"
             />
           </svg>
           <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
-            <div className="flex flex-col gap-1.5">
-              <BadgeModo modo={t.modo} />
-            </div>
+            <BadgeModo modo={t.modo} />
             {cierraPronto && (
-              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 bg-rose-500/90 text-white text-[10px] font-bold uppercase tracking-wider animate-pulse">
-                🔥 Cierra pronto
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '3px 9px',
+                  borderRadius: 999,
+                  background: 'var(--hv-amber)',
+                  color: 'var(--hv-bg-token)',
+                  fontFamily: 'var(--hv-font-mono)',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  animation: 'hv-pulse 2s ease-out infinite',
+                }}
+              >
+                cierra pronto
               </span>
             )}
           </div>
-          <div className="absolute bottom-3 left-3 right-3">
-            <div className="text-white text-lg font-semibold leading-tight drop-shadow-lg">
+          <div className="absolute bottom-3 left-4 right-4">
+            <div style={{ color: 'var(--hv-text)', fontSize: 17, fontWeight: 600, letterSpacing: '-0.02em', textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}>
               {t.campania.establecimiento?.nombre ?? t.campania.nombre}
             </div>
-            <div className="text-white/80 text-xs mt-0.5 drop-shadow">
-              {t.campania.cultivo?.nombre ?? 'Cultivo'} · {hectareas(Number(superficie))} · {partido}, {provincia}
+            <div
+              className="hv-mono"
+              style={{
+                fontSize: 11,
+                color: 'rgba(255,255,255,0.75)',
+                marginTop: 3,
+                textShadow: '0 1px 4px rgba(0,0,0,0.5)',
+              }}
+            >
+              {t.campania.cultivo?.nombre ?? '—'} · {hectareas(Number(superficie))} · {partido}, {provincia}
             </div>
           </div>
         </div>
 
-        {/* Cuerpo */}
-        <div className="p-4 space-y-3">
-          {/* Fila 1: Precio + cambio referencia (estilo Binance) */}
+        {/* Body */}
+        <div style={{ padding: 18 }} className="space-y-4">
+          {/* Precio */}
           <div className="flex items-end justify-between gap-3">
             <div>
-              <div className="text-[10px] font-medium text-white/40 uppercase tracking-wider mb-1">
-                Precio por token
+              <div className="hv-label-sm" style={{ fontSize: 10, marginBottom: 4 }}>
+                Precio HRV
               </div>
-              <div className="text-2xl font-semibold text-white tabular-nums leading-none">
+              <div
+                className="hv-mono"
+                style={{ fontSize: 24, fontWeight: 600, color: 'var(--hv-text)', letterSpacing: '-0.02em', lineHeight: 1 }}
+              >
                 {usd(t.precioTokenUsd, 2)}
               </div>
-              <div className="text-[11px] text-white/40 mt-1">
-                {porcentaje(-t.descuentoPct, 1)} vs pizarra{' '}
-                <span className="text-white/60 tabular-nums">{usdTn(t.precioReferenciaUsdTn)}</span>
+              <div style={{ fontSize: 11, color: 'var(--hv-text-muted)', marginTop: 4 }}>
+                <span className="hv-mono" style={{ color: 'var(--hv-green-text)' }}>
+                  {porcentaje(-t.descuentoPct, 1)}
+                </span>{' '}
+                vs pizarra{' '}
+                <span className="hv-mono">{usdTn(t.precioReferenciaUsdTn)}</span>
               </div>
             </div>
             <div className="flex flex-col items-end">
               <Sparkline data={precioReferenciaSpark} width={72} height={28} />
               <div
-                className={`tabular-nums text-[11px] font-medium mt-1 ${
-                  cambioReferenciaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                }`}
+                className="hv-mono"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  marginTop: 4,
+                  color: up ? 'var(--hv-green-text)' : 'var(--hv-red-text)',
+                }}
               >
                 {porcentaje(cambioReferenciaPct, 2)}
               </div>
             </div>
           </div>
 
-          {/* Fila 2: Barra de fondeo */}
+          {/* Fondeo */}
           <div>
             <div className="flex justify-between items-baseline mb-1.5">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-sm font-semibold text-white tabular-nums">
+                <span className="hv-mono" style={{ fontSize: 13, fontWeight: 600, color: 'var(--hv-text)' }}>
                   {pctFondeado.toFixed(0)}%
                 </span>
-                <span className="text-[10px] text-white/40 uppercase tracking-wider">Fondeado</span>
+                <span className="hv-label-sm" style={{ fontSize: 9 }}>
+                  Fondeado
+                </span>
               </div>
-              <span className="text-[11px] text-white/40 tabular-nums">
+              <span className="hv-mono" style={{ fontSize: 11, color: 'var(--hv-text-muted)' }}>
                 {toneladas(t.tokensVendidos, 0)} / {toneladas(t.tokensEmitidos, 0)}
               </span>
             </div>
             <BarraFondeo vendidos={t.tokensVendidos} emitidos={t.tokensEmitidos} compacta />
           </div>
 
-          {/* Fila 3: Métricas + garantías */}
-          <div className="pt-3 border-t border-white/5 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3 text-[11px] text-white/50">
-              <span className="tabular-nums">
-                <span className="text-white/30">Cierra</span>{' '}
-                <span className="text-white/80 font-medium">{diasRestantes(t.fondeoHasta)}</span>
+          {/* Meta */}
+          <div className="pt-3 flex items-center justify-between gap-2" style={{ borderTop: '1px solid var(--hv-border-subtle)' }}>
+            <div className="flex items-center gap-3" style={{ fontSize: 11, color: 'var(--hv-text-muted)' }}>
+              <span>
+                <span className="hv-label-sm" style={{ fontSize: 9, marginRight: 4 }}>
+                  cierra
+                </span>
+                <span className="hv-mono" style={{ color: 'var(--hv-text)', fontWeight: 600 }}>
+                  {diasRestantes(t.fondeoHasta)}
+                </span>
               </span>
-              <span className="w-1 h-1 rounded-full bg-white/20" />
-              <span className="tabular-nums">
-                <span className="text-white/30">Cosecha</span>{' '}
-                <span className="text-white/80 font-medium">
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--hv-border-strong)' }} />
+              <span>
+                <span className="hv-label-sm" style={{ fontSize: 9, marginRight: 4 }}>
+                  cosecha
+                </span>
+                <span className="hv-mono" style={{ color: 'var(--hv-text-2)', fontWeight: 600 }}>
                   {t.campania.fechaCosechaEstimada ? fechaCorta(t.campania.fechaCosechaEstimada) : '—'}
                 </span>
               </span>
             </div>
-            <div className="flex items-center gap-0.5">
-              {t.tieneSeguroGranizo && (
-                <span title="Seguro granizo" className="w-5 h-5 rounded bg-sky-500/15 text-sky-400 flex items-center justify-center text-[10px]">
-                  ❄
-                </span>
-              )}
-              {t.tieneSeguroParametrico && (
-                <span title="Seguro paramétrico" className="w-5 h-5 rounded bg-purple-500/15 text-purple-400 flex items-center justify-center text-[10px]">
-                  ⚡
-                </span>
-              )}
-              {t.tieneAvalSgr && (
-                <span title="Aval SGR" className="w-5 h-5 rounded bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-[10px]">
-                  ✓
-                </span>
-              )}
+            <div className="flex items-center gap-1">
+              {t.tieneSeguroGranizo && <BadgeGarantia icon="❄" title="Seguro granizo" />}
+              {t.tieneSeguroParametrico && <BadgeGarantia icon="⚡" title="Paramétrico" />}
+              {t.tieneAvalSgr && <BadgeGarantia icon="✓" title="Aval SGR" />}
             </div>
           </div>
         </div>
       </Link>
     </motion.div>
+  );
+}
+
+function BadgeGarantia({ icon, title }: { icon: string; title: string }) {
+  return (
+    <span
+      title={title}
+      style={{
+        width: 20,
+        height: 20,
+        borderRadius: 6,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--hv-green-soft)',
+        color: 'var(--hv-green-text)',
+        fontSize: 10,
+        border: '1px solid rgba(43,224,106,0.20)',
+      }}
+    >
+      {icon}
+    </span>
   );
 }

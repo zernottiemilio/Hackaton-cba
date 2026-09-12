@@ -40,13 +40,13 @@ import { PortfolioPage as TkPortfolioPage } from '@/modules/tokenizadas/pages/Po
 import { CamposListPage } from '@/modules/tokenizadas/pages/productor/CamposListPage';
 import { NuevoCampoPage } from '@/modules/tokenizadas/pages/productor/NuevoCampoPage';
 import { NuevaCampanaPage } from '@/modules/tokenizadas/pages/productor/NuevaCampanaPage';
+import { RevisionColaPage } from '@/modules/tokenizadas/pages/admin/RevisionColaPage';
 import {
   MisCampanasProductorPage,
   AcopioDashboardPage,
   RecepcionPage,
   PosicionesPage,
   LiberacionesPage,
-  RevisionColaPage,
   AdminAcopiosPage,
   ConciliacionPage,
 } from '@/modules/tokenizadas/pages/skeletons';

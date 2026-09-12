@@ -40,7 +40,7 @@ export const Sparkline = memo(function Sparkline({
 
   const trend = tendencia ?? (data[data.length - 1] > data[0] ? 'up' : data[data.length - 1] < data[0] ? 'down' : 'flat');
   const color =
-    trend === 'up' ? 'var(--tk-up, #16C784)' : trend === 'down' ? 'var(--tk-down, #EA3943)' : 'var(--tk-flat, #808A9D)';
+    trend === 'up' ? 'var(--hv-green, #2BE06A)' : trend === 'down' ? 'var(--hv-red, #FF4D4D)' : 'var(--hv-text-muted, #7e887f)';
 
   const linePath = `M ${puntos.join(' L ')}`;
   const areaPath = `M 0,${height} L ${puntos.join(' L ')} L ${width},${height} Z`;

@@ -3,27 +3,19 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { TokenizadasSidebar } from './TokenizadasSidebar';
 import { TokenizadasTopbar } from './TokenizadasTopbar';
 import { TickerBar } from './TickerBar';
+import '../../styles/harvest-tokens.css';
 
 /**
- * Layout dark-mode del módulo tokenizadas. Estética Binance / TradingView.
- * Convive con el shell del MVP sin romperlo: se activa solo en /tk/*.
+ * Shell del módulo Campañas Tokenizadas — identidad Harvest.fi.
+ * Dark-first sobre fondo #06060a con acento verde #2BE06A.
+ * Fuentes: Golos Text (display + UI) + JetBrains Mono (labels + números).
+ * Los tokens visuales viven en `styles/harvest-tokens.css`.
  */
 export function TokenizadasLayout() {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-[#0A0C10] text-white/90 tk-scope">
-      {/* Font tabular-nums para todos los números */}
-      <style>{`
-        .tk-scope { font-variant-numeric: tabular-nums; }
-        .tk-scope .tabular-nums { font-variant-numeric: tabular-nums; }
-        .tk-scope { --tk-up: #16C784; --tk-down: #EA3943; --tk-flat: #808A9D; }
-        .tk-scope ::-webkit-scrollbar { width: 6px; height: 6px; }
-        .tk-scope ::-webkit-scrollbar-track { background: transparent; }
-        .tk-scope ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
-        .tk-scope ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
-        .tk-scope .scrollbar-none::-webkit-scrollbar { display: none; }
-      `}</style>
+    <div className="min-h-screen tk-scope">
       <TickerBar />
       <div className="flex min-h-[calc(100vh-40px)]">
         <TokenizadasSidebar />

@@ -11,22 +11,44 @@ const NOMBRES: Record<Cultivo, string> = {
 };
 
 /**
- * Barra de tickers en tiempo real — estilo Binance / TradingView.
- * Se muestra fija arriba del layout de tokenizadas. Los precios fluctúan
- * cada 3–5s por MockPreciosService.
+ * Barra de tickers en tiempo real — Harvest.fi feel.
+ * Oráculo público de precios de pizarra actualizando cada 3-5s.
  */
 export function TickerBar() {
   const ticks = usePreciosLive();
 
   return (
-    <div className="border-y border-white/5 bg-black/40 backdrop-blur-sm overflow-hidden">
-      <div className="flex items-center gap-6 px-4 py-2 overflow-x-auto scrollbar-none">
-        <div className="flex items-center gap-2 text-[10px] font-medium text-white/40 shrink-0">
+    <div
+      className="overflow-hidden"
+      style={{
+        background: 'rgba(6,6,10,0.85)',
+        borderTop: '1px solid var(--hv-border-subtle)',
+        borderBottom: '1px solid var(--hv-border-subtle)',
+      }}
+    >
+      <div className="flex items-center gap-8 px-6 py-2 overflow-x-auto scrollbar-none">
+        <div
+          className="flex items-center gap-2 shrink-0"
+          style={{
+            fontFamily: 'var(--hv-font-mono)',
+            fontSize: 10,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: 'var(--hv-text-dim)',
+            fontWeight: 500,
+          }}
+        >
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            <span
+              className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+              style={{ background: 'var(--hv-green)' }}
+            />
+            <span
+              className="relative inline-flex rounded-full h-2 w-2"
+              style={{ background: 'var(--hv-green)' }}
+            />
           </span>
-          <span>PIZARRA · EN VIVO</span>
+          <span>Oráculo · Pizarra Rosario</span>
         </div>
         {ticks.map((tick) => (
           <TickerItem key={tick.cultivo} tick={tick} />
@@ -43,19 +65,42 @@ function TickerItem({ tick }: { tick: ReturnType<typeof usePreciosLive>[0] }) {
   return (
     <div className="flex items-center gap-3 shrink-0 group">
       <div className="flex flex-col">
-        <span className="text-[10px] font-semibold tracking-wider text-white/50 leading-none">
+        <span
+          style={{
+            fontFamily: 'var(--hv-font-mono)',
+            fontSize: 10,
+            letterSpacing: '0.14em',
+            color: 'var(--hv-text-dim)',
+            fontWeight: 600,
+            lineHeight: 1,
+          }}
+        >
           {NOMBRES[tick.cultivo]}
         </span>
-        <span className="tabular-nums text-sm font-semibold text-white leading-tight mt-0.5">
+        <span
+          style={{
+            color: 'var(--hv-text)',
+            fontSize: 13,
+            fontWeight: 600,
+            lineHeight: 1.15,
+            marginTop: 2,
+            fontFamily: 'var(--hv-font-mono)',
+          }}
+        >
           {usd(tick.usdTn, 2)}
         </span>
       </div>
       <div className="flex flex-col items-end">
         <Sparkline data={historia.map((h) => h.usdTn)} width={60} height={20} />
         <span
-          className={`tabular-nums text-[10px] font-medium leading-none mt-0.5 ${
-            up ? 'text-emerald-400' : 'text-rose-400'
-          }`}
+          style={{
+            fontFamily: 'var(--hv-font-mono)',
+            fontSize: 10,
+            fontWeight: 600,
+            lineHeight: 1,
+            marginTop: 2,
+            color: up ? 'var(--hv-green-text)' : 'var(--hv-red-text)',
+          }}
         >
           {porcentaje(tick.cambio24hPct, 2)}
         </span>
