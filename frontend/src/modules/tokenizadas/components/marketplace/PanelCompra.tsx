@@ -23,8 +23,13 @@ export function PanelCompra({ tokenizacion: t, disponibles }: Props) {
   const pctProduccion = t.tokensEmitidos > 0 ? (cantidad / t.tokensEmitidos) * 100 : 0;
   const clampCantidad = Math.min(Math.max(1, cantidad), disponibles);
 
-  const puedeComprar = !!conectada && (contexto === 'inversor' || contexto === 'productor');
-  const razonNoPuede = !conectada
+  // Espejo de la regla on-chain: invest exige now < sale_end. Si la venta
+  // cerró, no abrimos la sheet: el programa la rechazaría igual.
+  const ventaCerrada = new Date(t.fondeoHasta).getTime() <= Date.now();
+  const puedeComprar = !!conectada && !ventaCerrada && (contexto === 'inversor' || contexto === 'productor');
+  const razonNoPuede = ventaCerrada
+    ? 'Venta cerrada'
+    : !conectada
     ? 'Conectá tu wallet para comprar'
     : contexto === 'acopio'
     ? 'El rol Acopio no puede comprar HRV'
@@ -141,8 +146,8 @@ export function PanelCompra({ tokenizacion: t, disponibles }: Props) {
         {/* Countdown */}
         <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--hv-border-subtle)' }}>
           <span className="hv-label" style={{ fontSize: 10 }}>Cierra en</span>
-          <span className="hv-mono" style={{ color: 'var(--hv-text)', fontSize: 13, fontWeight: 600 }}>
-            {diasRestantes(t.fondeoHasta)}
+          <span className="hv-mono" style={{ color: ventaCerrada ? 'var(--hv-amber-text)' : 'var(--hv-text)', fontSize: 13, fontWeight: 600 }}>
+            {ventaCerrada ? `cerró ${new Date(t.fondeoHasta).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}` : diasRestantes(t.fondeoHasta)}
           </span>
         </div>
 
