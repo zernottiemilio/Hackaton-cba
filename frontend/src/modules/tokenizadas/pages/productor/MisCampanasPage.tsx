@@ -15,6 +15,8 @@ import type { Tokenizacion } from '../../types/tokenizadas';
  * Es la pantalla del paso 4 de la demo: acá el productor ve cuánto se
  * vendió y cobra la siembra (release_funds).
  */
+const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
 export function MisCampanasPage() {
   const usuario = useAuthStore((s) => s.usuario);
 
@@ -105,6 +107,7 @@ function listaParaCobrar(t: Tokenizacion): boolean {
 function FilaEmision({ t, destacada = false }: { t: Tokenizacion; destacada?: boolean }) {
   const superficie = Number(t.campania.hectareasAfectadas ?? 0);
   const estado = t.campania.estadoToken;
+  const ventaCerrada = estado === 'abierta' && !!t.fondeoHasta && new Date(t.fondeoHasta).getTime() <= Date.now();
   return (
     <div
       className="flex flex-col lg:flex-row lg:items-center gap-4"
@@ -126,10 +129,20 @@ function FilaEmision({ t, destacada = false }: { t: Tokenizacion; destacada?: bo
           </Link>
           <BadgeModo modo={t.modo} />
           {estado && <EstadoCampanaBadge estado={estado} />}
+          {ventaCerrada && (
+            <span
+              className="hv-chip"
+              title="Pasó la fecha de cierre: el programa ya no acepta compras. Si no llegó al mínimo, no se puede cobrar."
+              style={{ fontSize: 10, color: 'var(--hv-amber-text)', borderColor: 'rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.10)' }}
+            >
+              <span className="hv-dot" style={{ background: 'var(--hv-amber-text)' }} />
+              Venta cerrada
+            </span>
+          )}
         </div>
         <div className="hv-label-sm" style={{ fontSize: 10 }}>
           {t.campania.cultivo?.nombre} · {superficie.toFixed(0)} ha · {t.campania.cicloAgricola ?? ''}
-          {t.fondeoHasta ? ` · cierra ${fecha(t.fondeoHasta)}` : ''}
+          {t.fondeoHasta ? ` · ${ventaCerrada ? 'cerró' : 'cierra'} ${fecha(t.fondeoHasta)} ${hora(t.fondeoHasta)}` : ''}
         </div>
         <div className="mt-3 max-w-md">
           <BarraFondeo vendidos={Number(t.tokensVendidos)} emitidos={Number(t.tokensEmitidos)} compacta />
