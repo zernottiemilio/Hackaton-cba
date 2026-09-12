@@ -17,6 +17,22 @@ interface PrecioTick {
   ts: number;
 }
 
+/**
+ * Normaliza un nombre de cultivo (backend usa "Soja", "Maíz", etc.) a la
+ * key interna del servicio. Sin esto, un `.toLowerCase()` de "Maíz" queda
+ * como "maíz" (con tilde) y no matchea ninguna key → historia undefined
+ * → crash en getHistoria().slice(). Default seguro: `'soja'`.
+ */
+export function normalizarCultivo(nombre: string | null | undefined): Cultivo {
+  if (!nombre) return 'soja';
+  // NFD + strip diacritics: "Maíz" → "maiz", "Girasól" → "girasol".
+  const limpio = nombre.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (limpio === 'soja' || limpio === 'maiz' || limpio === 'trigo' || limpio === 'girasol') {
+    return limpio;
+  }
+  return 'soja';
+}
+
 const PRECIOS_BASE: Record<Cultivo, number> = {
   soja: 310,
   maiz: 195,
@@ -79,10 +95,13 @@ class MockPreciosLive {
   }
 
   getPrecio(cultivo: Cultivo): PrecioTick {
-    const usdTn = this.precios[cultivo];
-    const apertura = this.precioApertura[cultivo];
+    // Defensa: si el caller tipa mal y llega un valor fuera del enum,
+    // caemos a soja para no romper la UI.
+    const seguro = this.precios[cultivo] != null ? cultivo : 'soja';
+    const usdTn = this.precios[seguro];
+    const apertura = this.precioApertura[seguro];
     return {
-      cultivo,
+      cultivo: seguro,
       usdTn,
       cambio24hPct: ((usdTn - apertura) / apertura) * 100,
       ts: Date.now(),
@@ -90,7 +109,9 @@ class MockPreciosLive {
   }
 
   getHistoria(cultivo: Cultivo, cantidad = 30): PrecioTick[] {
-    return this.historia[cultivo].slice(-cantidad);
+    // Mismo criterio que getPrecio: no crashear si viene un cultivo desconocido.
+    const serie = this.historia[cultivo] ?? this.historia.soja;
+    return serie.slice(-cantidad);
   }
 
   getTodos(): PrecioTick[] {
