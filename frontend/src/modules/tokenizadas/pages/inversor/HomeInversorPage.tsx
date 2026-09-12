@@ -122,13 +122,13 @@ export function HomeInversorPage() {
         </div>
       </section>
 
-      {/* Pizarra Rosario en vivo */}
+      {/* Pizarra de precios en vivo */}
       {ticks.length > 0 && (
         <section>
           <div className="flex items-baseline justify-between mb-4">
             <div>
               <h2 style={{ fontSize: 22, fontWeight: 600, color: 'var(--hv-text)', letterSpacing: '-0.02em' }}>
-                Pizarra Rosario
+                Pizarra de precios en vivo
               </h2>
               <p className="hv-label-sm" style={{ marginTop: 4 }}>
                 Precios reales · granos.ar (Consiagro / BCR)
