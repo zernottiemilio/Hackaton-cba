@@ -46,6 +46,17 @@ export class TokenizadasController {
     return this.productoresService.detalle(id);
   }
 
+  /**
+   * Histórico de campañas ya liquidadas del productor + KPIs de cumplimiento.
+   * Sirve para la ficha pública del productor y como fuente del asistente
+   * cuando un inversor pregunta "¿en qué productor conviene invertir?".
+   */
+  @Public()
+  @Get('productores/:id/historial')
+  historialProductor(@Param('id') id: string) {
+    return this.productoresService.historial(id);
+  }
+
   // ─── Catálogos (público, para popular selects del wizard) ──────
 
   /** Cultivos disponibles para el wizard de campaña. */

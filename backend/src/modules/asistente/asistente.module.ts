@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AsistenteController } from './asistente.controller';
 import { AsistenteService } from './asistente.service';
 import { ContextService } from './context.service';
@@ -11,6 +11,7 @@ import { LaboresModule } from '../labores/labores.module';
 import { InsumosAplicadosModule } from '../insumos-aplicados/insumos-aplicados.module';
 import { LotesModule } from '../lotes/lotes.module';
 import { LotesCampaniaModule } from '../lotes-campania/lotes-campania.module';
+import { TokenizadasModule } from '../tokenizadas/tokenizadas.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { LotesCampaniaModule } from '../lotes-campania/lotes-campania.module';
     InsumosAplicadosModule,
     LotesModule,
     LotesCampaniaModule,
+    forwardRef(() => TokenizadasModule),
   ],
   controllers: [AsistenteController],
   providers: [AsistenteService, ContextService, ClaudeClient, ToolExecutorService],
