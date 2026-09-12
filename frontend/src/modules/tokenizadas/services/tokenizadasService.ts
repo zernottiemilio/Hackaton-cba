@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/apiClient';
+import { normalizarTokenizacion, normalizarPortfolio } from '../utils/normalizar';
 import type {
   Tokenizacion,
   Reserva,
@@ -84,7 +85,7 @@ export const tokenizadasApi = {
   // ─── Productor ─────────────────────────────────────────────────
   async crear(payload: CrearTokenizacionPayload): Promise<Tokenizacion> {
     const { data } = await apiClient.post('/tokenizadas', payload);
-    return data;
+    return normalizarTokenizacion(data);
   },
 
   async enviarARevision(id: string) {
@@ -94,7 +95,7 @@ export const tokenizadasApi = {
 
   async misCampanas(): Promise<Tokenizacion[]> {
     const { data } = await apiClient.get('/tokenizadas/mis-campanas');
-    return data;
+    return (data as unknown[]).map(normalizarTokenizacion);
   },
 
   /**
@@ -110,12 +111,12 @@ export const tokenizadasApi = {
   // ─── Inversor / Marketplace (público) ──────────────────────────
   async marketplace(filtros: FiltrosMarketplace = {}): Promise<Tokenizacion[]> {
     const { data } = await apiClient.get('/tokenizadas/marketplace', { params: filtros });
-    return data;
+    return (data as unknown[]).map(normalizarTokenizacion);
   },
 
   async detalleMarketplace(id: string): Promise<Tokenizacion> {
     const { data } = await apiClient.get(`/tokenizadas/marketplace/${id}`);
-    return data;
+    return normalizarTokenizacion(data);
   },
 
   /**
@@ -139,7 +140,7 @@ export const tokenizadasApi = {
 
   async portfolio(): Promise<PortfolioResponse> {
     const { data } = await apiClient.get('/tokenizadas/portfolio');
-    return data;
+    return normalizarPortfolio(data);
   },
 
   async reclamar(payload: { tenenciaId: string; inversorWallet: string }): Promise<ReclamoResult> {
@@ -150,7 +151,7 @@ export const tokenizadasApi = {
   // ─── Admin ─────────────────────────────────────────────────────
   async colaRevision(): Promise<Tokenizacion[]> {
     const { data } = await apiClient.get('/tokenizadas/admin/revision');
-    return data;
+    return (data as unknown[]).map(normalizarTokenizacion);
   },
 
   async revisar(id: string, payload: { decision: 'aprobar' | 'rechazar'; motivoRechazo?: string }): Promise<RevisionResult> {
@@ -161,7 +162,7 @@ export const tokenizadasApi = {
   /** Campañas `fondeada` (pendientes de liquidar) y `liquidada` (historial). Contrato en HARVEST.md (VAL-12). */
   async colaLiquidacion(): Promise<Tokenizacion[]> {
     const { data } = await apiClient.get('/tokenizadas/admin/liquidacion');
-    return data;
+    return (data as unknown[]).map(normalizarTokenizacion);
   },
 
   /**
