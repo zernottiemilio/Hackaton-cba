@@ -188,8 +188,13 @@ export class TokenizadasService {
     };
 
     const t = await this.crear(usuarioId, cuentaId, dto);
-    await this.enviarARevision(t.id, usuarioId);
-    const aprobacion = await this.revisar(t.id, usuarioId, { decision: 'aprobar' });
+    // Con AUTO_APROBAR_CAMPANAS, enviarARevision ya aprueba y publica; si no,
+    // lo hacemos acá. Sin este chequeo, el segundo revisar() fallaba con
+    // "Solo se pueden revisar tokenizaciones en_revision".
+    const envio = await this.enviarARevision(t.id, usuarioId);
+    const aprobacion = envio.publicacion
+      ? envio
+      : await this.revisar(t.id, usuarioId, { decision: 'aprobar' });
     if (!aprobacion.publicacion) throw new BadRequestException('La campaña demo no se pudo publicar');
 
     return {
