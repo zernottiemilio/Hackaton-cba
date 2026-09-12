@@ -38,6 +38,21 @@ export interface CrearTokenizacionPayload {
   sobrecolateralPct: number;
 }
 
+/**
+ * Respuesta de `POST admin/:id/revisar`. Al aprobar, el backend publica la
+ * campaña on-chain (create_campaign) y devuelve la signature real en `publicacion`.
+ * Al rechazar no hay transacción.
+ */
+export interface RevisionResult {
+  ok: boolean;
+  estado: 'abierta' | 'rechazada';
+  publicacion?: {
+    txSignature: string;
+    mintAddress: string;
+    vaultAddress: string;
+  };
+}
+
 export interface FiltrosMarketplace {
   cultivo?: string;
   provincia?: string;
@@ -109,7 +124,7 @@ export const tokenizadasApi = {
     return data;
   },
 
-  async revisar(id: string, payload: { decision: 'aprobar' | 'rechazar'; motivoRechazo?: string }) {
+  async revisar(id: string, payload: { decision: 'aprobar' | 'rechazar'; motivoRechazo?: string }): Promise<RevisionResult> {
     const { data } = await apiClient.post(`/tokenizadas/admin/${id}/revisar`, payload);
     return data;
   },

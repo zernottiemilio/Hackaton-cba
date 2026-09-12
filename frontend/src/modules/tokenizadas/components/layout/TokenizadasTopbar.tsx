@@ -1,6 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { WalletButton } from '../wallet/WalletButton';
 import { useAuthStore } from '@/stores/authStore';
+import { useWalletStore } from '../../stores/walletStore';
+import { etiquetaRed } from '../../utils/explorer';
 
 /**
  * Topbar del shell Harvest.
@@ -12,6 +14,8 @@ import { useAuthStore } from '@/stores/authStore';
 export function TokenizadasTopbar() {
   const usuario = useAuthStore((s) => s.usuario);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  // Sin wallet conectada todavía no sabemos la red; asumimos devnet, que es donde vive la demo.
+  const red = useWalletStore((s) => s.conectada?.network ?? 'devnet');
 
   return (
     <header
@@ -60,7 +64,7 @@ export function TokenizadasTopbar() {
                 style={{ background: 'var(--hv-green)' }}
               />
             </span>
-            Solana · devnet
+            {etiquetaRed(red)}
           </span>
           <span
             style={{

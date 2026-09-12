@@ -1,6 +1,10 @@
 import { NavLink } from 'react-router-dom';
 import { useAuthStore, type RolPlataforma } from '@/stores/authStore';
 import { HarvestLogo } from '../brand/HarvestLogo';
+import { abreviarAddress } from '../../utils/format';
+
+/** Program id del programa Anchor en devnet. Lo setea el frente Chain al deployar (VAL-10). */
+const PROGRAM_ID: string = import.meta.env.VITE_SOLANA_PROGRAM_ID ?? '';
 
 interface NavItem {
   to: string;
@@ -97,14 +101,24 @@ export function TokenizadasSidebar() {
 
       <div className="p-3" style={{ borderTop: '1px solid var(--hv-border-subtle)' }}>
         <div className="hv-label-sm" style={{ padding: '0 4px 4px', fontSize: 10 }}>
-          Contrato · devnet
+          Programa · devnet
         </div>
-        <div
-          className="hv-mono"
-          style={{ padding: '4px 4px 0', fontSize: 10, color: 'var(--hv-text-muted)', letterSpacing: '0.02em', wordBreak: 'break-all' }}
-        >
-          8pM3…zP1
-        </div>
+        {PROGRAM_ID ? (
+          <a
+            href={`https://explorer.solana.com/address/${PROGRAM_ID}?cluster=devnet`}
+            target="_blank"
+            rel="noreferrer"
+            className="hv-mono"
+            title={PROGRAM_ID}
+            style={{ display: 'block', padding: '4px 4px 0', fontSize: 10, color: 'var(--hv-text-muted)', letterSpacing: '0.02em', textDecoration: 'none' }}
+          >
+            {abreviarAddress(PROGRAM_ID, 4, 4)} ↗
+          </a>
+        ) : (
+          <div className="hv-mono" style={{ padding: '4px 4px 0', fontSize: 10, color: 'var(--hv-text-muted)' }}>
+            sin configurar
+          </div>
+        )}
       </div>
     </aside>
   );

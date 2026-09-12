@@ -6,8 +6,9 @@ import { tokenizadasApi } from '../../services/tokenizadasService';
 import { BadgeModo } from '../../components/campana/BadgeModo';
 import { EstadoCampanaBadge } from '../../components/campana/EstadoCampanaBadge';
 import { usd, usdCompacto, toneladas, hectareas, fecha } from '../../utils/format';
-import { useWalletStore } from '../../stores/walletStore';
+import { useWalletStore, useContextoActivo } from '../../stores/walletStore';
 import { FirmaTxModal } from '../../components/wallet/FirmaTxModal';
+import { explorerTxUrl } from '../../utils/explorer';
 
 /**
  * Cola de revisión para el rol admin_plataforma.
@@ -15,8 +16,9 @@ import { FirmaTxModal } from '../../components/wallet/FirmaTxModal';
  * Aprobar dispara publicación on-chain (mint + vault). Rechazar pide motivo.
  */
 export function RevisionColaPage() {
-  const contexto = useWalletStore((s) => s.contextoActivo);
+  const contexto = useContextoActivo();
   const registrarTx = useWalletStore((s) => s.registrarTx);
+  const red = useWalletStore((s) => s.conectada?.network ?? 'mock');
   const qc = useQueryClient();
   const [seleccionadaId, setSeleccionadaId] = useState<string | null>(null);
   const [motivoRechazo, setMotivoRechazo] = useState('');
@@ -35,15 +37,24 @@ export function RevisionColaPage() {
   const revisarMut = useMutation({
     mutationFn: (payload: { id: string; decision: 'aprobar' | 'rechazar'; motivoRechazo?: string }) =>
       tokenizadasApi.revisar(payload.id, { decision: payload.decision, motivoRechazo: payload.motivoRechazo }),
-    onSuccess: (_, vars) => {
+    onSuccess: (res, vars) => {
       qc.invalidateQueries({ queryKey: ['tk'] });
-      registrarTx({
-        signature: `SIG${Math.random().toString(36).slice(2, 10)}`,
-        tipo: 'publicar',
-        descripcion: `${vars.decision === 'aprobar' ? 'Aprobación' : 'Rechazo'} de emisión ${vars.id.slice(0, 8)}`,
-        timestamp: Date.now(),
-      });
-      toast.success(vars.decision === 'aprobar' ? 'Emisión publicada al marketplace' : 'Emisión rechazada');
+      if (vars.decision === 'aprobar' && res.publicacion) {
+        // La signature es la real que devolvió el backend al firmar create_campaign.
+        registrarTx({
+          signature: res.publicacion.txSignature,
+          tipo: 'publicar',
+          descripcion: `Publicación on-chain de emisión ${vars.id.slice(0, 8)}`,
+          timestamp: Date.now(),
+        });
+        const link = explorerTxUrl(res.publicacion.txSignature, red);
+        toast.success('Emisión publicada al marketplace', {
+          description: link ? undefined : 'Modo simulación, sin tx on-chain',
+          action: link ? { label: 'Ver tx', onClick: () => window.open(link, '_blank', 'noreferrer') } : undefined,
+        });
+      } else {
+        toast.success('Emisión rechazada');
+      }
       setSeleccionadaId(null);
       setMotivoRechazo('');
     },
@@ -120,8 +131,7 @@ export function RevisionColaPage() {
         open={modalFirma}
         detalle={{
           titulo: 'Publicar emisión al marketplace',
-          descripcion: 'La emisión se hace pública. Crea Mint SPL + Vault PDA on-chain.',
-          costoSol: 0.0425,
+          descripcion: 'La emisión se hace pública. Crea la cuenta Campaign, el mint SPL y el vault de USDC on-chain.',
           items: seleccionada
             ? [
                 { label: 'Lote', value: seleccionada.campania.establecimiento?.nombre ?? '' },
@@ -133,9 +143,10 @@ export function RevisionColaPage() {
         }}
         onAprobar={async () => {
           if (!seleccionada || !modoDecision) return;
-          await revisarMut.mutateAsync({ id: seleccionada.id, decision: modoDecision });
+          const res = await revisarMut.mutateAsync({ id: seleccionada.id, decision: modoDecision });
+          return { txSignature: res.publicacion?.txSignature };
         }}
-        onRechazar={() => {
+        onCerrar={() => {
           setModalFirma(false);
           setModoDecision(null);
         }}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Tokenizacion } from '../../types/tokenizadas';
 import { usd, usdTn, toneladas, diasRestantes, porcentaje } from '../../utils/format';
-import { useWalletStore } from '../../stores/walletStore';
+import { useWalletStore, useContextoActivo } from '../../stores/walletStore';
 import { SheetCompra } from './SheetCompra';
 
 interface Props {
@@ -15,7 +15,7 @@ interface Props {
  */
 export function PanelCompra({ tokenizacion: t, disponibles }: Props) {
   const conectada = useWalletStore((s) => s.conectada);
-  const contexto = useWalletStore((s) => s.contextoActivo);
+  const contexto = useContextoActivo();
   const [cantidad, setCantidad] = useState(10);
   const [sheetOpen, setSheetOpen] = useState(false);
 
