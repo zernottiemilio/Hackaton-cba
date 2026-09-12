@@ -578,7 +578,10 @@ async function seedTokenizadas(): Promise<void> {
         txSignaturePublicacion: params.estado === 'borrador' || params.estado === 'en_revision' || params.estado === 'rechazada' ? null : `${Math.random().toString(36).slice(2, 44)}${Math.random().toString(36).slice(2, 44)}`.padEnd(88, 'C'),
         aprobadaEn: params.estado === 'borrador' || params.estado === 'en_revision' || params.estado === 'rechazada' ? null : new Date(params.fondeoDesde.getTime() - 5 * 24 * 3600 * 1000),
         precioLiquidacionUsdTn: params.precioLiquidacion,
-        fechaLiquidacion: params.fechaLiquidacion,
+        liquidadaEn: params.fechaLiquidacion,
+        // Campañas ya liquidadas en el seed: entrega completa, payout = precio pagado.
+        toneladasEntregadas: params.estado === 'liquidada' ? tokensVendidos : null,
+        payoutPorTokenUsd: params.estado === 'liquidada' ? params.precioLiquidacion : null,
       },
     });
 
