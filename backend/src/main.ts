@@ -18,8 +18,10 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   const port = config.get<number>('port') ?? 3000;
-  await app.listen(port);
-  console.log(`🚜 AgroFacil API en http://localhost:${port}/api/v1`);
+  // Bindear a 0.0.0.0 explícito para que el health check de Railway llegue.
+  // Sin esto Nest a veces bindea a localhost y el gateway devuelve 502.
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚜 AgroFacil API en http://0.0.0.0:${port}/api/v1`);
 }
 
 bootstrap();
