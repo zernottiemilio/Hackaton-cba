@@ -16,8 +16,8 @@ import { normalizarCultivo, type Cultivo } from '../../services/mockPreciosServi
 
 /**
  * Elige el font-size del balance USDC en función de cuántos caracteres
- * ocupa el número formateado. La card tiene 360px de ancho fijo con 48px
- * de padding horizontal (312px útiles). "US$ 1.430.175,20" son 16 chars.
+ * ocupa el número formateado. La card tiene 480px de ancho fijo con 48px
+ * de padding horizontal (432px útiles). "US$ 1.430.175,20" son 16 chars.
  *
  * A ~0.55em por char en la fuente hv-mono, entra:
  *   - 10 chars ("US$ 999,00") → 42px cómodos.
@@ -81,7 +81,7 @@ export function HomeInversorPage() {
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header inversor: saludo + balance grande */}
       <section
-        className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-stretch"
+        className="grid grid-cols-1 lg:grid-cols-[1fr_480px] gap-6 items-stretch"
       >
         <div>
           <div className="hv-label" style={{ fontSize: 10 }}>Vista inversor · Solana devnet</div>
