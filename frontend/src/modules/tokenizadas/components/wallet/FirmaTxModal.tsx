@@ -251,7 +251,29 @@ export function FirmaTxModal({ open, detalle, onAprobar, onCerrar }: Props) {
 
 function extraerMensaje(e: unknown): string {
   if (typeof e === 'object' && e !== null && 'response' in e) {
-    const r = (e as { response?: { data?: { message?: string | string[] } } }).response;
+    const r = (e as {
+      response?: {
+        data?: {
+          message?: string | string[];
+          errors?: Array<{ path?: unknown; message?: string }>;
+        };
+      };
+    }).response;
+    // El log completo va a consola: sirve para diagnosticar rápido cuando
+    // el mensaje textual del backend es solo "Validation failed".
+    if (r?.data) console.error('[FirmaTxModal] error backend', r.data);
+
+    const detalles = r?.data?.errors;
+    if (Array.isArray(detalles) && detalles.length > 0) {
+      return detalles
+        .map((d) => {
+          const path = Array.isArray(d.path) ? d.path.join('.') : '';
+          const msg = d.message ?? '';
+          return path ? `${path}: ${msg}` : msg;
+        })
+        .filter(Boolean)
+        .join(' · ');
+    }
     const m = r?.data?.message;
     if (Array.isArray(m)) return m.join('. ');
     if (typeof m === 'string') return m;
