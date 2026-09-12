@@ -3,7 +3,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TokenizadasSidebar } from './TokenizadasSidebar';
 import { TokenizadasTopbar } from './TokenizadasTopbar';
-import { TickerBar } from './TickerBar';
 import { HarvestFab } from './HarvestFab';
 import '../../styles/harvest-tokens.css';
 
@@ -29,8 +28,7 @@ export function TokenizadasLayout() {
 
   return (
     <div className="min-h-screen tk-scope">
-      <TickerBar />
-      <div className="flex min-h-[calc(100vh-40px)]">
+      <div className="flex min-h-screen">
         <TokenizadasSidebar />
         <div className="flex-1 min-w-0 flex flex-col">
           <TokenizadasTopbar />
