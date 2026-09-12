@@ -74,6 +74,75 @@ export interface FiltrosMarketplace {
   orden?: 'cierra_pronto' | 'mayor_descuento' | 'menor_riesgo' | 'recientes';
 }
 
+/**
+ * Prisma serializa `Decimal` como string en la respuesta HTTP. Los tipos de
+ * frontend los declaran como `number` porque así se consumen — pero cualquier
+ * `.toFixed()` o aritmética directa sobre strings los rompe con
+ * `t.toFixed is not a function`. Normalizamos en el borde: convertimos los
+ * campos numéricos conocidos a `number` antes de devolver al caller.
+ *
+ * Si aparece un `.toFixed` sobre un campo nuevo del backend y falla, agregarlo
+ * a `TOKENIZACION_NUMERIC_FIELDS` o `TENENCIA_NUMERIC_FIELDS`.
+ */
+const TOKENIZACION_NUMERIC_FIELDS = [
+  'porcentaje',
+  'toneladasFijas',
+  'toneladasOfrecidas',
+  'tokensEmitidos',
+  'tokensVendidos',
+  'precioReferenciaUsdTn',
+  'descuentoPct',
+  'precioTokenUsd',
+  'precioPisoUsd',
+  'montoObjetivoUsd',
+  'montoRecaudadoUsd',
+  'sobrecolateralPct',
+  'precioLiquidacionUsdTn',
+  'toneladasMinimas',
+  'toneladasEntregadas',
+  'payoutPorTokenUsd',
+] as const;
+
+const TENENCIA_NUMERIC_FIELDS = [
+  'tokens',
+  'precioCompraUsd',
+  'montoTotalUsd',
+  'usdcRecibido',
+] as const;
+
+function toNumberOrKeep(v: unknown): unknown {
+  if (v === null || v === undefined || v === '') return v;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : v;
+  }
+  return v;
+}
+
+function normalizarTokenizacion<T>(t: T): T {
+  if (t === null || t === undefined) return t;
+  const clone: Record<string, unknown> = { ...(t as Record<string, unknown>) };
+  for (const k of TOKENIZACION_NUMERIC_FIELDS) {
+    if (k in clone) clone[k] = toNumberOrKeep(clone[k]);
+  }
+  // Tenencias anidadas (portfolio + admin/liquidacion).
+  if (Array.isArray(clone.tenencias)) {
+    clone.tenencias = (clone.tenencias as Record<string, unknown>[]).map((ten) => {
+      const c: Record<string, unknown> = { ...ten };
+      for (const k of TENENCIA_NUMERIC_FIELDS) {
+        if (k in c) c[k] = toNumberOrKeep(c[k]);
+      }
+      return c;
+    });
+  }
+  return clone as T;
+}
+
+function normalizarLista<T>(list: T[]): T[] {
+  return list.map((x) => normalizarTokenizacion(x));
+}
+
 export const tokenizadasApi = {
   // ─── Wallet ────────────────────────────────────────────────────
   async conectarWallet(): Promise<WalletInfo> {
@@ -84,7 +153,7 @@ export const tokenizadasApi = {
   // ─── Productor ─────────────────────────────────────────────────
   async crear(payload: CrearTokenizacionPayload): Promise<Tokenizacion> {
     const { data } = await apiClient.post('/tokenizadas', payload);
-    return data;
+    return normalizarTokenizacion(data);
   },
 
   async enviarARevision(id: string) {
@@ -94,7 +163,7 @@ export const tokenizadasApi = {
 
   async misCampanas(): Promise<Tokenizacion[]> {
     const { data } = await apiClient.get('/tokenizadas/mis-campanas');
-    return data;
+    return normalizarLista(data);
   },
 
   /**
@@ -110,12 +179,12 @@ export const tokenizadasApi = {
   // ─── Inversor / Marketplace (público) ──────────────────────────
   async marketplace(filtros: FiltrosMarketplace = {}): Promise<Tokenizacion[]> {
     const { data } = await apiClient.get('/tokenizadas/marketplace', { params: filtros });
-    return data;
+    return normalizarLista(data);
   },
 
   async detalleMarketplace(id: string): Promise<Tokenizacion> {
     const { data } = await apiClient.get(`/tokenizadas/marketplace/${id}`);
-    return data;
+    return normalizarTokenizacion(data);
   },
 
   /**
@@ -139,6 +208,17 @@ export const tokenizadasApi = {
 
   async portfolio(): Promise<PortfolioResponse> {
     const { data } = await apiClient.get('/tokenizadas/portfolio');
+    // Portfolio shape: { tenencias: [...] }. Cada tenencia tiene tokenizacion anidada.
+    if (Array.isArray(data?.tenencias)) {
+      data.tenencias = data.tenencias.map((ten: Record<string, unknown>) => {
+        const c: Record<string, unknown> = { ...ten };
+        for (const k of TENENCIA_NUMERIC_FIELDS) {
+          if (k in c) c[k] = toNumberOrKeep(c[k]);
+        }
+        if (c.tokenizacion) c.tokenizacion = normalizarTokenizacion(c.tokenizacion as Record<string, unknown>);
+        return c;
+      });
+    }
     return data;
   },
 
@@ -150,7 +230,7 @@ export const tokenizadasApi = {
   // ─── Admin ─────────────────────────────────────────────────────
   async colaRevision(): Promise<Tokenizacion[]> {
     const { data } = await apiClient.get('/tokenizadas/admin/revision');
-    return data;
+    return normalizarLista(data);
   },
 
   async revisar(id: string, payload: { decision: 'aprobar' | 'rechazar'; motivoRechazo?: string }): Promise<RevisionResult> {
@@ -161,7 +241,7 @@ export const tokenizadasApi = {
   /** Campañas `fondeada` (pendientes de liquidar) y `liquidada` (historial). Contrato en HARVEST.md (VAL-12). */
   async colaLiquidacion(): Promise<Tokenizacion[]> {
     const { data } = await apiClient.get('/tokenizadas/admin/liquidacion');
-    return data;
+    return normalizarLista(data);
   },
 
   /**
