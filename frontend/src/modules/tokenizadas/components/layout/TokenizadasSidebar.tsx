@@ -19,6 +19,11 @@ const ITEMS: NavItem[] = [
   { to: '/campanas', label: 'Mis emisiones', icon: '⛢', roles: ['productor'] },
   { to: '/campanas/nueva', label: 'Tokenizar lote', icon: '＋', roles: ['productor'] },
   { to: '/campos', label: 'Mis lotes', icon: '⛰', roles: ['productor'] },
+  // Herramientas agronómicas (portadas del MVP hasta reestilar)
+  { to: '/asistente', label: 'Asistente IA', icon: '✦', roles: ['productor'] },
+  { to: '/alertas', label: 'Alertas', icon: '⚠', roles: ['productor'] },
+  { to: '/clima', label: 'Clima', icon: '☁', roles: ['productor'] },
+  { to: '/lluvias', label: 'Lluvias', icon: '☂', roles: ['productor'] },
   // Acopio
   { to: '/acopio', label: 'Tablero', icon: '⌂', roles: ['acopio'] },
   { to: '/acopio/recepcion', label: 'Recepción', icon: '⤵', roles: ['acopio'] },
