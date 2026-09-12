@@ -71,7 +71,7 @@ export class ClaudeClient {
 
   constructor(private readonly config: ConfigService) {
     const apiKey = this.config.get<string>('GROQ_API_KEY') ?? process.env.GROQ_API_KEY;
-    this.modelo = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
+    this.modelo = process.env.GROQ_MODEL ?? 'openai/gpt-oss-20b';
     if (apiKey && apiKey.length > 10) {
       this.client = new Groq({ apiKey });
       this.logger.log(`LLM inicializado (Groq · ${this.modelo})`);

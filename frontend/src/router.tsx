@@ -58,7 +58,7 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // Herramientas del productor (chat IA, clima, lluvias)
+      // Herramientas del productor (clima, lluvias, campos, campañas)
       {
         element: <RutaHarvest roles={['productor']} />,
         children: [
@@ -66,9 +66,20 @@ export const router = createBrowserRouter([
           { path: 'campos/nuevo', element: <NuevoCampoPage /> },
           { path: 'campanas', element: <MisCampanasPage /> },
           { path: 'campanas/nueva', element: <NuevaCampanaPage /> },
-          { path: 'asistente', element: <AsistenteHarvestPage /> },
           { path: 'clima', element: <ClimaHarvestPage /> },
           { path: 'lluvias', element: <LluviasHarvestPage /> },
+        ],
+      },
+
+      // Asistente IA: productor e inversor comparten la misma pantalla,
+      // pero el backend responde distinto según rol (system prompt + tools
+      // + contexto por rol). No podemos tener dos rutas con el mismo path
+      // en padres distintos: React Router matchea la primera, y si su
+      // guard rechaza, no cae en la segunda.
+      {
+        element: <RutaHarvest roles={['productor', 'inversor']} />,
+        children: [
+          { path: 'asistente', element: <AsistenteHarvestPage /> },
         ],
       },
 
@@ -77,8 +88,6 @@ export const router = createBrowserRouter([
         element: <RutaHarvest roles={['inversor']} />,
         children: [
           { path: 'portfolio', element: <HarvestPortfolioPage /> },
-          // El asistente también sirve al inversor
-          { path: 'asistente', element: <AsistenteHarvestPage /> },
         ],
       },
 
