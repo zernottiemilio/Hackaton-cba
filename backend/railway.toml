@@ -1,9 +1,9 @@
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
 buildCommand = "npm install --include=dev && npx prisma generate && npm run build"
 
 [deploy]
-startCommand = "npx prisma migrate deploy && node dist/main.js"
+startCommand = "npx prisma migrate deploy && npm run db:seed && node dist/main.js"
 healthcheckPath = "/api/v1/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
@@ -12,3 +12,9 @@ restartPolicyMaxRetries = 5
 # Notas:
 # - /api/v1/health devuelve 200 con {status, service, timestamp}.
 # - migrate deploy aplica migraciones pendientes en cada start (idempotente).
+# - db:seed corre en cada start; es idempotente (usa upsert) — sirve para
+#   garantizar superadmin + catálogo de cultivos sin pasos manuales.
+#   Requiere SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD / SUPERADMIN_NOMBRE en variables.
+# - Para fotos de monitoreo: montar un Railway Volume en /data y setear
+#   UPLOADS_DIR=/data/uploads en variables del servicio. Sin volume, las
+#   fotos se pierden en cada deploy.

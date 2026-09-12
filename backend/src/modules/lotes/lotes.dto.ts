@@ -50,3 +50,24 @@ export const listarLotesSchema = z.object({
   activo: z.coerce.boolean().optional(),
 });
 export type ListarLotesQuery = z.infer<typeof listarLotesSchema>;
+
+/**
+ * División de un lote en N sub-lotes. La suma de superficies puede
+ * ser menor que la del lote original (caso "ajusté el polígono") o
+ * igual ("partí el lote en dos"). Lo que NO puede pasar: superficies
+ * negativas o que sumen más que el original.
+ */
+export const dividirLoteSchema = z.object({
+  partes: z
+    .array(
+      z.object({
+        nombre: z.string().trim().min(1, 'Nombre requerido').max(80),
+        superficieHa: z.coerce.number().positive('Superficie > 0'),
+      }),
+    )
+    .min(2, 'Hay que crear al menos 2 partes para dividir')
+    .max(20, 'Demasiadas partes'),
+  /** Si true, el lote original queda inactivo. Default true. */
+  archivarOriginal: z.boolean().default(true),
+});
+export class DividirLoteDto extends createZodDto(dividirLoteSchema) {}

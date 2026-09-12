@@ -1,0 +1,191 @@
+/**
+ * Tipos del módulo Campañas Tokenizadas. Deriva de los modelos Prisma
+ * (backend/prisma/schema.prisma) pero adaptado a lo que consume el front.
+ */
+
+export type ContextoTokenizacion = 'productor' | 'inversor' | 'acopio' | 'admin_plataforma';
+
+export type EstadoCampanaToken =
+  | 'borrador'
+  | 'en_revision'
+  | 'rechazada'
+  | 'abierta'
+  | 'fondeada'
+  | 'en_curso'
+  | 'en_cosecha'
+  | 'liquidada'
+  | 'cancelada';
+
+export type ModoTokenizacion = 'porcentual' | 'fijo';
+export type FuentePrecio = 'pizarra_rosario' | 'matba_futuro' | 'manual';
+export type EstadoTenencia = 'activa' | 'liquidada' | 'en_disputa';
+export type SemaforoAfectacion = 'verde' | 'amarillo' | 'rojo';
+
+export interface WalletInfo {
+  address: string;
+  balanceSol: number;
+  balanceUsdc: number;
+  network: 'mainnet-beta' | 'devnet' | 'mock';
+}
+
+export interface CampoResumen {
+  id: string;
+  nombre: string;
+  partido: string | null;
+  provincia: string | null;
+  superficieTotalHa: number | null;
+  geometria: any | null;
+  fotos: string[];
+}
+
+export interface CultivoResumen {
+  id: string;
+  nombre: string;
+}
+
+export interface ProductorResumen {
+  id: string;
+  nombre: string;
+  createdAt?: string;
+}
+
+export interface CampaniaTokenizada {
+  id: string;
+  nombre: string;
+  cicloAgricola: string | null;
+  hectareasAfectadas: number | null;
+  fechaSiembraEstimada: string | null;
+  fechaCosechaEstimada: string | null;
+  rindeEstimadoTnHa: number | null;
+  rindeRealTnHa: number | null;
+  estadoToken: EstadoCampanaToken | null;
+  establecimiento: CampoResumen | null;
+  cultivo: CultivoResumen | null;
+}
+
+export interface Tokenizacion {
+  id: string;
+  campaniaId: string;
+  productorId: string;
+  modo: ModoTokenizacion;
+  porcentaje: number | null;
+  toneladasFijas: number | null;
+  toneladasOfrecidas: number;
+  tokensEmitidos: number;
+  tokensVendidos: number;
+
+  fuentePrecio: FuentePrecio;
+  precioReferenciaUsdTn: number;
+  descuentoPct: number;
+  precioTokenUsd: number;
+  precioDinamico: boolean;
+  precioPisoUsd: number | null;
+
+  fondeoDesde: string;
+  fondeoHasta: string;
+  montoObjetivoUsd: number;
+  montoRecaudadoUsd: number;
+
+  tieneSeguroGranizo: boolean;
+  tieneSeguroParametrico: boolean;
+  tieneAvalSgr: boolean;
+  sobrecolateralPct: number;
+
+  mintAddress: string | null;
+  vaultAddress: string | null;
+  txSignaturePublicacion: string | null;
+
+  aprobadaEn: string | null;
+  rechazadaEn: string | null;
+  motivoRechazo: string | null;
+
+  precioLiquidacionUsdTn: number | null;
+  fechaLiquidacion: string | null;
+
+  createdAt: string;
+  campania: CampaniaTokenizada;
+  productor: ProductorResumen;
+  disponibilidad?: {
+    tokensEmitidos: number;
+    tokensVendidos: number;
+    tokensReservados: number;
+    tokensDisponibles: number;
+  };
+}
+
+export interface Tenencia {
+  id: string;
+  tokenizacionId: string;
+  inversorId: string;
+  walletAddress: string;
+  tokens: number;
+  precioCompraUsd: number;
+  montoTotalUsd: number;
+  estado: EstadoTenencia;
+  txSignatureCompra: string | null;
+  txSignatureCobro: string | null;
+  usdcRecibido: number | null;
+  fechaCobro: string | null;
+  createdAt: string;
+  tokenizacion: Tokenizacion;
+}
+
+export interface ResumenPortfolio {
+  invertidoUsd: number;
+  valorActualUsd: number;
+  retornoNoRealizado: number;
+  retornoPct: number;
+  cantidadTenencias: number;
+}
+
+export interface PortfolioResponse {
+  tenencias: Tenencia[];
+  resumen: ResumenPortfolio;
+}
+
+export interface Reserva {
+  reservaId: string;
+  expiraEn: string;
+  precioUsdSnapshot: number;
+}
+
+export interface ConfirmacionCompra {
+  txSignature: string;
+  tenenciaId: string;
+  tokens: number;
+  precioCompraUsd: number;
+  montoTotalUsdc: number;
+}
+
+export interface ReclamoResult {
+  txSignature: string;
+  tokensQuemados: number;
+  usdcRecibido: number;
+}
+
+// ─── Datos técnicos externos (mock) ─────────────────────────────
+
+export interface DatosClima {
+  precipitacionMensualMm: { mes: string; mm: number; promedioHistorico: number }[];
+  temperaturaMediaC: { mes: string; c: number }[];
+  deficitHidricoAcumMm: number;
+}
+
+export interface DatosSuelo {
+  textura: string;
+  materiaOrganicaPct: number;
+  ph: number;
+  capacidadRetencionMm: number;
+  fuente: string;
+}
+
+export interface SerieNdvi {
+  fecha: string;
+  valor: number;
+  valorTipico?: number;
+}
+
+export interface SeriePrecio {
+  fecha: string;
+  usd: number;
+}
