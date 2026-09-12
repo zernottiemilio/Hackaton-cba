@@ -158,7 +158,17 @@ export const tokenizadasApi = {
     return normalizarTokenizacion(data);
   },
 
-  async enviarARevision(id: string) {
+  /**
+   * Enviar a revisión. Con AUTO_APROBAR_CAMPANAS (modo demo) el backend la
+   * aprueba y publica en Solana en el mismo paso: vuelve `estado: 'abierta'`
+   * y la signature de create_campaign en `publicacion`.
+   */
+  async enviarARevision(id: string): Promise<{
+    ok: boolean;
+    estado: string;
+    autoAprobada?: boolean;
+    publicacion?: { txSignature: string };
+  }> {
     const { data } = await apiClient.post(`/tokenizadas/${id}/enviar-revision`);
     return data;
   },

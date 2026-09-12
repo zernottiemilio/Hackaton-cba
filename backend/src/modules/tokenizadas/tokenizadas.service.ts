@@ -222,6 +222,16 @@ export class TokenizadasService {
       data: { estadoToken: 'en_revision' },
     });
 
+    // Modo demo: la campaña se aprueba y publica en Solana en el mismo paso,
+    // sin pasar por el admin. Se apaga con AUTO_APROBAR_CAMPANAS=false.
+    // La aprobación queda firmada por el productor (aprobadaPor), así se
+    // distingue de una revisión real cuando volvamos al flujo completo.
+    if (process.env.AUTO_APROBAR_CAMPANAS !== 'false') {
+      const aprobacion = await this.revisar(tokenizacionId, usuarioId, { decision: 'aprobar' });
+      this.logger.log(`Campaña ${tokenizacionId} auto-aprobada (modo demo)`);
+      return { ok: true, estado: 'abierta', autoAprobada: true, publicacion: aprobacion.publicacion };
+    }
+
     return { ok: true, estado: 'en_revision' };
   }
 
