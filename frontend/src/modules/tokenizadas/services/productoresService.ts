@@ -15,8 +15,9 @@ export interface ProductorResumen {
   email: string;
   walletAddress: string | null;
   createdAt: string;
-  rating: number;
-  metricas: RatingMetricas;
+  /** Puede faltar si el backend no calculó el score todavía (productor recién creado). */
+  rating?: number | null;
+  metricas?: RatingMetricas;
   cultivos: string[];
   provincia: string | null;
   campaniasActivas: Tokenizacion[];

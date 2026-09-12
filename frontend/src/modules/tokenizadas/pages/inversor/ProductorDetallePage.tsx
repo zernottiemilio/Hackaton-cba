@@ -109,14 +109,15 @@ export function ProductorDetallePage() {
           )}
         </div>
 
-        {/* Métricas del productor */}
+        {/* Métricas del productor — defensivo por si el backend no incluye
+            todos los campos (productor recién creado, migración pendiente). */}
         <div className="grid grid-cols-2 gap-3" style={{ minWidth: 320 }}>
-          <MetricaProductor label="Activas" value={p.metricas.campaniasActivas.toString()} />
-          <MetricaProductor label="Liquidadas" value={p.metricas.campaniasLiquidadas.toString()} />
-          <MetricaProductor label="Bajo admin" value={toneladas(p.metricas.toneladasBajoAdmin, 0)} />
+          <MetricaProductor label="Activas" value={String(p.metricas?.campaniasActivas ?? 0)} />
+          <MetricaProductor label="Liquidadas" value={String(p.metricas?.campaniasLiquidadas ?? 0)} />
+          <MetricaProductor label="Bajo admin" value={toneladas(p.metricas?.toneladasBajoAdmin ?? 0, 0)} />
           <MetricaProductor
             label="Volumen"
-            value={usdCompacto(p.metricas.usdRecaudadoTotal)}
+            value={usdCompacto(p.metricas?.usdRecaudadoTotal ?? 0)}
             accent
           />
         </div>
