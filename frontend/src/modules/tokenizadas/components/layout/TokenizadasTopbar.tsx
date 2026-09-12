@@ -20,7 +20,12 @@ export function TokenizadasTopbar() {
 
   return (
     <header
-      className="h-14 shrink-0 flex items-center justify-between px-6"
+      // `relative z-40`: el backdrop-filter crea un contexto de apilamiento
+      // propio. Sin z-index, el contenido de <main> (heros, mapas) se pinta
+      // encima del menú de perfil, del dropdown de wallet y de sus modales,
+      // y los clicks no llegan. Con z-40 todo lo que cuelga del topbar queda
+      // por encima del contenido.
+      className="relative z-40 h-14 shrink-0 flex items-center justify-between px-6"
       style={{
         background: 'rgba(6, 6, 10, 0.65)',
         backdropFilter: 'blur(12px)',
@@ -66,16 +71,6 @@ export function TokenizadasTopbar() {
               />
             </span>
             {etiquetaRed(red)}
-          </span>
-          <span
-            style={{
-              fontFamily: 'var(--hv-font-mono)',
-              fontSize: 11,
-              color: 'var(--hv-text-muted)',
-              letterSpacing: '0.02em',
-            }}
-          >
-            slot 1,234,567
           </span>
         </div>
 
