@@ -5,6 +5,8 @@ import type {
   ConfirmacionCompra,
   ReclamoResult,
   LiberarFondosResult,
+  LiquidarPayload,
+  LiquidarResult,
   PortfolioResponse,
   WalletInfo,
   ModoTokenizacion,
@@ -137,6 +139,21 @@ export const tokenizadasApi = {
 
   async revisar(id: string, payload: { decision: 'aprobar' | 'rechazar'; motivoRechazo?: string }): Promise<RevisionResult> {
     const { data } = await apiClient.post(`/tokenizadas/admin/${id}/revisar`, payload);
+    return data;
+  },
+
+  /** Campañas `fondeada` (pendientes de liquidar) y `liquidada` (historial). Contrato en HARVEST.md (VAL-12). */
+  async colaLiquidacion(): Promise<Tokenizacion[]> {
+    const { data } = await apiClient.get('/tokenizadas/admin/liquidacion');
+    return data;
+  },
+
+  /**
+   * settle: el acopio (fee-payer del backend) deposita toneladasEntregadas × precio
+   * en el vault y el programa fija payout_per_token. Contrato en HARVEST.md (VAL-12).
+   */
+  async liquidar(id: string, payload: LiquidarPayload): Promise<LiquidarResult> {
+    const { data } = await apiClient.post(`/tokenizadas/${id}/liquidar`, payload);
     return data;
   },
 };

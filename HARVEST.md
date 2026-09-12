@@ -60,8 +60,9 @@ Nuevos, acordados entre back y front (tareas VAL-12 y VAL-18):
 
 | Método | Path | Guard | Body / respuesta |
 |---|---|---|---|
-| POST | `:id/liberar-fondos` | productor | → `{ txSignature, montoUsd }`. Estado → `fondeada` |
-| POST | `:id/liquidar` | admin_plataforma | `{ toneladasEntregadas, precioLiquidacionUsdTn }` → `{ txSignature, payoutPorTokenUsd }`. Estado → `liquidada` |
+| POST | `:id/liberar-fondos` | productor | → `{ txSignature, montoUsd }`. Persiste `txSignatureLiberacion`. Estado → `fondeada` |
+| GET | `admin/liquidacion` | admin_plataforma | → `Tokenizacion[]` en estado `fondeada` (pendientes) y `liquidada` (historial), con `campania`, `productor` y `tenencias`. Es lo que lista la pantalla `/liquidacion` |
+| POST | `:id/liquidar` | admin_plataforma | `{ toneladasEntregadas, precioLiquidacionUsdTn }` → `{ txSignature, payoutPorTokenUsd, depositoUsd }`. Persiste `toneladasEntregadas`, `precioLiquidacionUsdTn`, `payoutPorTokenUsd`, `txSignatureLiquidacion`. Estado → `liquidada` |
 | GET | `:id/on-chain` | público | `{ onChain, status, tonsOffered, tonsSold, minTons, pricePerTonUsd, settlementDate, tonsDelivered, settlementPriceUsd, payoutPerTokenUsd, vaultBalanceUsd, addresses: { campaign, tokenMint, vault, producer, acopio }, explorer: { campaign, tokenMint, vault } }` |
 
 `reclamar` pasa a hacer solo `redeem`. Hoy dispara `release_funds` y `settle` escondidos en `ensureCampaignSettled()`; eso se saca.
