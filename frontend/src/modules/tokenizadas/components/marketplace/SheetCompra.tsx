@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -111,7 +112,11 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
     }
   };
 
-  return (
+  // Portal a <body>: el layout envuelve cada página en un motion.div que anima
+  // `y` (transform), y eso convierte a ese div en el contenedor de todo
+  // `position: fixed` que tenga adentro. Sin el portal, la sheet quedaba
+  // anclada a la página, debajo del topbar y con el hero del mapa encima.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
@@ -227,7 +232,8 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
 
