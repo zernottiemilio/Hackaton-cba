@@ -8,7 +8,7 @@ pub use errors::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("DKnf1N2UvAwEfa6eu32F5hSE1UVCc3iK2mbjP84FRMy5");
+declare_id!("H7Y5ZX4VUF9icFXjuqKmhfCsXBa8wd41Hghvy1e7yvYD");
 
 #[program]
 pub mod agro_token {

@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/agro_token.json`.
  */
 export type AgroToken = {
-  "address": "DKnf1N2UvAwEfa6eu32F5hSE1UVCc3iK2mbjP84FRMy5",
+  "address": "H7Y5ZX4VUF9icFXjuqKmhfCsXBa8wd41Hghvy1e7yvYD",
   "metadata": {
     "name": "agroToken",
     "version": "0.1.0",
