@@ -5,6 +5,7 @@ import type {
   ConfirmacionCompra,
   ReclamoResult,
   LiberarFondosResult,
+  ComisionConfig,
   LiquidarPayload,
   LiquidarResult,
   PortfolioResponse,
@@ -172,6 +173,12 @@ export const tokenizadasApi = {
     return data;
   },
 
+  /** Porcentaje vigente y tesorería. Público. */
+  async comisionesConfig(): Promise<ComisionConfig> {
+    const { data } = await apiClient.get('/tokenizadas/comisiones/config');
+    return data;
+  },
+
   /** Auditoría de comisiones de plataforma (1,5%) — panel del admin. */
   async listarComisiones(filtros?: FiltrosComisiones): Promise<ComisionesResponse> {
     const { data } = await apiClient.get('/tokenizadas/admin/comisiones', { params: filtros });
@@ -201,6 +208,9 @@ export interface ComisionItem {
   montoComisionUsd: string;
   montoNetoUsd: string;
   txReferencia: string | null;
+  /** Transferencia SPL de la comisión a la tesorería. Null si falló o venía del mock viejo. */
+  txComision: string | null;
+  tesoreriaAddress: string | null;
   createdAt: string;
   usuario: { id: string; nombre: string; email: string };
   tokenizacion: {

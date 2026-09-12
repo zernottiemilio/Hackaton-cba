@@ -6,7 +6,8 @@ import { tokenizadasApi } from '../../services/tokenizadasService';
 import { useWalletStore } from '../../stores/walletStore';
 import { FirmaTxModal } from '../wallet/FirmaTxModal';
 import { explorerTxUrl } from '../../utils/explorer';
-import { usd, toneladas } from '../../utils/format';
+import { usd, toneladas, porcentaje } from '../../utils/format';
+import { useComisionConfig } from '../../hooks/useComisionConfig';
 
 interface Props {
   t: Tokenizacion;
@@ -33,6 +34,8 @@ export function BotonCobrarSiembra({ t, compacto = false }: Props) {
   const vendidos = Number(t.tokensVendidos);
   const minimas = Number(t.toneladasMinimas ?? 1);
   const recaudado = Number(t.montoRecaudadoUsd);
+  const comisionCfg = useComisionConfig();
+  const desglose = comisionCfg.desglosar(recaudado);
 
   if (estado === 'fondeada' || estado === 'en_curso' || estado === 'en_cosecha' || estado === 'liquidada') {
     const link = t.txSignatureLiberacion && conectada ? explorerTxUrl(t.txSignatureLiberacion, conectada.network) : null;
@@ -70,11 +73,18 @@ export function BotonCobrarSiembra({ t, compacto = false }: Props) {
     });
     qc.invalidateQueries({ queryKey: ['tk'] });
     const link = conectada ? explorerTxUrl(res.txSignature, conectada.network) : null;
-    toast.success(`Cobraste ${usd(res.montoUsd, 2)} USDC`, {
-      description: 'La plata salió del contrato directo a tu wallet.',
+    const neto = res.comision?.montoNetoUsd ?? res.montoUsd;
+    const com = res.comision?.montoComisionUsd ?? 0;
+    toast.success(`Cobraste ${usd(neto, 2)} USDC netos`, {
+      description: `${usd(res.montoUsd, 2)} del vault, menos ${usd(com, 2)} de comisión de plataforma (${porcentaje(res.comision?.porcentaje ?? comisionCfg.porcentaje, 1)}).`,
       action: link ? { label: 'Ver tx', onClick: () => window.open(link, '_blank', 'noreferrer') } : undefined,
     });
-    return { txSignature: res.txSignature };
+    return {
+      txSignature: res.txSignature,
+      extras: res.comision
+        ? [{ label: `Comisión ${porcentaje(res.comision.porcentaje, 1)} a tesorería`, txSignature: res.comision.txComision ?? null }]
+        : [],
+    };
   };
 
   return (
@@ -113,7 +123,9 @@ export function BotonCobrarSiembra({ t, compacto = false }: Props) {
             { label: 'Campaña', value: t.campania.establecimiento?.nombre ?? t.campania.nombre },
             { label: 'Toneladas vendidas', value: `${vendidos.toFixed(0)} / ${Number(t.tokensEmitidos).toFixed(0)}` },
             { label: 'Precio por tonelada', value: usd(t.precioTokenUsd, 2) },
-            { label: 'Recibís', value: `${usd(recaudado, 2)} USDC` },
+            { label: 'Sale del vault', value: `${usd(desglose.bruto, 2)} USDC` },
+            { label: `Comisión de plataforma (${porcentaje(comisionCfg.porcentaje, 1)})`, value: `− ${usd(desglose.comision, 2)}` },
+            { label: 'Recibís neto', value: `${usd(desglose.neto, 2)} USDC` },
           ],
         }}
         onAprobar={ejecutar}

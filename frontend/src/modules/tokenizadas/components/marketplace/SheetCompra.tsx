@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { Tokenizacion } from '../../types/tokenizadas';
-import { usd, usdCompacto, toneladas, abreviarTx } from '../../utils/format';
+import type { Tokenizacion, DesgloseComision } from '../../types/tokenizadas';
+import { usd, usdCompacto, toneladas, abreviarTx, porcentaje } from '../../utils/format';
+import { explorerTxUrl } from '../../utils/explorer';
 import { useWalletStore } from '../../stores/walletStore';
 import { tokenizadasApi } from '../../services/tokenizadasService';
+import { useComisionConfig } from '../../hooks/useComisionConfig';
 
 interface Props {
   open: boolean;
@@ -31,6 +33,8 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
   const [expiraEn, setExpiraEn] = useState<number | null>(null);
   const [tenenciaId, setTenenciaId] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
+  const [comision, setComision] = useState<DesgloseComision | null>(null);
+  const comisionCfg = useComisionConfig();
   const [firmando, setFirmando] = useState(false);
 
   const conectada = useWalletStore((s) => s.conectada);
@@ -50,6 +54,7 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
       setExpiraEn(null);
       setTenenciaId(null);
       setTxSignature(null);
+      setComision(null);
     }
   }, [open, cantidadInicial]);
 
@@ -80,6 +85,7 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
       const res = await tokenizadasApi.confirmarCompra(reservaId);
       setTxSignature(res.txSignature);
       setTenenciaId(res.tenenciaId);
+      setComision(res.comision ?? null);
       registrarTx({
         signature: res.txSignature,
         tipo: 'comprar',
@@ -186,6 +192,8 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
                   t={t}
                   cantidad={cantidad}
                   total={total}
+                  comisionPct={comisionCfg.porcentaje}
+                  comisionUsd={comisionCfg.desglosar(total).comision}
                   comprendoRiesgo={comprendoRiesgo}
                   setComprendoRiesgo={setComprendoRiesgo}
                   expiraEn={expiraEn}
@@ -201,6 +209,8 @@ export function SheetCompra({ open, tokenizacion: t, cantidad: cantidadInicial, 
                   total={total}
                   tenenciaId={tenenciaId}
                   txSignature={txSignature}
+                  comision={comision}
+                  red={conectada?.network ?? 'mock'}
                   onCerrar={onClose}
                 />
               )}
@@ -344,6 +354,8 @@ function PasoConfirmacion({
   t,
   cantidad,
   total,
+  comisionPct,
+  comisionUsd,
   comprendoRiesgo,
   setComprendoRiesgo,
   expiraEn,
@@ -354,6 +366,8 @@ function PasoConfirmacion({
   t: Tokenizacion;
   cantidad: number;
   total: number;
+  comisionPct: number;
+  comisionUsd: number;
   comprendoRiesgo: boolean;
   setComprendoRiesgo: (v: boolean) => void;
   expiraEn: number | null;
@@ -400,8 +414,10 @@ function PasoConfirmacion({
           <FilaResumen label="Modo" value={t.modo === 'porcentual' ? `Porcentual (${t.porcentaje}%)` : 'Cantidad fija'} />
           <FilaResumen label="Cantidad" value={`${cantidad} HRV`} mono />
           <FilaResumen label="Precio HRV" value={usd(t.precioTokenUsd, 2)} mono />
+          <FilaResumen label="Va al vault de la campaña" value={usd(total, 2)} mono />
+          <FilaResumen label={`Comisión de plataforma (${porcentaje(comisionPct, 1)})`} value={`+ ${usd(comisionUsd, 2)}`} mono />
           <div className="pt-2 mt-2" style={{ borderTop: '1px solid var(--hv-border-subtle)' }}>
-            <FilaResumen label="Total" value={usd(total, 2)} destacado />
+            <FilaResumen label="Total a debitar" value={usd(total + comisionUsd, 2)} destacado />
           </div>
         </div>
       </div>
@@ -497,6 +513,8 @@ function PasoListo({
   total,
   tenenciaId,
   txSignature,
+  comision,
+  red,
   onCerrar,
 }: {
   t: Tokenizacion;
@@ -504,8 +522,12 @@ function PasoListo({
   total: number;
   tenenciaId: string | null;
   txSignature: string | null;
+  comision: DesgloseComision | null;
+  red: 'mainnet-beta' | 'devnet' | 'mock';
   onCerrar: () => void;
 }) {
+  const linkCompra = txSignature ? explorerTxUrl(txSignature, red) : null;
+  const linkComision = comision?.txComision ? explorerTxUrl(comision.txComision, red) : null;
   return (
     <div className="space-y-5 text-center">
       <motion.div
@@ -543,9 +565,37 @@ function PasoListo({
         <div className="hv-label" style={{ fontSize: 10, marginBottom: 10 }}>Comprobante</div>
         <div className="space-y-2">
           <FilaResumen label="Operación" value={tenenciaId ? tenenciaId.slice(0, 8) : '—'} mono />
-          <FilaResumen label="Tx signature" value={txSignature ? abreviarTx(txSignature) : '—'} mono />
-          <FilaResumen label="Red" value="Solana devnet" />
+          <FilaResumen label="Tx compra" value={txSignature ? abreviarTx(txSignature) : '—'} mono />
+          {comision && (
+            <>
+              <FilaResumen
+                label={`Comisión plataforma (${porcentaje(comision.porcentaje, 1)})`}
+                value={usd(comision.montoComisionUsd, 2)}
+                mono
+              />
+              <FilaResumen
+                label="Tx comisión"
+                value={comision.txComision ? abreviarTx(comision.txComision) : 'pendiente'}
+                mono
+              />
+            </>
+          )}
+          <FilaResumen label="Red" value={red === 'mock' ? 'Simulación' : `Solana ${red}`} />
         </div>
+        {(linkCompra || linkComision) && (
+          <div className="flex flex-wrap gap-3 mt-3 pt-3" style={{ borderTop: '1px solid var(--hv-border-subtle)', fontSize: 12 }}>
+            {linkCompra && (
+              <a href={linkCompra} target="_blank" rel="noreferrer" style={{ color: 'var(--hv-green-text)', fontWeight: 600, textDecoration: 'none' }}>
+                Ver compra en Explorer ↗
+              </a>
+            )}
+            {linkComision && (
+              <a href={linkComision} target="_blank" rel="noreferrer" style={{ color: 'var(--hv-green-text)', fontWeight: 600, textDecoration: 'none' }}>
+                Ver comisión en Explorer ↗
+              </a>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

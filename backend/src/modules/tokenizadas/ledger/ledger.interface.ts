@@ -83,6 +83,21 @@ export interface LiquidarResult {
   depositoUsd: number;
 }
 
+/** Comisión de plataforma: transferencia SPL de USDC del pagador a la tesorería. */
+export interface TransferirComisionInput {
+  tokenizacionId: string;
+  /** Usuario cuya wallet custodial paga (inversor en compra, productor en cobro). */
+  pagadorUsuarioId: string;
+  montoUsd: number;
+  concepto: 'compra_inversor' | 'cobro_productor';
+}
+
+export interface TransferirComisionResult {
+  txSignature: string;
+  /** Address de la tesorería que recibió la comisión. */
+  tesoreria: string;
+}
+
 export interface DisponibilidadResult {
   tokensEmitidos: number;
   tokensVendidos: number;
@@ -152,6 +167,16 @@ export abstract class LedgerService {
 
   /** redeem. Solo con la campaña Settled: quema los tokens del inversor y le transfiere USDC del vault. */
   abstract reclamar(input: ReclamarInput): Promise<ReclamarResult>;
+
+  /**
+   * Cobra la comisión de plataforma: USDC de la wallet custodial del pagador
+   * a la tesorería. Es una transferencia SPL común, no pasa por el programa.
+   * La comisión queda verificable en el explorer con su propia signature.
+   */
+  abstract transferirComision(input: TransferirComisionInput): Promise<TransferirComisionResult>;
+
+  /** Address pública de la tesorería de la plataforma (para mostrarla en la UI). */
+  abstract tesoreriaAddress(): string;
 
   /** Disponibilidad actual de tokens para una tokenización. */
   abstract obtenerDisponibilidad(tokenizacionId: string): Promise<DisponibilidadResult>;

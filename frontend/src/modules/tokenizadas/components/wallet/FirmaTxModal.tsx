@@ -21,6 +21,8 @@ export interface DetalleFirma {
 export interface ResultadoFirma {
   /** Signature real devuelta por el backend. Undefined si la acción no fue on-chain. */
   txSignature?: string;
+  /** Transacciones secundarias de la misma acción (por ejemplo la comisión a la tesorería). */
+  extras?: { label: string; txSignature: string | null }[];
 }
 
 interface Props {
@@ -44,6 +46,7 @@ type Estado = 'esperando' | 'enviando' | 'confirmada' | 'error';
 export function FirmaTxModal({ open, detalle, onAprobar, onCerrar }: Props) {
   const [estado, setEstado] = useState<Estado>('esperando');
   const [signature, setSignature] = useState<string | null>(null);
+  const [extras, setExtras] = useState<{ label: string; txSignature: string | null }[]>([]);
   const [mensajeError, setMensajeError] = useState<string | null>(null);
   const conectada = useWalletStore((s) => s.conectada);
   const refrescar = useWalletStore((s) => s.refrescar);
@@ -53,6 +56,7 @@ export function FirmaTxModal({ open, detalle, onAprobar, onCerrar }: Props) {
     if (open) {
       setEstado('esperando');
       setSignature(null);
+      setExtras([]);
       setMensajeError(null);
     }
   }, [open]);
@@ -62,6 +66,7 @@ export function FirmaTxModal({ open, detalle, onAprobar, onCerrar }: Props) {
     try {
       const r = await onAprobar();
       setSignature(r?.txSignature ?? null);
+      setExtras(r?.extras ?? []);
       setEstado('confirmada');
       if (onChain) void refrescar();
     } catch (e) {
@@ -198,6 +203,29 @@ export function FirmaTxModal({ open, detalle, onAprobar, onCerrar }: Props) {
                         ) : (
                           <div className="text-white/30 text-[10px] mt-2">Simulación: sin registro on-chain</div>
                         )}
+                      </div>
+                    )}
+                    {extras.length > 0 && (
+                      <div className="mt-2 w-full bg-black/40 rounded-lg p-3 border border-white/5 space-y-2">
+                        {extras.map((e, i) => {
+                          const l = e.txSignature ? explorerTxUrl(e.txSignature, red) : null;
+                          return (
+                            <div key={i} className="flex items-center justify-between gap-3 text-xs">
+                              <span className="text-white/50">{e.label}</span>
+                              {e.txSignature ? (
+                                l ? (
+                                  <a href={l} target="_blank" rel="noreferrer" className="text-emerald-400 font-mono hover:underline">
+                                    {abreviarTx(e.txSignature)} ↗
+                                  </a>
+                                ) : (
+                                  <span className="text-white/60 font-mono">{abreviarTx(e.txSignature)}</span>
+                                )
+                              ) : (
+                                <span className="text-amber-300/80">pendiente</span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                     <button

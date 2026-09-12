@@ -11,6 +11,7 @@ import {
 import {
   createAssociatedTokenAccountInstruction,
   createMintToInstruction,
+  createTransferInstruction,
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import bs58 from 'bs58';
@@ -38,6 +39,8 @@ export class WalletCustodianService implements OnModuleInit {
   private _encryptionKey: string;
   private _fundLamports: number;
   private _testUsdc: bigint;
+  /** Wallet que recibe las comisiones de la plataforma. */
+  private _tesoreria: PublicKey;
 
   constructor(
     private readonly config: ConfigService,
@@ -71,8 +74,20 @@ export class WalletCustodianService implements OnModuleInit {
       this._encryptionKey = encKey;
       this._fundLamports = Number(this.config.get<string>('SOLANA_USER_FUND_LAMPORTS') ?? '20000000');
       this._testUsdc = BigInt(this.config.get<string>('SOLANA_USER_TEST_USDC') ?? '10000000000');
+      // Tesorería: address pública, no hace falta su secret (solo recibe).
+      // Si no está seteada cae en el fee-payer, con warning: las comisiones
+      // del acopio (fee-payer) a sí mismo no se verían como movimiento.
+      const tesoreriaRaw = this.config.get<string>('SOLANA_TESORERIA_ADDRESS');
+      if (tesoreriaRaw) {
+        this._tesoreria = new PublicKey(tesoreriaRaw);
+      } else {
+        this._tesoreria = this._feePayer.publicKey;
+        this.logger.warn(
+          'SOLANA_TESORERIA_ADDRESS no seteada: las comisiones van al fee-payer. Setear una wallet aparte para que se vean en el explorer.',
+        );
+      }
       this.logger.log(
-        `WalletCustodianService listo. Fee-payer: ${this._feePayer.publicKey.toBase58()}`,
+        `WalletCustodianService listo. Fee-payer: ${this._feePayer.publicKey.toBase58()} · Tesorería: ${this._tesoreria.toBase58()}`,
       );
     } catch (err) {
       this.logger.error(`Init falló: ${(err as Error).message}. El servicio queda inactivo.`);
@@ -115,6 +130,32 @@ export class WalletCustodianService implements OnModuleInit {
 
   get usdcMint(): PublicKey {
     return this._usdcMint;
+  }
+
+  get tesoreria(): PublicKey {
+    return this._tesoreria;
+  }
+
+  /**
+   * Transferencia SPL de USDC entre wallets. Firma el dueño de los fondos
+   * (`payer`) y la comisión de red la paga la plataforma. Crea la ATA destino
+   * si no existe. Devuelve la signature confirmada.
+   */
+  async transferirUsdc(payer: Keypair, destino: PublicKey, microUsdc: bigint): Promise<string> {
+    const conn = this.conn.connection;
+    const feePayer = this._feePayer;
+    const origenAta = getAssociatedTokenAddressSync(this._usdcMint, payer.publicKey);
+    const destinoAta = getAssociatedTokenAddressSync(this._usdcMint, destino);
+    const ixs = [];
+    const info = await conn.getAccountInfo(destinoAta);
+    if (!info) {
+      ixs.push(createAssociatedTokenAccountInstruction(feePayer.publicKey, destinoAta, destino, this._usdcMint));
+    }
+    ixs.push(createTransferInstruction(origenAta, destinoAta, payer.publicKey, microUsdc));
+    const tx = new Transaction().add(...ixs);
+    tx.feePayer = feePayer.publicKey;
+    const firmantes = payer.publicKey.equals(feePayer.publicKey) ? [feePayer] : [feePayer, payer];
+    return sendAndConfirmTransaction(conn, tx, firmantes);
   }
 
   /**
