@@ -56,8 +56,8 @@ En `Variables` del servicio `backend`, agregá (los `${{ ... }}` son **referenci
 | `PORT` | Railway lo setea automáticamente — no la pongas |
 | `CORS_ORIGIN` | `https://${{ frontend.RAILWAY_PUBLIC_DOMAIN }}` (la armás **después** de crear el frontend; ver paso 5) |
 | `NODE_ENV` | `production` |
-| `GROQ_API_KEY` | Key gratis de https://console.groq.com/keys para el asistente IA. Si está vacía el asistente responde con un stub y el resto de la app anda. |
-| `GROQ_MODEL` | (opcional) Default `llama-3.3-70b-versatile`. |
+| `OPENAI_API_KEY` | Key de https://platform.openai.com/api-keys para el asistente IA. Si está vacía el asistente responde con un stub y el resto de la app anda. |
+| `OPENAI_MODEL` | (opcional) Default `gpt-4o-mini`. Alternativas: `gpt-4o`, `gpt-4.1-mini`. |
 | `SUPERADMIN_EMAIL` | email con el que vas a loguearte al panel `/admin` |
 | `SUPERADMIN_PASSWORD` | contraseña fuerte (guardala en un gestor) |
 | `SUPERADMIN_NOMBRE` | tu nombre para mostrar (ej: `Mateo Formoso`) |
@@ -219,8 +219,8 @@ JWT_ACCESS_EXPIRES_IN = 30m
 JWT_REFRESH_EXPIRES_IN= 7d
 CORS_ORIGIN           = https://${{ frontend.RAILWAY_PUBLIC_DOMAIN }}
 NODE_ENV              = production
-GROQ_API_KEY          = <key de console.groq.com/keys>
-GROQ_MODEL            = llama-3.3-70b-versatile
+OPENAI_API_KEY        = <key de platform.openai.com/api-keys>
+OPENAI_MODEL          = gpt-4o-mini
 ```
 
 ### Frontend
@@ -271,4 +271,4 @@ Una vez que el deploy esté verde:
 1. Configurar **dominio custom** (ej. `app.agrofacil.com.ar`) en Settings → Networking → Custom Domain.
 2. Activar **deploy automático** desde `main` (ya viene activo por defecto).
 3. Crear ambiente **staging** desde otra rama (`develop`) — Railway soporta múltiples environments en el mismo proyecto.
-4. Cuando escale el uso del asistente, considerar plan pago de Groq o volver a Claude para desbloquear visión (parseo de fotos de cultivo).
+4. Cuando escale el uso del asistente, monitorear costo en https://platform.openai.com/usage. gpt-4o-mini tiene visión activa y suele ser suficiente; para diagnóstico agronómico complejo con imagen, evaluar gpt-4o.

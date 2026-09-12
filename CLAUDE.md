@@ -40,7 +40,7 @@ Estás trabajando en **AgroFácil**, una plataforma SaaS de gestión para produc
 | Zod | Validación de DTOs |
 | bcrypt + @nestjs/jwt | Auth (hash + JWT) |
 | Passport (jwt strategy) | Guards de autenticación |
-| groq-sdk | LLM del asistente (Llama 3.3 70b vía Groq, gratis). Para visión (voz/foto) evaluar volver a @anthropic-ai/sdk. |
+| openai | LLM del asistente (gpt-4o-mini, con visión y tool use). |
 | Jest + Supertest | Testing |
 | pino | Logging estructurado |
 
