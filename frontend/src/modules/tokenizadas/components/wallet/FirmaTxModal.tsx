@@ -88,13 +88,17 @@ export function FirmaTxModal({ open, detalle, onAprobar, onCerrar }: Props) {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70]"
           />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.94, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ type: 'spring', duration: 0.3 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] w-full max-w-sm px-4"
-          >
+          {/* Centrado con flex, NO con translate: framer-motion escribe `transform`
+              inline al animar scale/y y pisaba el -translate-x/y-1/2 de Tailwind,
+              dejando la esquina del modal en el centro de la pantalla (se cortaba abajo). */}
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ type: 'spring', duration: 0.3 }}
+              className="w-full max-w-sm pointer-events-auto"
+            >
             {/* max-h + scroll: con muchos ítems (desglose de fee) el modal superaba el alto
                 de la pantalla y los botones Aprobar/Cancelar quedaban fuera de la vista. */}
             <div className="bg-[#0F1216] border border-white/10 rounded-2xl shadow-2xl overflow-y-auto max-h-[92vh]">
@@ -272,7 +276,8 @@ export function FirmaTxModal({ open, detalle, onAprobar, onCerrar }: Props) {
                 )}
               </div>
             </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

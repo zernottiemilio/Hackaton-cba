@@ -1,6 +1,12 @@
+import { lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Tokenizacion } from '../../types/tokenizadas';
+
+// Lazy: Leaflet + tiles pesan ~180KB. La card sólo lo carga cuando aparece
+// en pantalla; el marketplace muestra varias en simultáneo pero comparten
+// el chunk (una sola descarga).
+const MapaCampoPreview = lazy(() => import('../mapa/MapaCampoPreview'));
 import { BadgeModo } from '../campana/BadgeModo';
 import { BarraFondeo } from '../campana/BarraFondeo';
 import { Sparkline } from '../charts/Sparkline';
@@ -48,7 +54,7 @@ export function CardCampana({ t }: Props) {
           boxShadow: 'var(--hv-inset-top)',
         }}
       >
-        {/* Hero con polígono decorativo */}
+        {/* Hero con mapa satelital real del campo */}
         <div
           style={{
             position: 'relative',
@@ -58,23 +64,15 @@ export function CardCampana({ t }: Props) {
             borderBottom: '1px solid var(--hv-border-subtle)',
           }}
         >
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              backgroundImage:
-                'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
-              backgroundSize: '24px 24px',
-            }}
-          />
-          <svg className="absolute inset-0 w-full h-full opacity-40" viewBox="0 0 100 60" preserveAspectRatio="none">
-            <path
-              d="M15,10 L60,8 L85,25 L88,45 L55,55 L20,50 Z"
-              fill="rgba(43,224,106,0.12)"
-              stroke="rgba(43,224,106,0.55)"
-              strokeWidth="0.5"
-              strokeDasharray="1.5,1"
+          <Suspense fallback={<div className="absolute inset-0" />}>
+            <MapaCampoPreview
+              geometria={t.campania.establecimiento?.geometria}
+              latitud={t.campania.establecimiento?.latitud}
+              longitud={t.campania.establecimiento?.longitud}
             />
-          </svg>
+          </Suspense>
+          {/* Gradiente para legibilidad del texto del footer + badges. */}
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/70 via-black/10 to-black/40" />
           <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
             <BadgeModo modo={t.modo} />
             {cierraPronto && (
