@@ -8,7 +8,7 @@ import { Sparkline } from '../components/charts/Sparkline';
 import { useHistoriaPrecios, usePreciosLive } from '../hooks/usePreciosLive';
 import { normalizarCultivo, type Cultivo } from '../services/mockPreciosService';
 import { usd, usdTn, porcentaje, toneladas, diasRestantes, fechaCorta } from '../utils/format';
-import type { ModoTokenizacion, Tokenizacion } from '../types/tokenizadas';
+import type { ModoTokenizacion, ProductorPublico, Tokenizacion } from '../types/tokenizadas';
 
 const CULTIVOS = ['soja', 'maiz', 'trigo', 'girasol'];
 const PROVINCIAS = ['Buenos Aires', 'Córdoba', 'Santa Fe', 'La Pampa'];
@@ -23,13 +23,28 @@ export function MarketplacePage() {
   const [filtros, setFiltros] = useState<FiltrosMarketplace>({ orden: 'cierra_pronto' });
   const [seleccionada, setSeleccionada] = useState<Tokenizacion | null>(null);
 
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+
   const { data: cosechas = [], isLoading } = useQuery({
     queryKey: ['tk', 'marketplace', filtros],
     queryFn: () => tokenizadasApi.marketplace(filtros),
   });
+  // Reputación de productores: una sola query pública, se cruza por id en cada fila.
+  const { data: productores = [] } = useQuery({
+    queryKey: ['tk', 'productores'],
+    queryFn: () => tokenizadasApi.listarProductores(),
+    staleTime: 60_000,
+  });
+  const productoresPorId = useMemo(
+    () => Object.fromEntries(productores.map((p) => [p.id, p])) as Record<string, ProductorPublico>,
+    [productores],
+  );
 
   const setF = <K extends keyof FiltrosMarketplace>(k: K, v: FiltrosMarketplace[K]) =>
     setFiltros((f) => ({ ...f, [k]: v }));
+  const limpiar = () => setFiltros({ orden: 'cierra_pronto' });
+  const filtrosActivos = [filtros.cultivo, filtros.provincia, filtros.modo, filtros.descuentoMin, filtros.soloConGarantias]
+    .filter((v) => v !== undefined && v !== false).length;
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -53,7 +68,18 @@ export function MarketplacePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="hv-label-sm" style={{ fontSize: 10 }}>Ordenar</span>
+          <button
+            type="button"
+            onClick={() => setFiltrosAbiertos((v) => !v)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              filtrosAbiertos || filtrosActivos > 0
+                ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40'
+                : 'bg-white/5 text-white/70 hover:bg-white/10 ring-1 ring-white/10'
+            }`}
+          >
+            Filtros{filtrosActivos > 0 ? ` · ${filtrosActivos}` : ''} {filtrosAbiertos ? '▴' : '▾'}
+          </button>
+          <span className="hv-label-sm" style={{ fontSize: 10, marginLeft: 8 }}>Ordenar</span>
           <select
             value={filtros.orden}
             onChange={(e) => setF('orden', e.target.value as FiltrosMarketplace['orden'])}
@@ -67,8 +93,17 @@ export function MarketplacePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
-        <aside className="space-y-5">
+      {/* Filtros colapsados arriba (estilo P2P): la tabla ocupa todo el ancho. */}
+      {filtrosAbiertos && (
+        <div
+          className="flex flex-wrap items-start gap-x-8 gap-y-4 mb-5"
+          style={{
+            background: 'var(--hv-bg-panel)',
+            border: '1px solid var(--hv-border)',
+            borderRadius: 14,
+            padding: '14px 18px',
+          }}
+        >
           <FiltroGrupo titulo="Cultivo">
             {CULTIVOS.map((c) => (
               <FiltroChip
@@ -79,7 +114,6 @@ export function MarketplacePage() {
               />
             ))}
           </FiltroGrupo>
-
           <FiltroGrupo titulo="Provincia">
             {PROVINCIAS.map((p) => (
               <FiltroChip
@@ -90,7 +124,6 @@ export function MarketplacePage() {
               />
             ))}
           </FiltroGrupo>
-
           <FiltroGrupo titulo="Modo">
             {(['porcentual', 'fijo'] as ModoTokenizacion[]).map((m) => (
               <FiltroChip
@@ -101,54 +134,38 @@ export function MarketplacePage() {
               />
             ))}
           </FiltroGrupo>
-
           <FiltroGrupo titulo="Descuento mínimo">
-            <div className="px-2 pt-1 w-full">
-              <input
-                type="range"
-                min={0}
-                max={20}
-                step={1}
-                value={filtros.descuentoMin ?? 0}
-                onChange={(e) => setF('descuentoMin', Number(e.target.value) || undefined)}
-                className="w-full accent-emerald-500"
+            {[5, 10, 15].map((d) => (
+              <FiltroChip
+                key={d}
+                label={`≥ ${d}%`}
+                activo={filtros.descuentoMin === d}
+                onClick={() => setF('descuentoMin', filtros.descuentoMin === d ? undefined : d)}
               />
-              <div className="flex justify-between text-[10px] text-white/40 mt-1">
-                <span>0%</span>
-                <span className="tabular-nums text-white/80 font-medium">{filtros.descuentoMin ?? 0}%</span>
-                <span>20%</span>
-              </div>
-            </div>
+            ))}
           </FiltroGrupo>
-
-          <label className="flex items-center gap-2 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={!!filtros.soloConGarantias}
-              onChange={(e) => setF('soloConGarantias', e.target.checked || undefined)}
-              className="accent-emerald-500"
+          <FiltroGrupo titulo="Garantías">
+            <FiltroChip
+              label="Solo con garantías"
+              activo={!!filtros.soloConGarantias}
+              onClick={() => setF('soloConGarantias', filtros.soloConGarantias ? undefined : true)}
             />
-            <span className="text-white/60 text-xs group-hover:text-white/90">Solo con garantías</span>
-          </label>
-
-          <button
-            onClick={() => setFiltros({ orden: 'cierra_pronto' })}
-            className="w-full text-xs text-white/40 hover:text-white/80 py-2 border-t border-white/5"
-          >
-            Limpiar filtros
-          </button>
-        </aside>
-
-        <div>
-          {isLoading ? (
-            <TablaSkeleton />
-          ) : cosechas.length === 0 ? (
-            <EstadoVacio onReset={() => setFiltros({ orden: 'cierra_pronto' })} />
-          ) : (
-            <TablaCosechas cosechas={cosechas} onSeleccionar={setSeleccionada} />
+          </FiltroGrupo>
+          {filtrosActivos > 0 && (
+            <button onClick={limpiar} className="text-xs text-white/40 hover:text-white/80 self-end pb-1">
+              Limpiar filtros
+            </button>
           )}
         </div>
-      </div>
+      )}
+
+      {isLoading ? (
+        <TablaSkeleton />
+      ) : cosechas.length === 0 ? (
+        <EstadoVacio onReset={limpiar} />
+      ) : (
+        <TablaCosechas cosechas={cosechas} productores={productoresPorId} onSeleccionar={setSeleccionada} />
+      )}
 
       <ModalCosecha cosecha={seleccionada} onClose={() => setSeleccionada(null)} />
     </div>
@@ -159,9 +176,11 @@ export function MarketplacePage() {
 
 function TablaCosechas({
   cosechas,
+  productores,
   onSeleccionar,
 }: {
   cosechas: Tokenizacion[];
+  productores: Record<string, ProductorPublico>;
   onSeleccionar: (t: Tokenizacion) => void;
 }) {
   const ticks = usePreciosLive();
@@ -187,6 +206,7 @@ function TablaCosechas({
           >
             <tr>
               <ThCosecha align="left">Cosecha</ThCosecha>
+              <ThCosecha align="left">Productor</ThCosecha>
               <ThCosecha align="left">Modo</ThCosecha>
               <ThCosecha align="right">Precio HRV</ThCosecha>
               <ThCosecha align="right">vs pizarra</ThCosecha>
@@ -208,6 +228,7 @@ function TablaCosechas({
                 <FilaCosecha
                   key={t.id}
                   t={t}
+                  productor={productores[t.productorId]}
                   cultivo={cultivo}
                   pizarraLive={pizarra}
                   spreadPct={spreadPct}
@@ -250,12 +271,14 @@ function ThCosecha({
 
 function FilaCosecha({
   t,
+  productor,
   cultivo,
   pizarraLive,
   spreadPct,
   onClick,
 }: {
   t: Tokenizacion;
+  productor?: ProductorPublico;
   cultivo: Cultivo;
   pizarraLive: number;
   spreadPct: number;
@@ -294,6 +317,10 @@ function FilaCosecha({
         <div className="hv-label-sm" style={{ fontSize: 10, marginTop: 3 }}>
           {t.campania.cultivo?.nombre} · {partido}, {provincia}
         </div>
+      </td>
+
+      <td style={{ padding: '14px' }}>
+        <ReputacionProductor nombre={t.productor?.nombre ?? '—'} productor={productor} />
       </td>
 
       <td style={{ padding: '14px' }}>
@@ -391,6 +418,77 @@ function FilaCosecha({
         </svg>
       </td>
     </tr>
+  );
+}
+
+// ─── Reputación del productor (estilo P2P: quién está del otro lado) ──
+
+function ReputacionProductor({ nombre, productor }: { nombre: string; productor?: ProductorPublico }) {
+  const liquidadas = productor?.metricas.campaniasLiquidadas ?? 0;
+  const positivas = productor?.metricas.liquidadasPositivas ?? 0;
+  const cumplimiento = liquidadas > 0 ? Math.round((positivas / liquidadas) * 100) : null;
+  const rating = productor?.rating ?? null;
+  const verificado = rating !== null && rating >= 4.5;
+  const inicial = nombre.trim().charAt(0).toUpperCase() || '?';
+
+  return (
+    <div className="flex items-center gap-2.5" style={{ minWidth: 150 }}>
+      <div
+        className="hv-mono"
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: 9,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          fontSize: 12,
+          fontWeight: 700,
+          color: 'var(--hv-green-text)',
+          background: 'var(--hv-green-soft)',
+          border: '1px solid rgba(43,224,106,0.20)',
+        }}
+      >
+        {inicial}
+      </div>
+      <div style={{ lineHeight: 1.2 }}>
+        <div className="flex items-center gap-1.5">
+          <span style={{ color: 'var(--hv-text)', fontWeight: 600, fontSize: 12 }}>{nombre}</span>
+          {verificado && (
+            <span
+              title="Productor verificado: rating ≥ 4.5"
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 9,
+                fontWeight: 700,
+                color: '#0F1216',
+                background: 'var(--hv-green)',
+              }}
+            >
+              ✓
+            </span>
+          )}
+        </div>
+        <div className="hv-mono" style={{ fontSize: 10, color: 'var(--hv-text-muted)', marginTop: 3 }}>
+          {rating !== null ? (
+            <>
+              <span style={{ color: 'var(--hv-amber-text)' }}>★</span> {rating.toFixed(1)}
+              {' · '}
+              {liquidadas} {liquidadas === 1 ? 'liquidada' : 'liquidadas'}
+              {cumplimiento !== null && <> · {cumplimiento}% ok</>}
+            </>
+          ) : (
+            'Sin historial'
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

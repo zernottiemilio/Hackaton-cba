@@ -35,6 +35,9 @@ export interface CampoResumen {
   provincia: string | null;
   superficieTotalHa: number | null;
   geometria: any | null;
+  /** Coordenadas del establecimiento. Fallback del mapa cuando falta la geometría. */
+  latitud?: number | string | null;
+  longitud?: number | string | null;
   fotos: string[];
 }
 
@@ -47,6 +50,24 @@ export interface ProductorResumen {
   id: string;
   nombre: string;
   createdAt?: string;
+}
+
+/** Ficha pública del productor (`GET /tokenizadas/productores`): rating y track record. */
+export interface ProductorPublico {
+  id: string;
+  nombre: string;
+  createdAt: string;
+  /** 1 a 5, lo calcula el backend con liquidaciones, garantías y antigüedad. */
+  rating: number;
+  metricas: {
+    campaniasActivas: number;
+    campaniasLiquidadas: number;
+    liquidadasPositivas: number;
+    toneladasBajoAdmin: number;
+    usdRecaudadoTotal: number;
+  };
+  cultivos: string[];
+  provincia: string | null;
 }
 
 export interface CampaniaTokenizada {

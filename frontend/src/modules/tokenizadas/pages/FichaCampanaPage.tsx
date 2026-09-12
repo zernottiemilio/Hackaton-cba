@@ -1,6 +1,11 @@
+import { lazy, Suspense } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { tokenizadasApi } from '../services/tokenizadasService';
+
+// Lazy: Leaflet + tiles pesan ~180KB. Solo se carga en la ficha, no en
+// las rutas del productor u otras que no lo necesitan.
+const MapaCampoPreview = lazy(() => import('../components/mapa/MapaCampoPreview'));
 import { usd, usdTn, porcentaje, toneladas, hectareas, fecha, diasRestantes } from '../utils/format';
 import { BadgeModo } from '../components/campana/BadgeModo';
 import { EstadoCampanaBadge } from '../components/campana/EstadoCampanaBadge';
@@ -43,26 +48,17 @@ export function FichaCampanaPage() {
         ← Cosechas
       </Link>
 
-      {/* Hero: mapa a sangre */}
+      {/* Hero: mapa satelital con el polígono real del campo */}
       <div className="relative h-64 md:h-80 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-emerald-900/70 via-emerald-800/50 to-lime-900/70">
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
-            backgroundSize: '32px 32px',
-          }}
-        />
-        <svg className="absolute inset-0 w-full h-full opacity-40" viewBox="0 0 100 60" preserveAspectRatio="none">
-          <path
-            d="M15,10 L60,8 L85,25 L88,45 L55,55 L20,50 Z"
-            fill="rgba(255,255,255,0.1)"
-            stroke="rgba(255,255,255,0.4)"
-            strokeWidth="0.3"
-            strokeDasharray="1,1"
+        <Suspense fallback={<div className="absolute inset-0" />}>
+          <MapaCampoPreview
+            geometria={t.campania.establecimiento?.geometria}
+            latitud={t.campania.establecimiento?.latitud}
+            longitud={t.campania.establecimiento?.longitud}
           />
-        </svg>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        </Suspense>
+        {/* Gradiente para que el texto blanco quede legible sobre el mapa. */}
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
         <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between">
           <div>
             <div className="flex items-center gap-2 mb-3">
@@ -225,6 +221,18 @@ function SeccionPrecioPizarra({ cultivo, precioReferencia, precioToken }: { cult
             {porcentaje(spread, 1)}
           </div>
         </div>
+      </div>
+      <div className="pt-3 mt-3 border-t border-white/5 text-[10px] text-white/30">
+        Datos:{' '}
+        <a
+          href="https://granos.ar"
+          target="_blank"
+          rel="noreferrer"
+          className="text-white/50 hover:text-white/80 underline decoration-dotted"
+        >
+          granos.ar
+        </a>{' '}
+        · Consiagro / BCR Rosario
       </div>
     </div>
   );

@@ -70,3 +70,16 @@
   .pl-safe { padding-left: env(safe-area-inset-left); }
   .pr-safe { padding-right: env(safe-area-inset-right); }
 }
+
+/* Ocultar los spinners nativos de <input type="number"> — usamos botones
+   propios (- / +) en varios formularios y las flechitas nativas quedaban
+   encima del valor con estilo default del browser. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
