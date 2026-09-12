@@ -1,5 +1,8 @@
 # Agent Instructions — AgroFácil
 
+> **Hackathon (sept 2026): la app principal es Harvest.fi, la tokenización de cosecha sobre Solana.**
+> Antes de tocar `backend/src/modules/tokenizadas`, `frontend/src/modules/tokenizadas` o `solana/agro_token`, leer **`HARVEST.md`**: decisión de arquitectura (custodial, Solana real en devnet), roles, flujo de la demo, endpoints, envs y trampas. Lo de abajo sigue siendo válido para el resto del código (unidades, convenciones, seguridad).
+
 ## Contexto del Proyecto
 
 Estás trabajando en **AgroFácil**, una plataforma SaaS de gestión para productores agropecuarios argentinos. El MVP (Fase 1) le permite al productor cargar su campaña y obtener, por lote/cultivo/campaña, su **costo, margen (bruto y neto) y punto de equilibrio** expresados en USD y en quintales por hectárea (qq/ha).
