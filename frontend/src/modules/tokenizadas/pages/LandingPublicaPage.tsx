@@ -12,7 +12,7 @@ export function LandingPublicaPage() {
   return (
     <div className="max-w-6xl mx-auto pb-24">
       {/* Hero */}
-      <section className="relative pt-8 pb-32">
+      <section className="relative pt-6 pb-32">
         <div
           className="absolute -top-40 left-1/2 -translate-x-1/2 pointer-events-none"
           style={{
@@ -29,16 +29,49 @@ export function LandingPublicaPage() {
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="hv-label"
-            style={{ fontSize: 11, letterSpacing: '0.22em' }}
+            className="flex justify-center"
+            style={{ marginBottom: 28 }}
           >
-            Cosechas tokenizadas · Solana devnet
+            <HarvestLogo variant="lockup-vertical" size={64} animated tagline />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="inline-flex items-center gap-2"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 999,
+              border: '1px solid rgba(43,224,106,0.28)',
+              background: 'rgba(43,224,106,0.08)',
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: 'var(--hv-green)',
+                boxShadow: '0 0 8px rgba(43,224,106,0.8)',
+              }}
+            />
+            <span
+              className="hv-label"
+              style={{
+                fontSize: 10.5,
+                letterSpacing: '0.22em',
+                color: 'var(--hv-green-text)',
+              }}
+            >
+              Cosechas tokenizadas · Solana devnet
+            </span>
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
+            transition={{ delay: 0.1 }}
             style={{
               fontSize: 76,
               fontWeight: 600,
@@ -55,7 +88,7 @@ export function LandingPublicaPage() {
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.18 }}
             style={{
               marginTop: 28,
               fontSize: 18,
@@ -74,7 +107,7 @@ export function LandingPublicaPage() {
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
+            transition={{ delay: 0.26 }}
             className="mt-10 flex flex-wrap gap-3 justify-center"
           >
             <Link
@@ -105,6 +138,18 @@ export function LandingPublicaPage() {
             >
               Explorar marketplace
             </Link>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35 }}
+            className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2"
+            style={{ color: 'var(--hv-text-muted)' }}
+          >
+            <HeroTrust label="Custodia por acopios habilitados" />
+            <HeroTrust label="Liquidación atómica on-chain" />
+            <HeroTrust label="USDC en vault del programa" />
           </motion.div>
         </div>
       </section>
@@ -245,6 +290,27 @@ export function LandingPublicaPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function HeroTrust({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2" style={{ fontSize: 12 }}>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--hv-green)"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M20 6L9 17l-5-5" />
+      </svg>
+      {label}
+    </span>
   );
 }
 
