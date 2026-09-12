@@ -9,6 +9,7 @@ import { usd, porcentaje, usdCompacto } from '../utils/format';
 import { useWalletStore } from '../stores/walletStore';
 import { HarvestLogo } from '../components/brand/HarvestLogo';
 import { HomeInversorPage } from './inversor/HomeInversorPage';
+import { HomeProductorPage } from './productor/HomeProductorPage';
 import { useAuthStore } from '@/stores/authStore';
 import type { Cultivo } from '../services/mockPreciosService';
 
@@ -19,6 +20,9 @@ export function HomePage() {
 
   // Vista según rol del usuario autenticado.
   // El wallet mock ya no decide el shell — es solo para firmar tx on-chain.
+  if (usuarioAuth?.rolPlataforma === 'productor') {
+    return <HomeProductorPage />;
+  }
   if (usuarioAuth?.rolPlataforma === 'inversor') {
     return <HomeInversorPage />;
   }
