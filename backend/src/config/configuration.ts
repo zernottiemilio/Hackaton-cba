@@ -11,7 +11,7 @@ export interface AppConfig {
     accessExpiresIn: string;
     refreshExpiresIn: string;
   };
-  groq: {
+  openai: {
     apiKey: string;
     modelo: string;
   };
@@ -37,9 +37,9 @@ export default (): AppConfig => ({
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '30m',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
   },
-  groq: {
-    apiKey: process.env.GROQ_API_KEY ?? '',
-    modelo: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY ?? '',
+    modelo: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
   },
   email: {
     resendApiKey: process.env.RESEND_API_KEY ?? '',
