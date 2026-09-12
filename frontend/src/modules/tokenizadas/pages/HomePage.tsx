@@ -8,11 +8,19 @@ import { Sparkline } from '../components/charts/Sparkline';
 import { usd, porcentaje, usdCompacto } from '../utils/format';
 import { useWalletStore } from '../stores/walletStore';
 import { HarvestLogo } from '../components/brand/HarvestLogo';
+import { HomeInversorPage } from './inversor/HomeInversorPage';
 import type { Cultivo } from '../services/mockPreciosService';
 
 export function HomePage() {
   const conectada = useWalletStore((s) => s.conectada);
+  const contexto = useWalletStore((s) => s.contextoActivo);
   const ticks = usePreciosLive();
+
+  // Vista especializada del inversor con oportunidades del día,
+  // balance destacado y grid de productores con rating.
+  if (contexto === 'inversor' && conectada) {
+    return <HomeInversorPage />;
+  }
 
   const { data: destacadas } = useQuery({
     queryKey: ['tk', 'destacadas'],

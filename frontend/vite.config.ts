@@ -17,6 +17,10 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
         navigateFallback: '/index.html',
+        // El bundle superó los 2 MB default con el módulo tokenizadas (leaflet +
+        // recharts + framer + turf). Subimos el límite hasta que el code-splitting
+        // por route corte el bundle inicial. 4 MB deja margen sin ser absurdo.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
             // Google Fonts CSS

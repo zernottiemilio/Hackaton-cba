@@ -41,6 +41,7 @@ import { CamposListPage } from '@/modules/tokenizadas/pages/productor/CamposList
 import { NuevoCampoPage } from '@/modules/tokenizadas/pages/productor/NuevoCampoPage';
 import { NuevaCampanaPage } from '@/modules/tokenizadas/pages/productor/NuevaCampanaPage';
 import { RevisionColaPage } from '@/modules/tokenizadas/pages/admin/RevisionColaPage';
+import { ProductorDetallePage } from '@/modules/tokenizadas/pages/inversor/ProductorDetallePage';
 import {
   MisCampanasProductorPage,
   AcopioDashboardPage,
@@ -101,6 +102,7 @@ export const router = createBrowserRouter([
       { path: 'invertir', element: <TkMarketplacePage /> },
       { path: 'invertir/:id', element: <TkFichaCampanaPage /> },
       { path: 'portfolio', element: <TkPortfolioPage /> },
+      { path: 'productor/:id', element: <ProductorDetallePage /> },
       { path: 'campos', element: <CamposListPage /> },
       { path: 'campos/nuevo', element: <NuevoCampoPage /> },
       { path: 'campanas', element: <MisCampanasProductorPage /> },
