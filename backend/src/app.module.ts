@@ -22,6 +22,7 @@ import { InsumosAplicadosModule } from './modules/insumos-aplicados/insumos-apli
 import { CalculosModule } from './modules/calculos/calculos.module';
 import { LluviasModule } from './modules/lluvias/lluvias.module';
 import { ClimaModule } from './modules/clima/clima.module';
+import { PreciosModule } from './modules/precios/precios.module';
 import { AsistenteModule } from './modules/asistente/asistente.module';
 import { MonitoreosModule } from './modules/monitoreos/monitoreos.module';
 import { ReportesModule } from './modules/reportes/reportes.module';
@@ -81,6 +82,7 @@ import { RolPlataformaGuard } from './common/guards/rol-plataforma.guard';
     CalculosModule,
     LluviasModule,
     ClimaModule,
+    PreciosModule,
     AsistenteModule,
     MonitoreosModule,
     ReportesModule,

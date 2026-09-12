@@ -222,6 +222,18 @@ function SeccionPrecioPizarra({ cultivo, precioReferencia, precioToken }: { cult
           </div>
         </div>
       </div>
+      <div className="pt-3 mt-3 border-t border-white/5 text-[10px] text-white/30">
+        Datos:{' '}
+        <a
+          href="https://granos.ar"
+          target="_blank"
+          rel="noreferrer"
+          className="text-white/50 hover:text-white/80 underline decoration-dotted"
+        >
+          granos.ar
+        </a>{' '}
+        · Consiagro / BCR Rosario
+      </div>
     </div>
   );
 }
