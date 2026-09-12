@@ -13,6 +13,7 @@ import { NuevoCampoPage } from '@/modules/tokenizadas/pages/productor/NuevoCampo
 import { NuevaCampanaPage } from '@/modules/tokenizadas/pages/productor/NuevaCampanaPage';
 import { MisCampanasPage } from '@/modules/tokenizadas/pages/productor/MisCampanasPage';
 import { RevisionColaPage } from '@/modules/tokenizadas/pages/admin/RevisionColaPage';
+import { LiquidacionPage } from '@/modules/tokenizadas/pages/admin/LiquidacionPage';
 import { ProductorDetallePage } from '@/modules/tokenizadas/pages/inversor/ProductorDetallePage';
 import { AsistenteHarvestPage } from '@/modules/tokenizadas/pages/AsistenteHarvestPage';
 import { ClimaHarvestPage } from '@/modules/tokenizadas/pages/ClimaHarvestPage';
@@ -96,6 +97,7 @@ export const router = createBrowserRouter([
         element: <RutaHarvest roles={['admin_plataforma']} />,
         children: [
           { path: 'revision-emisiones', element: <RevisionColaPage /> },
+          { path: 'liquidacion', element: <LiquidacionPage /> },
           { path: 'red-acopios', element: <AdminAcopiosPage /> },
           { path: 'conciliacion', element: <ConciliacionPage /> },
         ],

@@ -35,6 +35,7 @@ const ITEMS: NavItem[] = [
   { to: '/acopio/liberaciones', label: 'Liberaciones', icon: '⤴', roles: ['acopio'] },
   // Admin
   { to: '/revision-emisiones', label: 'Cola de revisión', icon: '⚑', roles: ['admin_plataforma'] },
+  { to: '/liquidacion', label: 'Liquidación', icon: '◎', roles: ['admin_plataforma'] },
   { to: '/red-acopios', label: 'Red de acopios', icon: '☰', roles: ['admin_plataforma'] },
   { to: '/conciliacion', label: 'Conciliación', icon: '⊗', roles: ['admin_plataforma'] },
 ];

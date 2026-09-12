@@ -109,6 +109,10 @@ export interface Tokenizacion {
   toneladasMinimas?: number | null;
   /** Signature de release_funds. La persiste el backend en VAL-12. */
   txSignatureLiberacion?: string | null;
+  /** Resultado de settle. Los persiste el backend en VAL-12. */
+  toneladasEntregadas?: number | null;
+  payoutPorTokenUsd?: number | null;
+  txSignatureLiquidacion?: string | null;
 
   createdAt: string;
   campania: CampaniaTokenizada;
@@ -170,6 +174,21 @@ export interface LiberarFondosResult {
   txSignature: string;
   /** USDC que salió del vault hacia la wallet del productor. */
   montoUsd: number;
+}
+
+/** Body de `POST /tokenizadas/:id/liquidar` (settle). */
+export interface LiquidarPayload {
+  toneladasEntregadas: number;
+  precioLiquidacionUsdTn: number;
+}
+
+/** Respuesta de `POST /tokenizadas/:id/liquidar`. */
+export interface LiquidarResult {
+  txSignature: string;
+  /** USDC que cobra cada token al redimir: depositoUsd / tokensVendidos, división entera en micro-USDC. */
+  payoutPorTokenUsd: number;
+  /** USDC que el acopio depositó en el vault: toneladasEntregadas × precio. */
+  depositoUsd: number;
 }
 
 export interface ReclamoResult {
